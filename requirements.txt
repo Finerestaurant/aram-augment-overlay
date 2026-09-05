@@ -4,7 +4,14 @@
 # same accuracy once the title-band crop and closed-set fuzzy matching are
 # applied -- see docs/FINDINGS.md section 12.
 obsws-python>=1.8.0
-rapidocr-onnxruntime>=1.2.3
+# Pinned, not a lower bound: 1.4.4 reads the tooltip badly enough that
+# frame_05 comes back as '=이르 단 스음요' and fuzzy-matches to the wrong
+# augment ('이빨 요정' instead of '광휘의 검 업그레이드'). It fails as a
+# confident wrong answer, not as a miss, so it is invisible in play. run.bat
+# reinstalls whenever .venv is gone, which on a PC-bang machine is every
+# session -- an unpinned floor means that regression comes back on its own.
+# Verify with scripts/selftest.py (7/7) before moving this.
+rapidocr-onnxruntime==1.2.3
 opencv-python-headless>=4.10
 numpy>=2.0
 Pillow>=10.0
