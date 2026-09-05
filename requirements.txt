@@ -1,17 +1,20 @@
 # Deliberately lean: this gets downloaded on a PC-bang machine.
-# PaddleOCR reads the tooltip more accurately out of the box, but pulls in
-# paddlepaddle (380 MB). The ONNX stack below is ~160 MB total and reaches the
-# same accuracy once the title-band crop and closed-set fuzzy matching are
-# applied -- see docs/FINDINGS.md section 12.
+# OCR is the Windows engine (Windows.Media.Ocr), reached through the split
+# winrt namespace packages -- about 3 MB of wheels and no model download at all.
+# It replaced rapidocr-onnxruntime + onnxruntime (~64 MB plus a 3.2 MB model),
+# which read 4/5 of the captures with known answers and missed the silver
+# 믿음직한 무기 outright; the Windows engine reads 5/5 exactly, at 6 ms per crop
+# against 87 ms. See docs/FINDINGS.md section 12.
+#
+# This needs the Korean OCR language pack, which ships with Korean Windows:
+#   Add-WindowsCapability -Online -Name "Language.OCR~~~ko-KR~0.0.1.0"
 obsws-python>=1.8.0
-# Pinned, not a lower bound: 1.4.4 reads the tooltip badly enough that
-# frame_05 comes back as '=이르 단 스음요' and fuzzy-matches to the wrong
-# augment ('이빨 요정' instead of '광휘의 검 업그레이드'). It fails as a
-# confident wrong answer, not as a miss, so it is invisible in play. run.bat
-# reinstalls whenever .venv is gone, which on a PC-bang machine is every
-# session -- an unpinned floor means that regression comes back on its own.
-# Verify with scripts/selftest.py (7/7) before moving this.
-rapidocr-onnxruntime==1.2.3
+winrt-Windows.Media.Ocr>=3.2.1
+winrt-Windows.Globalization>=3.2.1
+winrt-Windows.Graphics.Imaging>=3.2.1
+winrt-Windows.Storage.Streams>=3.2.1
+winrt-Windows.Foundation>=3.2.1
+winrt-Windows.Foundation.Collections>=3.2.1
 opencv-python-headless>=4.10
 numpy>=2.0
 Pillow>=10.0

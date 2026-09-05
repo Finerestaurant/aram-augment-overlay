@@ -41,6 +41,9 @@ class RunState:
 class WidgetServer:
     def __init__(self, state: RunState, host=None, port=None):
         self.state = state
+        # what the page says it actually renders as, so the OBS source can be
+        # sized to the content instead of a fixed box with dead space in it
+        self.size = {"w": 0, "h": 0, "seq": 0}
         self.host = host or config.WIDGET_HOST
         self.port = port or config.WIDGET_PORT
         self._httpd = None
@@ -49,6 +52,8 @@ class WidgetServer:
     def _handler(self):
         state = self.state
         page = (config.ASSETS / "widget.html").read_bytes()
+        on_reset = self.save
+        size = self.size
 
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a):
@@ -67,6 +72,31 @@ class WidgetServer:
                     self._send(state.to_json().encode("utf-8"), "application/json; charset=utf-8")
                 elif self.path in ("/", "/index.html", "/widget.html"):
                     self._send(page, "text/html; charset=utf-8")
+                else:
+                    self.send_error(404)
+
+            def do_POST(self):
+                # Reached from the widget's own button, which OBS exposes through
+                # the source's Interact window. A new game clears the list on its
+                # own; this is for the times that is not what you want -- a
+                # remake, a restart mid-game, or a stray false positive.
+                if self.path.startswith("/size"):
+                    try:
+                        n = int(self.headers.get("Content-Length", 0))
+                        got = json.loads(self.rfile.read(n).decode("utf-8"))
+                        w_, h_ = int(got["w"]), int(got["h"])
+                    except Exception:
+                        self.send_error(400)
+                        return
+                    if (w_, h_) != (size["w"], size["h"]):
+                        size.update(w=w_, h=h_, seq=size["seq"] + 1)
+                    self._send(b'{"ok":true}', "application/json")
+                    return
+                if self.path.startswith("/reset"):
+                    state.picks.clear()
+                    on_reset()
+                    self._send(state.to_json().encode("utf-8"),
+                               "application/json; charset=utf-8")
                 else:
                     self.send_error(404)
         return H

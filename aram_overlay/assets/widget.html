@@ -13,7 +13,12 @@
     font-family: "Pretendard", "Malgun Gothic", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  #wrap { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+  /* inline-flex so the box hugs its contents instead of filling the source --
+     the tool reads the measured size back and resizes the OBS source to match */
+  /* inline-flex so the box hugs its contents instead of filling the source --
+     the tool reads the measured size back and resizes the OBS source to match */
+  #wrap { display: inline-flex; flex-direction: column; gap: 8px; padding: 12px;
+          max-width: 420px; }
   .card {
     display: flex; align-items: center; gap: 10px;
     padding: 8px 12px 8px 8px;
@@ -26,7 +31,17 @@
   .card.silver    { border-left-color: var(--silver); }
   .card.gold      { border-left-color: var(--gold); }
   .card.prismatic { border-left-color: var(--prism); }
-  .card img { width: 42px; height: 42px; border-radius: 4px; flex: none; }
+  /* The icons ship as white line art and there is no coloured variant on the
+     CDN, so the glyph is used as a mask and filled with the rarity colour. */
+  .icon {
+    width: 42px; height: 42px; flex: none; border-radius: 4px;
+    background: var(--unknown);
+    -webkit-mask: var(--icon) center / 38px 38px no-repeat;
+    mask: var(--icon) center / 38px 38px no-repeat;
+  }
+  .card.silver    .icon { background: var(--silver); }
+  .card.gold      .icon { background: var(--gold); }
+  .card.prismatic .icon { background: var(--prism); }
   .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .name {
     color: #f2f5f8; font-size: 17px; font-weight: 600;
@@ -37,13 +52,25 @@
   .sub .r-silver    { color: var(--silver); }
   .sub .r-gold      { color: var(--gold); }
   .sub .r-prismatic { color: var(--prism); }
-  #empty { color: #6f7783; font-size: 13px; padding: 6px 4px; }
+  /* Only visible while a pointer is over the widget. A stream has no cursor
+     here, so it stays hidden on air; OBS's "상호작용" window gives you one. */
+  #reset {
+    position: fixed; top: 6px; right: 6px;
+    opacity: 0; transition: opacity .12s;
+    background: rgba(180, 40, 40, .92); color: #fff;
+    border: 0; border-radius: 5px; padding: 5px 10px;
+    font: 600 12px/1 "Malgun Gothic", system-ui, sans-serif;
+    cursor: pointer;
+  }
+  body:hover #reset { opacity: 1; }
+  #reset:active { background: rgba(140, 28, 28, .95); }
   @keyframes in {
     from { opacity: 0; transform: translateX(-14px); }
     to   { opacity: 1; transform: none; }
   }
 </style>
-<div id="wrap"><div id="empty">증강 대기 중…</div></div>
+<div id="wrap"></div>
+<button id="reset" title="증강 목록 비우기">초기화</button>
 <script>
   const KO = { silver: "실버", gold: "골드", prismatic: "프리즘", unknown: "미상", other: "기타" };
   const wrap = document.getElementById("wrap");
@@ -54,20 +81,13 @@
     if (key === lastKey) return;
     lastKey = key;
     wrap.innerHTML = "";
-    if (!picks.length) {
-      const d = document.createElement("div");
-      d.id = "empty";
-      d.textContent = "증강 대기 중…";
-      wrap.appendChild(d);
-      return;
-    }
+    if (!picks.length) return;      // 아무것도 없으면 아무것도 그리지 않는다
     for (const p of picks) {
       const el = document.createElement("div");
       el.className = "card " + (p.rarity || "unknown");
-      const img = document.createElement("img");
-      img.src = p.icon_url || "";
-      img.alt = "";
-      img.onerror = () => { img.style.visibility = "hidden"; };
+      const img = document.createElement("div");
+      img.className = "icon";
+      if (p.icon_url) img.style.setProperty("--icon", `url("${p.icon_url}")`);
       const meta = document.createElement("div");
       meta.className = "meta";
       const name = document.createElement("div");
@@ -86,13 +106,40 @@
     }
   }
 
+  // The source is sized to a full list, not to what is on screen right now.
+  // Sizing to the current contents makes the box collapse to one card, which is
+  // fiddly to grab and place in OBS before going live; the extra area is
+  // transparent, so nothing shows on air either way.
+  const MAX_PICKS = 6, PAD = 12, GAP = 8, CARD_H = 58, BOX_W = 420;
+  let sentW = 0, sentH = 0;
+  function reportSize() {
+    const first = wrap.firstElementChild;
+    const cardH = first ? Math.round(first.getBoundingClientRect().height) || CARD_H
+                        : CARD_H;
+    const h = PAD * 2 + MAX_PICKS * cardH + (MAX_PICKS - 1) * GAP;
+    const w = BOX_W;
+    if (w === sentW && h === sentH) return;
+    sentW = w; sentH = h;
+    fetch("/size", {method: "POST", body: JSON.stringify({w, h})}).catch(() => {});
+  }
+
   async function tick() {
     try {
       const r = await fetch("/state.json", { cache: "no-store" });
       const s = await r.json();
       render(s.picks || []);
+      requestAnimationFrame(reportSize);   // 비어 있어도 보고해 박스를 유지
     } catch (e) { /* server not up yet; keep the last frame */ }
   }
+  document.getElementById("reset").addEventListener("click", async () => {
+    try {
+      const r = await fetch("/reset", { method: "POST" });
+      const s = await r.json();
+      lastKey = "";            // force a repaint even if the list was empty
+      render(s.picks || []);
+    } catch (e) { /* server gone; the poll below will catch up */ }
+  });
+
   tick();
   setInterval(tick, 1000);
 </script>

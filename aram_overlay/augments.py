@@ -49,7 +49,8 @@ def _icon_url(path: str) -> str:
 class AugmentDB:
     def __init__(self, augments: list[Augment]):
         self.augments = augments
-        self._norm = [(_squash(a.name), a) for a in augments]
+        self._norm = [(_squash(a.name), _strip_final(_squash(a.name)), a)
+                      for a in augments]
 
     @classmethod
     def load(cls, refresh: bool = False, max_age_days: int = 7) -> "AugmentDB":
@@ -83,21 +84,50 @@ class AugmentDB:
 
         Returns (augment, score in 0..1). Score is the similarity of the
         whitespace-stripped strings -- OCR drops and mangles spaces constantly.
+
+        Rarity ranks, it does not filter. It used to filter, and a misread border
+        then put the right answer out of reach entirely: 믿음직한 무기 (silver)
+        read exactly, but with the border seen as gold the pool held only gold
+        augments and the pick came back 환영 무기. Worse, 적응형 능력치 (silver)
+        landed on 능력치의 순환 at 0.50 -- over the threshold, so it was published
+        as a confident wrong name rather than a failure. Ranking keeps the border
+        useful for genuine ties while letting a good text match win.
         """
         if not text:
             return None, 0.0
         q = _squash(text)
-        pool = [(n, a) for n, a in self._norm if rarity is None or a.rarity == rarity]
-        if not pool:
-            pool = self._norm
 
-        best, best_score = None, 0.0
-        for norm, aug in pool:
-            score = difflib.SequenceMatcher(None, q, norm).ratio()
-            if score > best_score:
-                best, best_score = aug, score
+        qs = _strip_final(q)
+
+        best, best_ranked, best_score = None, 0.0, 0.0
+        for norm, norm_s, aug in self._norm:
+            score = max(difflib.SequenceMatcher(None, q, norm).ratio(),
+                        difflib.SequenceMatcher(None, qs, norm_s).ratio())
+            ranked = score + (config.RARITY_BONUS if rarity and aug.rarity == rarity else 0.0)
+            if ranked > best_ranked:
+                best, best_ranked, best_score = aug, ranked, score
         return best, best_score
 
 
 def _squash(s: str) -> str:
     return "".join(s.split())
+
+
+def _strip_final(s: str) -> str:
+    """Drop the final consonant from every Hangul syllable.
+
+    The Windows recogniser sometimes loses every 받침 in a line at once, keeping
+    the syllable count and order: 끝없는 학살 comes back as 끄어느하사, 범람 as
+    버라, 핀볼 as 피보. Compared as written those score 0.25, 0.40 and 0.50 and
+    match the wrong augment; compared with finals removed on both sides they are
+    exact. Kept as a second opinion rather than a replacement -- it collapses
+    real distinctions too, so it only ever raises a score, never lowers one.
+    """
+    out = []
+    for ch in s:
+        code = ord(ch)
+        if 0xAC00 <= code <= 0xD7A3:
+            out.append(chr(0xAC00 + ((code - 0xAC00) // 28) * 28))
+        else:
+            out.append(ch)
+    return "".join(out)

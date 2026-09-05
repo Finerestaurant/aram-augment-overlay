@@ -25,3 +25,6 @@ logs/
 video/
 vidframes/
 frames_*/
+
+# 아이템 이름 캐시 (모루 판별용, CommunityDragon 에서 받음)
+data/items.json

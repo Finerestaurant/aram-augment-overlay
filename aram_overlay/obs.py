@@ -64,6 +64,66 @@ class ObsCapture:
         }, True)
         return True
 
+    def refresh_browser_sources(self, url: str) -> list[str]:
+        """Reload every browser source pointing at `url`, returning their names.
+
+        CEF does not retry a load that failed, so a browser source that was
+        showing the widget while this tool was stopped stays blank for good once
+        it reloads against a dead port. Starting up is exactly when that has
+        happened, so refresh on the way up rather than making the user find
+        "현재 페이지 새로고침" in the source properties.
+        """
+        want = url.rstrip("/")
+        done = []
+        try:
+            inputs = self.client.get_input_list().inputs
+        except Exception:
+            return done
+        for inp in inputs:
+            if inp.get("inputKind") != "browser_source":
+                continue
+            name = inp["inputName"]
+            try:
+                settings = self.client.get_input_settings(name).input_settings
+                if str(settings.get("url", "")).rstrip("/") != want:
+                    continue
+                self.client.press_input_properties_button(name, "refreshnocache")
+                done.append(name)
+            except Exception:
+                continue
+        return done
+
+    def resize_browser_sources(self, url: str, width: int, height: int) -> list[str]:
+        """Set every browser source showing `url` to this size.
+
+        The widget is a short list that grows as augments are taken, so a fixed
+        box is either too small or mostly empty. The page measures itself and
+        this follows, which keeps the source outline in OBS matching what is
+        actually drawn.
+        """
+        want = url.rstrip("/")
+        done = []
+        try:
+            inputs = self.client.get_input_list().inputs
+        except Exception:
+            return done
+        for inp in inputs:
+            if inp.get("inputKind") != "browser_source":
+                continue
+            name = inp["inputName"]
+            try:
+                cur = self.client.get_input_settings(name).input_settings
+                if str(cur.get("url", "")).rstrip("/") != want:
+                    continue
+                if (cur.get("width"), cur.get("height")) == (width, height):
+                    continue
+                self.client.set_input_settings(
+                    name, {"width": width, "height": height}, True)
+                done.append(name)
+            except Exception:
+                continue
+        return done
+
     def grab(self, width=None, height=None, quality=None, fmt="jpg") -> Image.Image | None:
         """One frame from the game capture source.
 

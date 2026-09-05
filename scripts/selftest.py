@@ -1,8 +1,8 @@
 """Offline check of the whole recognition chain against known captures.
 
 Runs without OBS or a live game, so it also works as an install check: if this
-passes, the detection thresholds, the OCR model and the augment database are all
-wired up correctly on your machine.
+passes, the detection thresholds, the Windows OCR engine and the augment
+database are all wired up correctly on your machine.
 
     python scripts/selftest.py
 """
@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from aram_overlay import config, detect                      # noqa: E402
 from aram_overlay.augments import AugmentDB                  # noqa: E402
+from aram_overlay.items import ItemNames                     # noqa: E402
 from aram_overlay.ocr import TooltipOCR                      # noqa: E402
 from PIL import Image                                        # noqa: E402
 
@@ -37,8 +38,9 @@ def main() -> int:
     print("증강 데이터 불러오는 중...")
     db = AugmentDB.load()
     print(f"  {len(db.augments)}종\n")
-    print("OCR 모델 준비 중...")
+    print("OCR 엔진 준비 중...")
     ocr = TooltipOCR()
+    items = ItemNames.load()
     gate = detect.TemplateGate()
     print()
 
@@ -61,14 +63,21 @@ def main() -> int:
         detail = f"gate={min(scores):.2f} open={is_open}"
 
         if is_open and expect_name:
-            rarity = detect.rarity_of(bgr)
-            raw, _ = ocr.read_title(Image.open(path).convert("RGB"))
-            aug, score = db.match(raw, rarity if rarity in ("silver", "gold", "prismatic") else None)
-            got = aug.name if aug else None
-            ok = ok and got == expect_name
-            detail += f" rarity={rarity} ocr='{raw}' -> '{got}' ({score:.2f})"
-            if expect_rarity and rarity != expect_rarity:
-                detail += f"  [등급 기대 {expect_rarity}]"
+            from aram_overlay.__main__ import _read_card                 # noqa: E402
+            frame = Image.open(path).convert("RGB")
+            slot, _ = detect.hovered_card(detect.card_means(bgr))
+            if slot is None:
+                ok = False
+                detail += " 호버 감지 실패"
+            else:
+                card = _read_card(ocr, db, items, frame, slot)
+                rarity = detect.rarity_of(bgr, slot)
+                got = card["name"] if card["score"] >= config.OCR_MIN_SCORE else None
+                ok = ok and got == expect_name
+                detail += (f" 호버={slot} rarity={rarity} ocr='{card['raw']}'"
+                           f" x{card['scale']} -> '{got}' ({card['score']:.2f})")
+                if expect_rarity and rarity != expect_rarity:
+                    detail += f"  [등급 기대 {expect_rarity}]"
 
         print(f"{'PASS' if ok else 'FAIL'}  {rel}\n      {detail}")
         passed += ok

@@ -20,6 +20,24 @@ def _gray(img: np.ndarray) -> np.ndarray:
     return img if img.ndim == 2 else cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 
+def _edges(img: np.ndarray) -> np.ndarray:
+    """Gradient magnitude, normalised.
+
+    The reroll button is a translucent panel, so the map shows through it and the
+    raw pixels change with whatever is behind. TM_CCOEFF_NORMED absorbs brightness
+    and contrast shifts but not a different background, which is why the same
+    button scored 0.46 on one map and 0.99 on another. What does not change is the
+    shape -- a fixed rectangle and the arrow glyph. Matching on gradients instead
+    of intensity separates the two cases far better: over 29 confirmed windows and
+    14 frames with no window, the worst positive and best negative sit 0.64 apart
+    against 0.25 for raw grayscale.
+    """
+    gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=3)
+    mag = cv2.magnitude(gx, gy)
+    return cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+
 def _scaled(box, w: int, h: int):
     sx, sy = w / config.BASE_W, h / config.BASE_H
     x0, y0, x1, y1 = box
@@ -58,31 +76,75 @@ class TemplateGate:
                 self.templates.append(tpl)
         if not self.templates:
             raise FileNotFoundError(f"no reroll templates in {config.ASSETS}")
+        self._prepped: dict = {}
 
     def scores(self, img: np.ndarray) -> list[float]:
-        """Best match per button, one score for each of the three."""
+        """Correlation at each of the three fixed boxes, one score each.
+
+        No spatial search. The boxes are at fixed screen coordinates, so the only
+        thing a search window adds is the chance for a negative frame to find
+        something button-shaped nearby and report its score instead.
+        """
         gray = _gray(img)
         h, w = gray.shape
         sx, sy = w / config.BASE_W, h / config.BASE_H
-        tpls = self.templates
-        if abs(sx - 1.0) > 1e-3 or abs(sy - 1.0) > 1e-3:
-            tpls = [cv2.resize(t, (max(4, int(t.shape[1] * sx)), max(4, int(t.shape[0] * sy))),
-                               interpolation=cv2.INTER_AREA) for t in tpls]
-        pad = max(4, int(config.REROLL_PAD * sx))
-        y0 = int(config.REROLL_ROW[0] * sy) - pad
-        y1 = int(config.REROLL_ROW[1] * sy) + pad
+        bw, bh = config.REROLL_SIZE
+        tw, th = max(4, round(bw * sx)), max(4, round(bh * sy))
+        key = (tw, th)
+        tpls = self._prepped.get(key)
+        if tpls is None:
+            tpls = [_edges(cv2.resize(t, (tw, th), interpolation=cv2.INTER_AREA)
+                           if t.shape != (th, tw) else t)
+                    for t in self.templates]
+            self._prepped[key] = tpls
+
         out = []
-        for cx in config.REROLL_CENTERS:
-            cxs = int(cx * sx)
-            best = 0.0
-            for tpl in tpls:
-                th, tw = tpl.shape
-                band = gray[max(0, y0):y1, max(0, cxs - tw // 2 - pad):cxs + tw // 2 + pad]
-                if band.shape[0] >= th and band.shape[1] >= tw:
-                    best = max(best, float(cv2.matchTemplate(band, tpl,
-                                                             cv2.TM_CCOEFF_NORMED).max()))
-            out.append(best)
+        for bx, by in config.REROLL_BOXES:
+            x0, y0 = round(bx * sx), round(by * sy)
+            patch = gray[y0:y0 + th, x0:x0 + tw]
+            if patch.shape != (th, tw):
+                out.append(0.0)
+                continue
+            edge = _edges(patch)
+            out.append(max(float(cv2.matchTemplate(edge, t, cv2.TM_CCOEFF_NORMED)[0, 0])
+                           for t in tpls))
         return out
+
+
+class HideButton:
+    """The button that tucks the augment screen away.
+
+    Pressing it hides the cards and the reroll buttons while leaving itself on
+    screen, which the reroll gate alone reads as "window closed". One augment was
+    recorded three times that way -- close, reopen, close, reopen -- once for each
+    card the cursor happened to be over. The screen is only really finished when
+    this goes too.
+    """
+
+    def __init__(self):
+        img = cv2.imread(str(config.HIDE_TEMPLATE), cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            raise FileNotFoundError(f"no hide-button template at {config.HIDE_TEMPLATE}")
+        self.template = img
+        self._prepped: dict = {}
+
+    def score(self, img: np.ndarray) -> float:
+        gray = _gray(img)
+        h, w = gray.shape
+        sx, sy = w / config.BASE_W, h / config.BASE_H
+        bx0, by0, bx1, by1 = config.HIDE_BOX
+        x0, y0 = round(bx0 * sx), round(by0 * sy)
+        tw, th = max(4, round((bx1 - bx0) * sx)), max(4, round((by1 - by0) * sy))
+        t = self._prepped.get((tw, th))
+        if t is None:
+            base = (self.template if self.template.shape == (th, tw)
+                    else cv2.resize(self.template, (tw, th), interpolation=cv2.INTER_AREA))
+            t = _edges(base)
+            self._prepped[(tw, th)] = t
+        patch = gray[y0:y0 + th, x0:x0 + tw]
+        if patch.shape != (th, tw):
+            return 0.0
+        return float(cv2.matchTemplate(_edges(patch), t, cv2.TM_CCOEFF_NORMED)[0, 0])
 
 
 @dataclass
@@ -119,35 +181,23 @@ def hovered_card(means: dict[str, float]) -> tuple[str | None, float]:
     return max(means, key=means.get), spread
 
 
-def selected_card(means: dict[str, float], baseline: float) -> str | None:
-    """The confirmation animation, which is distinct from a hover.
-
-    On hover the two other cards hold their baseline; on selection they collapse
-    to roughly half of it while the chosen card flares.
-    """
-    if baseline <= 0:
-        return None
-    winner = max(means, key=means.get)
-    if means[winner] < baseline * config.SELECT_HIGH:
-        return None
-    losers = [v for k, v in means.items() if k != winner]
-    if all(v < baseline * config.SELECT_LOW for v in losers):
-        return winner
-    return None
-
-
-def rarity_of(img: np.ndarray) -> str:
+def rarity_of(img: np.ndarray, slot: str | None = None) -> str:
     """Rarity from the card border colour.
 
     Gold and prismatic separate on hue; silver is simply darker, so it separates
     on value. Saturation does not work -- a prismatic frame measured 18.8, below
     an observed silver at 35.4.
+
+    With `slot` it reads that one card's border. The three cards routinely differ
+    in rarity, so the median over all three answers a question nobody asked.
     """
     if img.ndim == 2:
         return "unknown"
     h, w = img.shape[:2]
     hues, vals = [], []
-    for box in config.CARD_BORDERS.values():
+    boxes = ([config.CARD_BORDERS[slot]] if slot in config.CARD_BORDERS
+             else list(config.CARD_BORDERS.values()))
+    for box in boxes:
         x0, y0, x1, y1 = _scaled(box, w, h)
         strip = img[max(0, y0):y1, max(0, x0):x1]
         if strip.size == 0:

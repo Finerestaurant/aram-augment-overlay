@@ -20,7 +20,8 @@
 | OBS Studio | 28 이상 ([obsproject.com](https://obsproject.com/)) |
 | 게임 설정 | **테두리 없는 전체화면** 권장 |
 
-첫 실행 시 패키지(약 160 MB)와 한국어 OCR 모델(3 MB)을 내려받습니다.
+첫 실행 시 패키지(약 90 MB)를 내려받습니다. OCR은 Windows 내장 엔진을 쓰므로
+모델 다운로드는 없습니다. 한국어 OCR 언어 팩이 없다면 실행 시 안내가 나옵니다.
 
 ---
 
@@ -129,7 +130,7 @@ OBS가 비정상 종료된 다음 실행에서 나타납니다.
 ## 만든 것들
 
 - 증강 데이터: [CommunityDragon](https://www.communitydragon.org/)
-- OCR: [RapidOCR](https://github.com/RapidAI/RapidOCR) + PaddleOCR 한국어 모델 (Apache-2.0)
+- OCR: Windows 내장 OCR 엔진 (Windows.Media.Ocr)
 - OBS 연동: [obs-websocket](https://github.com/obsproject/obs-websocket)
 
 League of Legends는 Riot Games, Inc.의 상표입니다. 이 프로젝트는 Riot Games와 무관합니다.
