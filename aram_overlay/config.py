@@ -30,15 +30,18 @@ OCR_QUALITY = 92
 # prismatic, and TM_CCOEFF_NORMED ignores linear brightness/contrast shifts.
 # That is what makes this survive map, lighting and rarity changes -- absolute
 # brightness thresholds did not.
-# Top-left of each reroll box, measured -- not guessed. Running the old padded
-# search over nine confirmed windows put button 1 at (572,740) in all nine,
-# button 2 at (938,740) in seven and (940,740) in two, button 3 at (1308,740) in
-# eight. The one outlier (1281,732) is the frame where the cursor sits on the
-# button and the search drifted onto it, which is exactly the freedom being
-# removed here: the boxes do not move, so nothing is gained by looking around
-# for them, and a wandering match is free score for a negative frame.
-REROLL_BOXES = [(572, 740), (938, 740), (1308, 740)]
-REROLL_SIZE = (60, 46)
+# Top-left of each reroll box, measured -- not guessed. The boxes do not move,
+# so nothing is gained by looking around for them, and a wandering match is free
+# score for a negative frame: the old padded search drifted onto the cursor when
+# it sat on a button, and opened the gate on the item shop.
+#
+# These are the values drawn on a real frame in scripts/box_editor.py, and the
+# templates in assets/ are cut to them. Earlier numbers here came from running
+# that padded search over confirmed windows and taking the mode, which put the
+# buttons ~4px off and 8px too narrow. state/boxes.json, if present, wins over
+# these -- but the shipped defaults have to be the ones the templates match.
+REROLL_BOXES = [(568, 743), (936, 743), (1304, 743)]
+REROLL_SIZE = (68, 41)
 # The buttons have several visual states -- normal, greyed out, and cursor-
 # highlighted -- so one template per state, best match wins per button. With the
 # normal state alone the worst genuine window frame scored 0.226 while the worst
@@ -97,9 +100,11 @@ RARITY_HUE_PRISM = (95, 145)
 # the window is open. The tooltip only exists while a card is hovered, and
 # reading that band when nothing is hovered returns whatever else is on screen --
 # that is how 궁극기 봇 was published as 무리한 진입, off a stray '무 리 호'.
-# Measured across ten confirmed windows: 27 of 30 titles read exactly at 1x-2x.
-CARD_TITLES = {"L": (450, 420, 780, 470), "M": (820, 420, 1150, 470),
-               "R": (1190, 420, 1520, 470)}
+# Measured across ten confirmed windows: 27 of 30 titles read exactly at 1x-2x
+# with the first cut of these boxes; redrawn pixel-exact on a real frame, the
+# six windows kept from that set read 18 of 18.
+CARD_TITLES = {"L": (460, 420, 738, 463), "M": (828, 420, 1106, 463),
+               "R": (1196, 420, 1474, 463)}
 # Tried in order per card, stopping at the first confident match. Long names are
 # exact at 1x; short ones need far more -- 범람 first appears at 4x, 핀볼 at 5x.
 CARD_SCALES = (1, 2, 3, 4, 5)
@@ -128,7 +133,7 @@ FLARE_LOOKBACK_S = 2.5
 # buttons read that as "window closed" and published a pick, then read the screen
 # coming back as a fresh window -- one augment recorded three times, once per
 # card the cursor passed over. The window is over only when this goes too.
-HIDE_BOX = (857, 823, 1064, 896)
+HIDE_BOX = (857, 823, 1066, 890)
 HIDE_TEMPLATE = ASSETS / "tpl_hide.png"
 # Measured on the 960x540 detection frames the loop actually uses: the button
 # reads 0.49-0.65 whenever the augment screen exists at all, and -0.05-0.24 on
