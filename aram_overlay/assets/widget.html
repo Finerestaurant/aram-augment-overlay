@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>아수라장 증강</title>
+<style>
+  :root {
+    --silver: #b8c4d0;
+    --gold:   #e8c07a;
+    --prism:  #d9a8e8;
+    --unknown:#8a8f98;
+  }
+  html, body {
+    margin: 0; padding: 0; background: transparent;
+    font-family: "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #wrap { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+  .card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px 8px 8px;
+    background: rgba(8, 12, 20, .82);
+    border-left: 4px solid var(--unknown);
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.45);
+    animation: in .45s cubic-bezier(.2,.8,.3,1) both;
+  }
+  .card.silver    { border-left-color: var(--silver); }
+  .card.gold      { border-left-color: var(--gold); }
+  .card.prismatic { border-left-color: var(--prism); }
+  .card img { width: 42px; height: 42px; border-radius: 4px; flex: none; }
+  .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .name {
+    color: #f2f5f8; font-size: 17px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 1px 2px rgba(0,0,0,.7);
+  }
+  .sub { font-size: 12px; color: #9aa4b2; letter-spacing: .02em; }
+  .sub .r-silver    { color: var(--silver); }
+  .sub .r-gold      { color: var(--gold); }
+  .sub .r-prismatic { color: var(--prism); }
+  #empty { color: #6f7783; font-size: 13px; padding: 6px 4px; }
+  @keyframes in {
+    from { opacity: 0; transform: translateX(-14px); }
+    to   { opacity: 1; transform: none; }
+  }
+</style>
+<div id="wrap"><div id="empty">증강 대기 중…</div></div>
+<script>
+  const KO = { silver: "실버", gold: "골드", prismatic: "프리즘", unknown: "미상", other: "기타" };
+  const wrap = document.getElementById("wrap");
+  let lastKey = "";
+
+  function render(picks) {
+    const key = JSON.stringify(picks.map(p => [p.name, p.rarity]));
+    if (key === lastKey) return;
+    lastKey = key;
+    wrap.innerHTML = "";
+    if (!picks.length) {
+      const d = document.createElement("div");
+      d.id = "empty";
+      d.textContent = "증강 대기 중…";
+      wrap.appendChild(d);
+      return;
+    }
+    for (const p of picks) {
+      const el = document.createElement("div");
+      el.className = "card " + (p.rarity || "unknown");
+      const img = document.createElement("img");
+      img.src = p.icon_url || "";
+      img.alt = "";
+      img.onerror = () => { img.style.visibility = "hidden"; };
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const name = document.createElement("div");
+      name.className = "name";
+      name.textContent = p.name;
+      const sub = document.createElement("div");
+      sub.className = "sub";
+      const r = document.createElement("span");
+      r.className = "r-" + (p.rarity || "unknown");
+      r.textContent = KO[p.rarity] || KO.unknown;
+      sub.appendChild(r);
+      if (p.level) sub.append(" · " + p.level + "레벨");
+      meta.append(name, sub);
+      el.append(img, meta);
+      wrap.appendChild(el);
+    }
+  }
+
+  async function tick() {
+    try {
+      const r = await fetch("/state.json", { cache: "no-store" });
+      const s = await r.json();
+      render(s.picks || []);
+    } catch (e) { /* server not up yet; keep the last frame */ }
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>

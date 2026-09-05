@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OCR model, fetched on first run (see aram_overlay/ocr.py)
+models/
+
+# Cached augment data from CommunityDragon
+data/augments.json
+
+# Runtime state and local config
+state/
+config.json
+*.log
+
+# Full calibration capture set and run logs stay local -- tests/fixtures/ holds
+# the handful the self test needs, and the measurements taken from the rest are
+# written up in docs/FINDINGS.md.
+captures/
+logs/
+
+# Frames pulled from third-party gameplay video were used for calibration.
+# Measurements taken from them are fine to publish; the images are not.
+video/
+vidframes/
+frames_*/

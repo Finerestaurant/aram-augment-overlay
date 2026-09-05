@@ -1,0 +1,11 @@
+# Deliberately lean: this gets downloaded on a PC-bang machine.
+# PaddleOCR reads the tooltip more accurately out of the box, but pulls in
+# paddlepaddle (380 MB). The ONNX stack below is ~160 MB total and reaches the
+# same accuracy once the title-band crop and closed-set fuzzy matching are
+# applied -- see docs/FINDINGS.md section 12.
+obsws-python>=1.8.0
+rapidocr-onnxruntime>=1.2.3
+opencv-python-headless>=4.10
+numpy>=2.0
+Pillow>=10.0
+requests>=2.31
