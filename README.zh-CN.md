@@ -1,11 +1,11 @@
-# 极地大乱斗：混乱模式 强化符文覆盖层
+# 海克斯大乱斗 强化符文覆盖层
 
 [![CI](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/Finerestaurant/aram-augment-overlay?include_prereleases)](https://github.com/Finerestaurant/aram-augment-overlay/releases)
 
 [한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md) · **简体中文**
 
-把你在英雄联盟 **极地大乱斗：混乱模式** 中获得的强化符文，累计显示在 OBS 画面上。它靠读取游戏画面
+把你在英雄联盟 **海克斯大乱斗** 中获得的强化符文，累计显示在 OBS 画面上。它靠读取游戏画面
 来识别，因此不需要绑定账号，也不需要登录。
 
 ![游戏画面上的覆盖层](docs/images/overlay.png)
@@ -126,7 +126,7 @@
   被记录。
 - 品质判定和选择检测的阈值来自真实对局与游戏录像的测量。用于验证的白银样本还很少，白银可能不够
   可靠。
-- 仅在极地大乱斗混乱模式（`gameMode: KIWI`）下工作。
+- 仅在海克斯大乱斗（`gameMode: KIWI`）下工作。
 - **阈值全部是在韩语客户端上测得的。** 设置里可以选择其他语言，测试中英文也能正常读取，但除韩语
   外都没有经过长期验证。
 
@@ -135,9 +135,9 @@
 ## 工作原理
 
 强化符文数据**不在**任何官方 API 里。Live Client Data API（`127.0.0.1:2999`）的完整规范都查过了，
-没有任何与强化符文相关的字段，对局 API 也对混乱模式关闭。因此读屏是唯一可行的路径。
+没有任何与强化符文相关的字段，对局 API 也对海克斯大乱斗关闭。因此读屏是唯一可行的路径。
 
-1. 通过 Live Client Data API 确认是否为混乱模式对局，以及当前等级
+1. 通过 Live Client Data API 确认是否为海克斯大乱斗对局，以及当前等级
 2. 通过 OBS websocket 取得游戏画面，**对 3 个重随按钮做模板匹配** → 检测强化符文选择界面
 3. 选择的瞬间从界面关闭处读出 —— 关闭前一刻的卡片亮度与提示框
 4. 用卡片边框颜色判定品质，用 OCR 读取卡片标题

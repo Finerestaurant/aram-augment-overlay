@@ -86,7 +86,7 @@ public static class Strings
 
         // ---- window chrome ----------------------------------------------
         Add("App.Title", "아수라장 증강 오버레이", "ARAM Mayhem Augment Overlay",
-            "ARAM 大乱闘 オーグメント オーバーレイ", "极地大乱斗 强化符文覆盖层");
+            "ランダムミッド: メイヘム オーグメント オーバーレイ", "海克斯大乱斗 强化符文覆盖层");
         Add("Chrome.Minimise", "최소화", "Minimise", "最小化", "最小化");
         Add("Chrome.Maximise", "최대화", "Maximise", "最大化", "最大化");
         Add("Chrome.Restore", "이전 크기로", "Restore", "元のサイズに戻す", "还原");
@@ -262,7 +262,7 @@ public static class Strings
 
         // ---- tray ---------------------------------------------------------
         Add("Tray.HiddenTitle", "아수라장 증강 오버레이", "ARAM Mayhem Augment Overlay",
-            "ARAM 大乱闘 オーグメント オーバーレイ", "极地大乱斗 强化符文覆盖层");
+            "ランダムミッド: メイヘム オーグメント オーバーレイ", "海克斯大乱斗 强化符文覆盖层");
         Add("Tray.HiddenBody", "트레이에서 계속 실행 중입니다. 아이콘을 두 번 누르면 다시 열립니다.",
             "Still running in the tray. Double-click the icon to bring it back.",
             "トレイで実行を続けています。アイコンをダブルクリックすると戻ります。",
@@ -350,7 +350,7 @@ public static class Strings
         // ---- detection loop ------------------------------------------------
         Add("Loop.Waiting", "대기 중... 아수라장 게임을 시작하세요.",
             "Waiting... start an ARAM Mayhem game.",
-            "待機中... ARAM 大乱闘のゲームを開始してください。", "等待中... 请开始一局极地大乱斗混乱模式。");
+            "待機中... ランダムミッド: メイヘムのゲームを開始してください。", "等待中... 请开始一局海克斯大乱斗。");
         Add("Loop.GameOver", "게임이 종료되었습니다.", "The game ended.",
             "ゲームが終了しました。", "对局已结束。");
         Add("Loop.GameDetected", "게임 감지: gameMode={0}, level={1}",
@@ -358,8 +358,8 @@ public static class Strings
             "ゲーム検出: gameMode={0}, level={1}", "检测到对局: gameMode={0}, level={1}");
         Add("Loop.NotMayhem", "  아수라장(KIWI)이 아닙니다. 증강 감지를 건너뜁니다.",
             "  Not ARAM Mayhem (KIWI). Augment detection is skipped.",
-            "  ARAM 大乱闘（KIWI）ではありません。オーグメント検出をスキップします。",
-            "  不是极地大乱斗混乱模式（KIWI）。跳过强化符文检测。");
+            "  ランダムミッド: メイヘム（KIWI）ではありません。オーグメント検出をスキップします。",
+            "  不是海克斯大乱斗（KIWI）。跳过强化符文检测。");
         Add("Loop.NewGame", "새 게임이 시작되어 목록을 초기화합니다.",
             "A new game started, so the list is cleared.",
             "新しいゲームが始まったのでリストを初期化します。", "新对局开始，已清空列表。");

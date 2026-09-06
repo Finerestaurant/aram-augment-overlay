@@ -1,7 +1,7 @@
 리그 오브 레전드 **무작위 총력전: 아수라장**에서 획득한 증강을 OBS 화면에 누적 표시합니다.
 Shows the augments you take in League of Legends **ARAM: Mayhem** on your OBS stream.
-リーグ・オブ・レジェンドの **ARAM: 大乱闘** で獲得したオーグメントを OBS 画面に表示します。
-在 OBS 画面上累计显示你在英雄联盟 **极地大乱斗：混乱模式** 中获得的强化符文。
+リーグ・オブ・レジェンドの **ランダムミッド: メイヘム** で獲得したオーグメントを OBS 画面に表示します。
+在 OBS 画面上累计显示你在英雄联盟 **海克斯大乱斗** 中获得的强化符文。
 
 아래 `ARAM-Augment-Overlay.exe` 하나만 받으면 됩니다. 설치도, 다른 프로그램도, .NET 런타임도 필요 없습니다.
 Just the single `ARAM-Augment-Overlay.exe` below. Nothing to install, nothing else to fetch — not even a .NET runtime.

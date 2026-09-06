@@ -1,11 +1,11 @@
-# ARAM 大乱闘 オーグメント オーバーレイ
+# ランダムミッド: メイヘム オーグメント オーバーレイ
 
 [![CI](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/Finerestaurant/aram-augment-overlay?include_prereleases)](https://github.com/Finerestaurant/aram-augment-overlay/releases)
 
 [한국어](README.md) · [English](README.en.md) · **日本語** · [简体中文](README.zh-CN.md)
 
-リーグ・オブ・レジェンドの **ARAM: 大乱闘** で獲得したオーグメントを、OBS の画面に積み上げて
+リーグ・オブ・レジェンドの **ランダムミッド: メイヘム** で獲得したオーグメントを、OBS の画面に積み上げて
 表示するツールです。画面を読み取って認識するため、アカウント連携もログインも必要ありません。
 
 ![ゲーム画面上のオーバーレイ](docs/images/overlay.png)
@@ -130,7 +130,7 @@ OBS が起動しているか、websocket サーバーが有効か確認してく
   あります。確定できなかった読みは記録しません。
 - レアリティ判定と選択検出のしきい値は、実プレイとゲームプレイ映像から測定した値です。検証に使った
   シルバーの標本がまだ少なく、シルバーでは誤差が出ることがあります。
-- ARAM 大乱闘（`gameMode: KIWI`）でのみ動作します。
+- ランダムミッド: メイヘム（`gameMode: KIWI`）でのみ動作します。
 - **しきい値はすべて韓国語クライアントで測定しています。** 設定で他の言語も選べ、テストでは英語も
   問題なく読めましたが、韓国語以外は継続的な検証をしていません。
 
@@ -139,10 +139,10 @@ OBS が起動しているか、websocket サーバーが有効か確認してく
 ## 仕組み
 
 オーグメントのデータは公式 API に **ありません。** Live Client Data API（`127.0.0.1:2999`）の
-仕様を全て確認しましたがオーグメント関連のフィールドは一つもなく、マッチ API も大乱闘の対戦には
+仕様を全て確認しましたがオーグメント関連のフィールドは一つもなく、マッチ API もメイヘムの対戦には
 アクセスできません。そのため画面を読む方法しか残っていません。
 
-1. Live Client Data API で大乱闘かどうか、現在のレベルを確認
+1. Live Client Data API でメイヘムかどうか、現在のレベルを確認
 2. OBS websocket でゲーム画面を受け取り、**リロールボタン 3 つをテンプレートマッチング** →
    オーグメント選択画面を検出
 3. 選択の瞬間は画面が閉じるところから読む — 閉じる直前のカードの明るさとツールチップ
