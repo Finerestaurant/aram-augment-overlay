@@ -124,13 +124,26 @@ public static class Config
     // --- widget ---
     public static string WidgetHost = "127.0.0.1";
     public static int WidgetPort = 8777;
+    /// <summary>Set from settings. Turns on the frame dumps below.</summary>
+    public static bool DebugMode;
+
     public static int WidgetRows = 4;
     public static int WidgetMaxW = 420;
 
+    /// <summary>
+    /// The folder CommunityDragon keeps this language in.
+    ///
+    /// There is no en_us folder -- it 404s. English is the source language, so
+    /// it lives in "default" and the localised folders exist for everything
+    /// else. Asking for en_us used to kill the loop on startup with no augment
+    /// data and no obvious reason.
+    /// </summary>
+    public static string CDragonLocale => Locale == "en_us" ? "default" : Locale;
+
     public static string CDragonUrl =>
-        $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{Locale}/v1/cherry-augments.json";
+        $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{CDragonLocale}/v1/cherry-augments.json";
     public static string CDragonItemsUrl =>
-        $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{Locale}/v1/items.json";
+        $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{CDragonLocale}/v1/items.json";
     // The "/default" is not optional: without it every icon 404s, which the
     // widget swallows silently because a broken <img> just hides itself.
     public const string CDragonAssetBase =

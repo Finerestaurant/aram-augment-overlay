@@ -72,10 +72,20 @@
   }
 </style>
 <div id="wrap"></div>
-<button id="reset" title="증강 목록 비우기">초기화</button>
+<button id="reset"></button>
 <script>
-  const KO = { silver: "실버", gold: "골드", prismatic: "프리즘", unknown: "미상", other: "기타" };
+  // Labels come from the app, so the overlay speaks the same language as the
+  // window it is driven from.
+  const CFG = window.__CFG__ || {};
+  const T = CFG.text || {};
+  const RARITY = {
+    silver: T.silver || "실버", gold: T.gold || "골드",
+    prismatic: T.prismatic || "프리즘", unknown: T.unknown || "미상",
+  };
   const wrap = document.getElementById("wrap");
+  const resetButton = document.getElementById("reset");
+  resetButton.textContent = T.reset || "초기화";
+  resetButton.title = T.resetTitle || "증강 목록 비우기";
   let lastKey = "";
 
   function render(picks) {
@@ -99,9 +109,15 @@
       sub.className = "sub";
       const r = document.createElement("span");
       r.className = "r-" + (p.rarity || "unknown");
-      r.textContent = KO[p.rarity] || KO.unknown;
+      r.textContent = RARITY[p.rarity] || RARITY.unknown;
       sub.appendChild(r);
-      if (p.level) sub.append(" · " + p.level + "레벨");
+      if (p.level) {
+        // withLevel is "{0} · <level>", so the rarity span stays a span and
+        // only the text either side of it is swapped per language.
+        const parts = (T.withLevel || "{0} · {1}레벨").split("{0}");
+        r.insertAdjacentText("beforebegin", parts[0] || "");
+        sub.append((parts[1] || "").replace("{1}", p.level));
+      }
       meta.append(name, sub);
       el.append(img, meta);
       wrap.appendChild(el);
@@ -114,7 +130,6 @@
   // grew a row at a time would shift the layout mid-game. The last card width
   // is kept while the list is empty so the box does not collapse to its padding
   // and become fiddly to grab in OBS before going live.
-  const CFG = window.__CFG__ || {};
   const ROWS = CFG.rows || 4, PAD = 12, GAP = 8, CARD_H = 58, EMPTY_W = 260;
   if (CFG.maxWidth) wrap.style.maxWidth = CFG.maxWidth + "px";
   let sentW = 0, sentH = 0, lastCardW = 0;

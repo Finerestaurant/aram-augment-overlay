@@ -36,6 +36,7 @@ public partial class App : Application
         }
 
         Settings.Load().Apply();
+        Log.StartFile();
 
         _runner = new OverlayRunner();
         var window = new MainWindow(_runner);

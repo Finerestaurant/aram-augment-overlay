@@ -14,6 +14,17 @@ public sealed class Pick
     [JsonPropertyName("slot")] public string Slot { get; set; } = "";
     [JsonPropertyName("confidence")] public double Confidence { get; set; }
     [JsonPropertyName("ocr_raw")] public string OcrRaw { get; set; } = "";
+
+    /// <summary>How the card was picked out -- brightness flare or tooltip.
+    /// Kept with the pick so a wrong one can be explained after the fact,
+    /// even when the log has scrolled or a new game cleared it.</summary>
+    [JsonPropertyName("via")] public string Via { get; set; } = "";
+
+    [JsonPropertyName("others")] public string Others { get; set; } = "";
+
+    /// <summary>What the tooltip said, even when the flare decided. The two
+    /// disagreeing is the signature of a wrong pick.</summary>
+    [JsonPropertyName("tooltip")] public string Tooltip { get; set; } = "";
 }
 
 public sealed class RunState
@@ -143,8 +154,23 @@ public sealed class WidgetServer : IDisposable
 
     private string Page()
     {
-        string cfg = JsonSerializer.Serialize(
-            new { rows = Config.WidgetRows, maxWidth = Config.WidgetMaxW }, Json);
+        string cfg = JsonSerializer.Serialize(new
+        {
+            rows = Config.WidgetRows,
+            maxWidth = Config.WidgetMaxW,
+            text = new
+            {
+                silver = Strings.Get("Rarity.silver"),
+                gold = Strings.Get("Rarity.gold"),
+                prismatic = Strings.Get("Rarity.prismatic"),
+                unknown = Strings.Get("Rarity.unknown"),
+                // "{0}" is the rarity and "{1}" the level, so a language that
+                // puts the level first still reads correctly.
+                withLevel = Strings.Get("Rarity.WithLevel", "{0}", "{1}"),
+                reset = Strings.Get("Widget.Reset"),
+                resetTitle = Strings.Get("Widget.ResetTitle"),
+            },
+        }, Json);
         return _pageTemplate.Replace("<!--CONFIG-->", $"<script>window.__CFG__ = {cfg};</script>");
     }
 

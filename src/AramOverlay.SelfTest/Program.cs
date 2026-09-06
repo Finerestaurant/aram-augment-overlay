@@ -23,6 +23,7 @@ if (args.Contains("--obs"))
 if (args.Contains("--loop"))
 {
     Config.Root = root;
+    Log.StartFile();
     using var stop = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
     await using var host = new OverlayHost();
@@ -73,8 +74,7 @@ static async Task<int> ObsLive(string root)
     // A spare port, so this never fights the overlay that may be running.
     var state = new RunState { GameMode = "KIWI", Connected = true, Level = 7 };
     state.Picks.Add(new Pick { Name = "이빨 요정", Rarity = "gold", Level = 7 });
-    string template = await File.ReadAllTextAsync(
-        Path.Combine(root, "aram_overlay", "assets", "widget.html"));
+    string template = Assets.Text("widget.html");
     using var server = new WidgetServer(state, template, port: 8795);
     string url = server.Start();
 

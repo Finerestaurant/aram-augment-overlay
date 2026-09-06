@@ -104,6 +104,13 @@ public static class Strings
         Add("Rarity.WithLevel", "{0} · {1}레벨", "{0} · level {1}",
             "{0} · レベル {1}", "{0} · {1} 级");
 
+        // ---- the OBS widget page ------------------------------------------
+        // The overlay is the thing on the broadcast, so it follows the same
+        // language as the window rather than staying in the source language.
+        Add("Widget.Reset", "초기화", "Clear", "クリア", "清空");
+        Add("Widget.ResetTitle", "증강 목록 비우기", "Clear the augment list",
+            "オーグメントのリストを消去", "清空强化符文列表");
+
         // ---- settings: sections and fields --------------------------------
         Add("Settings.Language", "언어", "LANGUAGE", "言語", "语言");
         Add("Settings.UiLanguage", "프로그램 언어", "Interface", "表示言語", "界面语言");
@@ -168,6 +175,11 @@ public static class Strings
             "不是 16:9。客户端会以不同方式排布 HUD，卡片位置可能对不上。");
         Add("Hint.Saved", "저장했습니다. 다시 시작합니다...", "Saved. Restarting...",
             "保存しました。再起動します...", "已保存，正在重启...");
+        Add("Hint.Restarted", "다시 시작했습니다.", "Restarted.", "再起動しました。", "已重启。");
+        Add("Hint.RestartFailed", "다시 시작하지 못했습니다. 상태 탭의 로그를 확인하세요.",
+            "Could not restart. Check the log on the Status tab.",
+            "再起動できませんでした。状態タブのログを確認してください。",
+            "重启失败。请查看状态标签页的日志。");
         Add("Hint.DefaultsRestored", "기본값으로 되돌렸습니다. 다시 시작합니다...",
             "Restored to defaults. Restarting...",
             "既定値に戻しました。再起動します...", "已恢复默认值，正在重启...");
@@ -344,6 +356,15 @@ public static class Strings
             "  选择: {0}（{1}，匹配度 {2}，OCR '{3}' x{4}，卡片 {5} / {6}）");
         Add("Loop.Others", "    나머지 선택지: {0}", "    The other offers: {0}",
             "    残りの選択肢: {0}", "    其余选项: {0}");
+        Add("Loop.SignalsDisagree",
+            "    [주의] 밝기는 {0} 카드, 툴팁은 {1} 카드('{2}')를 가리킵니다 — 밝기를 따릅니다.",
+            "    [note] brightness says card {0}, the tooltip says card {1} ('{2}') -- going with brightness.",
+            "    [注意] 明度は カード {0}、ツールチップは カード {1}（'{2}'）を指しています — 明度に従います。",
+            "    [注意] 亮度指向卡片 {0}，提示框指向卡片 {1}（'{2}'）— 采用亮度。");
+        Add("Loop.DumpSaved", "    판정 화면 저장: {0}", "    decision frame saved: {0}",
+            "    判定画面を保存: {0}", "    已保存判定画面: {0}");
+        Add("Loop.DumpFailed", "    판정 화면 저장 실패: {0}", "    could not save the decision frame: {0}",
+            "    判定画面の保存に失敗: {0}", "    保存判定画面失败: {0}");
         Add("Loop.ViaFlare", "카드 밝기 {0}배, 종료 {1}초 전",
             "card {0}x brighter, {1}s before the close",
             "カード明度 {0} 倍、終了 {1} 秒前", "卡片亮度 {0} 倍，关闭前 {1} 秒");

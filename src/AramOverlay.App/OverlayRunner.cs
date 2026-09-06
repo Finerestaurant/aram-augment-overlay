@@ -15,10 +15,14 @@ public sealed class OverlayRunner
     private OverlayHost? _host;
     private CancellationTokenSource? _cts;
     private Task? _task;
+    private volatile bool _restarting;
 
     public RunState State { get; private set; } = new();
     public string? Url { get; private set; }
     public bool IsRunning => _task is { IsCompleted: false };
+
+    /// <summary>True while a restart is between stopping and started.</summary>
+    public bool IsBusy => _restarting;
 
     public void Start()
     {
@@ -95,10 +99,18 @@ public sealed class OverlayRunner
 
     public void Restart()
     {
+        _restarting = true;
         Task.Run(() =>
         {
-            Stop();
-            Start();
+            try
+            {
+                Stop();
+                Start();
+            }
+            finally
+            {
+                _restarting = false;
+            }
         });
     }
 

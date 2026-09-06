@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private Settings _settings;
     private string? _lastPicksKey;
     private bool _loadingSettings;
+    private bool _awaitingRestart;
 
     public MainWindow(OverlayRunner runner)
     {
@@ -157,6 +158,8 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnDebugModeToggled(object sender, RoutedEventArgs e)
     {
+        if (_loadingSettings)
+            return;
         bool on = DebugModeSwitch.IsChecked == true;
         _settings.DebugMode = on;
         _settings.Save();
@@ -327,6 +330,7 @@ public partial class MainWindow : Window
         SavedHint.Text = Strings.Get("Hint.Saved");
         AppendLog(Strings.Get("Log.SettingsSaved"));
         _lastPicksKey = null;
+        _awaitingRestart = true;
         _runner.Restart();
     }
 
@@ -344,6 +348,7 @@ public partial class MainWindow : Window
         SavedHint.Foreground = (Brush)FindResource("Ok");
         SavedHint.Text = Strings.Get("Hint.DefaultsRestored");
         AppendLog(Strings.Get("Log.DefaultsRestored"));
+        _awaitingRestart = true;
         _runner.Restart();
     }
 
@@ -361,6 +366,17 @@ public partial class MainWindow : Window
     {
         var state = _runner.State;
         bool running = _runner.IsRunning;
+
+        // A restart that fails leaves the settings tab saying "restarting"
+        // forever, which is how a dead loop went unnoticed. The hint follows it
+        // to the end either way.
+        if (_awaitingRestart && !_runner.IsBusy)
+        {
+            _awaitingRestart = false;
+            bool ok = running && _runner.Url is not null;
+            SavedHint.Foreground = (Brush)FindResource(ok ? "Ok" : "Bad");
+            SavedHint.Text = Strings.Get(ok ? "Hint.Restarted" : "Hint.RestartFailed");
+        }
 
         if (running && _runner.Url is not null)
         {

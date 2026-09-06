@@ -285,6 +285,42 @@ public sealed class OverlayLoop
         }
     }
 
+    /// <summary>
+    /// The frame the titles were last read from, with the chosen card outlined
+    /// in green and the other two in grey.
+    ///
+    /// A wrong pick is a claim about which card was brighter, and the numbers
+    /// alone do not settle it -- a cursor resting on a card looks the same in a
+    /// ratio as a card being taken. This is the picture that does.
+    /// </summary>
+    private static async Task DumpDecisionAsync(Kept kept, string slot, int? level)
+    {
+        if (!Config.DebugMode || kept.Frame is null)
+            return;
+        try
+        {
+            var marked = new Frame(kept.Frame.Width, kept.Frame.Height,
+                                   (byte[])kept.Frame.Bgra.Clone());
+            foreach (var (key, box) in Config.Cards)
+            {
+                if (key == slot)
+                    marked.DrawBox(box, 80, 220, 60, 5);      // chosen
+                else
+                    marked.DrawBox(box, 130, 130, 130, 3);
+            }
+            marked.DrawBox(Config.HoverTooltip, 255, 170, 60, 3);
+
+            string path = Path.Combine(Config.State, "debug",
+                $"{DateTime.Now:yyyyMMdd-HHmmss}_lv{level}_{slot}.png");
+            await Imaging.SavePngAsync(marked, path);
+            Log.Write(Strings.Get("Loop.DumpSaved", path));
+        }
+        catch (Exception exc)
+        {
+            Log.Write(Strings.Get("Loop.DumpFailed", exc.Message));
+        }
+    }
+
     private static double Now() => DateTime.UtcNow.Ticks / (double)TimeSpan.TicksPerSecond;
 
     private static string Summary(Diagnostics d, AugmentWindowState win) =>
@@ -452,12 +488,18 @@ public sealed class OverlayLoop
         // the window as a whole is not a third: it was wrong on the windows it
         // was asked to decide, and a confident wrong augment on stream is worse
         // than a gap.
-        var (slot, via) = FlareSlot(history, DateTime.UtcNow);
+        // Both signals are recorded every time, not just the one that won. A
+        // wrong pick is almost always the two disagreeing, and that cannot be
+        // seen after the fact unless the loser is written down too.
+        var (flareSlot, via) = FlareSlot(history, DateTime.UtcNow);
+        string? slot = flareSlot;
         if (slot is null && kept.Hover is not null)
         {
             slot = kept.Hover;
             via = Strings.Get("Loop.ViaTooltip", kept.HoverRaw);
         }
+        if (flareSlot is not null && kept.Hover is not null && kept.Hover != flareSlot)
+            Log.Write(Strings.Get("Loop.SignalsDisagree", flareSlot, kept.Hover, kept.HoverRaw));
         if (slot is null)
         {
             Log.Write(Strings.Get("Loop.Undecidable"));
@@ -511,6 +553,10 @@ public sealed class OverlayLoop
                 Name = aug.Name, Rarity = aug.Rarity, IconUrl = aug.IconUrl,
                 Level = level, Slot = slot,
                 Confidence = Math.Round(card.Score, 2), OcrRaw = card.Raw,
+                Via = via,
+                Tooltip = kept.Hover is null ? "" : $"{kept.Hover}={kept.HoverRaw}",
+                Others = string.Join(", ", kept.Cards.Where(kv => kv.Key != slot)
+                    .Select(kv => $"{kv.Key}={kv.Value.Name}")),
             });
         }
         _server.Save();
@@ -520,6 +566,7 @@ public sealed class OverlayLoop
         Log.Write(Strings.Get("Loop.Others", string.Join(", ",
             kept.Cards.Where(kv => kv.Key != slot)
                 .Select(kv => $"{kv.Key}={kv.Value.Name}"))));
-        await Task.CompletedTask;
+
+        await DumpDecisionAsync(kept, slot, level);
     }
 }

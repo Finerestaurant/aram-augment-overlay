@@ -176,6 +176,7 @@ public sealed class Settings
             Config.HideBox = BaseHide.Scaled(sx, sy);
         }
 
+        Config.DebugMode = DebugMode;
         Config.ObsPort = ObsPort;
         Config.ObsPassword = ObsPassword;
         Config.ObsSource = ObsSource;

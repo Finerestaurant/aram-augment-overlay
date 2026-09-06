@@ -64,6 +64,35 @@ public sealed class Frame
     }
 
     /// <summary>OpenCV's BGR->GRAY coefficients, rounded the way cvtColor does.</summary>
+    /// <summary>Outline a region, for marking up a decision dump.</summary>
+    public void DrawBox(Box box, byte b, byte g, byte r, int thickness = 3)
+    {
+        var fit = Fit(box);
+        for (int t = 0; t < thickness; t++)
+        {
+            for (int x = fit.X0; x < fit.X1; x++)
+            {
+                Plot(x, fit.Y0 + t, b, g, r);
+                Plot(x, fit.Y1 - 1 - t, b, g, r);
+            }
+            for (int y = fit.Y0; y < fit.Y1; y++)
+            {
+                Plot(fit.X0 + t, y, b, g, r);
+                Plot(fit.X1 - 1 - t, y, b, g, r);
+            }
+        }
+    }
+
+    private void Plot(int x, int y, byte b, byte g, byte r)
+    {
+        if (x < 0 || y < 0 || x >= Width || y >= Height)
+            return;
+        int i = Index(x, y);
+        Bgra[i] = b;
+        Bgra[i + 1] = g;
+        Bgra[i + 2] = r;
+    }
+
     public static double Gray(byte r, byte g, byte b) => 0.299 * r + 0.587 * g + 0.114 * b;
 
     public byte[] ToGray()
@@ -77,6 +106,27 @@ public sealed class Frame
 
 public static class Imaging
 {
+    /// <summary>
+    /// Write a frame out as PNG. Used for the decision dumps, which are the
+    /// only way to see why a card was picked once the window is gone.
+    /// </summary>
+    public static async Task SavePngAsync(Frame frame, string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var stream = new InMemoryRandomAccessStream();
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+        encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore,
+                             (uint)frame.Width, (uint)frame.Height, 96, 96, frame.Bgra);
+        await encoder.FlushAsync();
+
+        stream.Seek(0);
+        var reader = new DataReader(stream.GetInputStreamAt(0));
+        await reader.LoadAsync((uint)stream.Size);
+        var bytes = new byte[stream.Size];
+        reader.ReadBytes(bytes);
+        await File.WriteAllBytesAsync(path, bytes);
+    }
+
     /// <summary>Decode PNG or JPEG bytes -- whatever OBS was asked for.</summary>
     public static async Task<Frame> DecodeAsync(byte[] bytes)
     {
