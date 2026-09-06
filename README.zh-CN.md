@@ -1,46 +1,82 @@
 # 海克斯大乱斗 强化符文覆盖层
 
-[![CI](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml)
-[![release](https://img.shields.io/github/v/release/Finerestaurant/aram-augment-overlay?include_prereleases)](https://github.com/Finerestaurant/aram-augment-overlay/releases)
+<img src="docs/images/icon.png" width="128" height="128" alt="海克斯大乱斗 强化符文覆盖层" align="right" />
 
-[한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md) · **简体中文**
+[English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **简体中文**
+
+[![CI][ci-badge]][ci-workflow]
+[![release][release-badge]][releases]
+[![downloads][downloads-badge]][releases]
+[![stars][stars-badge]][stargazers]
+[![forks][forks-badge]][network]
+
+[ci-badge]: https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml/badge.svg
+[ci-workflow]: https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml
+[release-badge]: https://img.shields.io/github/v/release/Finerestaurant/aram-augment-overlay?include_prereleases
+[downloads-badge]: https://img.shields.io/github/downloads/Finerestaurant/aram-augment-overlay/total
+[stars-badge]: https://img.shields.io/github/stars/Finerestaurant/aram-augment-overlay
+[forks-badge]: https://img.shields.io/github/forks/Finerestaurant/aram-augment-overlay
+[releases]: https://github.com/Finerestaurant/aram-augment-overlay/releases
+[stargazers]: https://github.com/Finerestaurant/aram-augment-overlay/stargazers
+[network]: https://github.com/Finerestaurant/aram-augment-overlay/network/members
 
 把你在英雄联盟 **海克斯大乱斗** 中获得的强化符文，累计显示在 OBS 画面上。它靠读取游戏画面
 来识别，因此不需要绑定账号，也不需要登录。
 
+[![下载 Windows 版](https://img.shields.io/badge/Windows-下载-0078D4?style=for-the-badge&logo=windows&logoColor=white)][releases]
+
+- [下载](#下载)
+- [首次使用](#首次使用)
+  - [程序界面](#程序界面)
+- [设置标签页](#设置标签页)
+- [出问题时](#出问题时)
+- [工作原理](#工作原理)
+- [局限](#局限)
+- [开发](#开发)
+- [依赖](#依赖)
+- [许可证](#许可证)
+
 ![游戏画面上的覆盖层](docs/images/overlay.png)
 
-每次获得强化符文，几秒内就会加入列表。背景是透明的，可直接叠在直播画面上。
+它专注于:
 
-![强化符文不断累积](docs/images/overlay.gif)
+- **自动**：每次获得强化符文，几秒内就会加入列表，不用按任何东西
+- **轻量**：只有一个 exe，没有安装步骤，连 .NET 运行时都不需要
+- **无侵入**：只看屏幕像素，从不读取游戏内存，也不在游戏里留下任何东西
+- **匿名**：不绑定账号，不登录，不需要 API 密钥
+- **透明**：背景是空的，可直接叠在直播画面上
 
-- 自动检测获得强化符文的瞬间 → 把名称、品质、图标加入覆盖层
-- 白银 / 黄金 / 棱彩按品质用颜色区分
-- 以 OBS 浏览器源的方式接入，直接出现在直播画面上
+<table>
+<tr>
+<td width="40%"><img src="docs/images/widget.png" alt="单独看挂件"></td>
+<td><img src="docs/images/overlay.gif" alt="强化符文不断累积"></td>
+</tr>
+<tr>
+<td align="center"><sub>白银 · 黄金 · 棱彩用颜色区分</sub></td>
+<td align="center"><sub>获得后几秒内加入列表</sub></td>
+</tr>
+</table>
 
+> [!NOTE]
 > 胜率、段位等表现数据不会显示 —— 拳头的政策不允许。
 
-> 界面支持韩语、英语、日语和简体中文，会跟随 Windows 的语言，也可在 设置 → 界面语言 中更改。
-> 不过检测阈值是在韩语客户端上测得的，参见[局限](#局限)。
-
----
+界面支持韩语、英语、日语和简体中文，会跟随 Windows 的语言，也可在 设置 → 界面语言 中更改。
+不过检测阈值是在韩语客户端上测得的，参见[局限](#局限)。
 
 ## 下载
 
-在[发布页面](../../releases)下载单个 `ARAM-Augment-Overlay.exe` 即可。没有安装步骤，也不需要另外
-准备什么 —— 连 .NET 运行时都不需要。
+在[发布页面][releases]下载单个 `ARAM-Augment-Overlay.exe` 即可。
 
-首次运行时 Windows 会提示 **“Windows 已保护你的电脑”**。这是因为程序没有做代码签名。点击
-**更多信息 → 仍要运行**。
+> [!IMPORTANT]
+> 首次运行时 Windows 会提示 **“Windows 已保护你的电脑”**。这是因为程序没有做代码签名。点击
+> **更多信息 → 仍要运行**。
 
-| | |
+| 需要什么 | |
 |---|---|
 | 操作系统 | Windows 10 / 11，**1920×1080 分辨率，缩放 100%** |
 | OBS Studio | 28 或更新 |
 | 游戏设置 | 建议**无边框全屏** |
 | OCR | 与客户端语言对应的 Windows OCR 语言包 — 可由程序代为安装 |
-
----
 
 ## 首次使用
 
@@ -61,31 +97,27 @@
 **3. 在 OBS 中添加挂件**
 
 **来源 → + → 浏览器**
+
 - URL：`http://127.0.0.1:8777/`
 - 尺寸随便填 —— 运行时会自动调整到卡片宽度和 4 行的高度
 - 建议勾选**“场景激活时刷新浏览器”**
 
 背景是透明的，因此会直接叠在游戏画面上。游戏采集源由工具自动创建。
 
----
-
 ### 程序界面
 
 状态标签页显示连接情况与已获得的强化符文；设置标签页用于调整语言、分辨率、OBS 和覆盖层。
 
-
-| | |
+| 状态 | 设置 |
 |---|---|
-| ![](docs/images/app-status.png) | ![](docs/images/app-settings.png) |
-
----
+| ![状态标签页](docs/images/app-status.png) | ![设置标签页](docs/images/app-settings.png) |
 
 ## 设置标签页
 
 改动会写入 exe 旁边的 `config.json`，点击 **保存并重启**后生效。语言和坐标
 在启动时只读取一次，所以需要重启。
 
-| | |
+| 设置 | 作用 |
 |---|---|
 | 游戏语言 | 英雄联盟客户端的语言。以该语言获取强化符文名称，并用该语言读取画面。缺少对应的 OCR 语言包时，程序可以直接安装 |
 | 游戏分辨率 | 坐标按此分辨率换算。16:9 可直接工作，其他比例会给出警告 |
@@ -95,42 +127,28 @@
 也支持命令行参数。`--stop` 会让正在运行的覆盖层正常退出（同时清理托盘图标），`--widget-port`
 之类的参数优先于已保存的设置。
 
----
-
 ## 出问题时
 
 **“未连接 OBS”**
+
 确认 OBS 正在运行，且 websocket 服务器已打开（设置标签页的按钮）。启动 OBS 后按
 **重试**即可，不必关掉窗口重开。
 
 **托盘里图标越积越多**
+
 用任务管理器强制结束会让程序没有机会收回图标，于是留下死图标。鼠标从托盘上划过，Windows 就会清理
 掉。请用**退出**按钮或 `--stop`，不要强制结束。
 
 **OBS 询问“是否以安全模式启动？”**
+
 一定要选普通模式。安全模式会关闭 websocket，工具就连不上了。这个提示出现在 OBS 异常退出之后的
 下一次启动。
 
 **识别不到强化符文**
+
 - 确认分辨率为 1920×1080、缩放 100%
 - 确认游戏处于**无边框全屏**
 - 在预览里确认 OBS 的游戏采集源确实捕获到了游戏
-
----
-
-## 局限
-
-- 坐标是在 1920×1080 下测得的，并会**按比例换算**到你设置的分辨率。16:9 的屏幕无论多大都落在同一
-  布局上，但实际验证过的只有 1920×1080。
-- 名称靠 OCR 读取。读得不稳时会与强化符文名单比对来纠正，但仍可能偶尔出错。无法确认的读取结果不会
-  被记录。
-- 品质判定和选择检测的阈值来自真实对局与游戏录像的测量。用于验证的白银样本还很少，白银可能不够
-  可靠。
-- 仅在海克斯大乱斗（`gameMode: KIWI`）下工作。
-- **阈值全部是在韩语客户端上测得的。** 设置里可以选择其他语言，测试中英文也能正常读取，但除韩语
-  外都没有经过长期验证。
-
----
 
 ## 工作原理
 
@@ -146,7 +164,17 @@
 为什么用模板匹配而不是亮度阈值、各阈值的测量依据、验证数据，都整理在
 [`docs/FINDINGS.md`](docs/FINDINGS.md)（韩语）里。
 
----
+## 局限
+
+- 坐标是在 1920×1080 下测得的，并会**按比例换算**到你设置的分辨率。16:9 的屏幕无论多大都落在同一
+  布局上，但实际验证过的只有 1920×1080。
+- 名称靠 OCR 读取。读得不稳时会与强化符文名单比对来纠正，但仍可能偶尔出错。无法确认的读取结果不会
+  被记录。
+- 品质判定和选择检测的阈值来自真实对局与游戏录像的测量。用于验证的白银样本还很少，白银可能不够
+  可靠。
+- 仅在海克斯大乱斗（`gameMode: KIWI`）下工作。
+- **阈值全部是在韩语客户端上测得的。** 设置里可以选择其他语言，测试中英文也能正常读取，但除韩语
+  外都没有经过长期验证。
 
 ## 开发
 
@@ -154,9 +182,6 @@
 dotnet build src/AramOverlay.slnx
 dotnet run --project src/AramOverlay.SelfTest             # 一致性验证
 dotnet run --project src/AramOverlay.SelfTest -- --obs    # 对正在运行的 OBS 做连接检查
-dotnet publish src/AramOverlay.App -c Release -r win-x64 --self-contained true ^
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true ^
-  -p:EnableCompressionInSingleFile=true -p:DebugType=none -o publish
 ```
 
 不用 NuGet 包，也不用原生 DLL，只用 BCL 和 WinRT。OBS websocket 用 `ClientWebSocket`，挂件服务器
@@ -167,13 +192,22 @@ dotnet publish src/AramOverlay.App -c Release -r win-x64 --self-contained true ^
 [`docs/PORTING.md`](docs/PORTING.md)（韩语）里。`tests/` 下的比对数据是当时 Python 实现产出的；
 要重新生成，需要 `scripts/gen_*.py` 以及提交 `ecd9cb5` 之前的 Python 代码。
 
-推送标签后 GitHub Actions 会构建并发布：
+<details>
+<summary>发布构建与发版</summary>
+
+```
+dotnet publish src/AramOverlay.App -c Release -r win-x64 --self-contained true ^
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true ^
+  -p:EnableCompressionInSingleFile=true -p:DebugType=none -o publish
+```
+
+推送标签后 GitHub Actions 会构建并发布。
 
 ```
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
----
+</details>
 
 ## 依赖
 
