@@ -22,6 +22,10 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _timer;
     private readonly OverlayRunner _runner;
     private Settings _settings;
+    // What the loop was last started with. The form is compared against this
+    // rather than against the saved file: a setting saved but not yet applied
+    // still needs a restart, and one changed back to what is running does not.
+    private Settings _running;
     private string? _lastPicksKey;
     private bool _loadingSettings;
     private bool _awaitingRestart;
@@ -34,6 +38,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _runner = runner;
         _settings = Settings.Load();
+        _running = Settings.Load();
         PicksList.ItemsSource = _picks;
 
         LoadSettingsIntoUi();
@@ -144,9 +149,14 @@ public partial class MainWindow : Window
         _loadingSettings = false;
         UpdateOcrHint();
         UpdateResolutionHint();
+        UpdateSaveButton();
     }
 
-    private void OnLocaleChanged(object sender, SelectionChangedEventArgs e) => UpdateOcrHint();
+    private void OnLocaleChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateOcrHint();
+        UpdateSaveButton();
+    }
 
     /// <summary>
     /// The log is for working out why an augment went unrecorded, which is not
@@ -166,6 +176,11 @@ public partial class MainWindow : Window
 
     private void ApplyDebugMode(bool on)
     {
+        // Straight onto Config, not only into the file. The loop reads this
+        // every time it decides whether to write a decision frame, so the switch
+        // takes effect on the next pick rather than on the next restart -- which
+        // is what the button now promises by not offering one.
+        Config.DebugMode = on;
         LogPanel.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         LogRow.Height = on ? new GridLength(150) : new GridLength(0);
         if (on)
@@ -192,6 +207,7 @@ public partial class MainWindow : Window
         _settings.UiLanguage = code;
         _settings.Save();
         LocSource.Current.Refresh();
+        UpdateSaveButton();
 
         var (w, h, scale) = ScreenInfo.Detect();
         ScreenHint.Text = w > 0
@@ -204,7 +220,12 @@ public partial class MainWindow : Window
         Refresh();
     }
 
-    private void OnResolutionChanged(object sender, TextChangedEventArgs e) => UpdateResolutionHint();
+    private void OnResolutionChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateResolutionHint();
+        if (!_loadingSettings)
+            UpdateSaveButton();
+    }
 
     private void OnPresetChosen(object sender, SelectionChangedEventArgs e)
     {
@@ -401,7 +422,8 @@ public partial class MainWindow : Window
     private void OnOpenLanguageSettings(object sender, RoutedEventArgs e) =>
         OcrSetup.OpenLanguageSettings();
 
-    private void OnSaveSettings(object sender, RoutedEventArgs e)
+    /// <summary>The form as a Settings, or null when a number will not parse.</summary>
+    private Settings? ReadForm()
     {
         if (!int.TryParse(WidthBox.Text, out int width) ||
             !int.TryParse(HeightBox.Text, out int height) ||
@@ -409,13 +431,9 @@ public partial class MainWindow : Window
             !int.TryParse(WidgetPortBox.Text, out int widgetPort) ||
             !int.TryParse(RowsBox.Text, out int rows) ||
             !int.TryParse(MaxWidthBox.Text, out int maxWidth))
-        {
-            SavedHint.Foreground = (Brush)FindResource("Bad");
-            SavedHint.Text = Strings.Get("Hint.NotANumber");
-            return;
-        }
+            return null;
 
-        _settings = new Settings
+        return new Settings
         {
             UiLanguage = Strings.Languages[Math.Max(0, UiLanguageBox.SelectedIndex)].Code,
             DebugMode = DebugModeSwitch.IsChecked == true,
@@ -429,14 +447,61 @@ public partial class MainWindow : Window
             WidgetRows = rows,
             WidgetMaxWidth = maxWidth,
         };
+    }
+
+    /// <summary>
+    /// Make the button say what pressing it will do.
+    ///
+    /// It read "save and restart" no matter what was pending, so changing the
+    /// window's language -- which is applied and saved the instant it is picked
+    /// and is not read by the loop at all -- looked like it required tearing
+    /// detection down mid-game. The label now follows the form.
+    /// </summary>
+    private void UpdateSaveButton()
+    {
+        var form = ReadForm();
+        bool restart = form is null || form.NeedsRestartFrom(_running);
+        SaveButton.Content = Strings.Get(restart ? "Settings.Save" : "Settings.SaveOnly");
+    }
+
+    private void OnSettingChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_loadingSettings)
+            UpdateSaveButton();
+    }
+
+    private void OnSaveSettings(object sender, RoutedEventArgs e)
+    {
+        var form = ReadForm();
+        if (form is null)
+        {
+            SavedHint.Foreground = (Brush)FindResource("Bad");
+            SavedHint.Text = Strings.Get("Hint.NotANumber");
+            return;
+        }
+
+        bool restart = form.NeedsRestartFrom(_running);
+        _settings = form;
         _settings.Save();
 
         SavedHint.Foreground = (Brush)FindResource("Ok");
-        SavedHint.Text = Strings.Get("Hint.Saved");
         AppendLog(Strings.Get("Log.SettingsSaved"));
+
+        if (!restart)
+        {
+            // Nothing the loop reads has moved, and the pieces that did apply
+            // themselves when they were changed. Restarting here would drop the
+            // OBS connection and the augments taken so far to no purpose.
+            SavedHint.Text = Strings.Get("Hint.SavedNoRestart");
+            return;
+        }
+
+        SavedHint.Text = Strings.Get("Hint.Saved");
+        _running = form;
         _lastPicksKey = null;
         _awaitingRestart = true;
         _runner.Restart();
+        UpdateSaveButton();
     }
 
     private void OnResetSettings(object sender, RoutedEventArgs e)
@@ -449,6 +514,7 @@ public partial class MainWindow : Window
             DebugMode = _settings.DebugMode,
         };
         _settings.Save();
+        _running = _settings;
         LoadSettingsIntoUi();
         SavedHint.Foreground = (Brush)FindResource("Ok");
         SavedHint.Text = Strings.Get("Hint.DefaultsRestored");

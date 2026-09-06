@@ -37,6 +37,26 @@ public sealed class Settings
     public int WidgetRows { get; set; } = 4;
     public int WidgetMaxWidth { get; set; } = 420;
 
+    /// <summary>
+    /// Whether the loop has to be torn down and rebuilt to honour these values.
+    ///
+    /// The interface language and the debug switch are deliberately not in the
+    /// list: both are applied the moment they are changed and neither is read by
+    /// the loop, so restarting detection for them is work nobody asked for. The
+    /// button that always said "save and restart" made that look compulsory,
+    /// and made every other save look like it carried the same cost.
+    /// </summary>
+    public bool NeedsRestartFrom(Settings running) =>
+        Locale != running.Locale ||
+        ScreenWidth != running.ScreenWidth ||
+        ScreenHeight != running.ScreenHeight ||
+        ObsPort != running.ObsPort ||
+        ObsPassword != running.ObsPassword ||
+        ObsSource != running.ObsSource ||
+        WidgetPort != running.WidgetPort ||
+        WidgetRows != running.WidgetRows ||
+        WidgetMaxWidth != running.WidgetMaxWidth;
+
     /// <summary>CommunityDragon publishes one folder per client language.</summary>
     public static readonly (string Code, string Name)[] Locales =
     {

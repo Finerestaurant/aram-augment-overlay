@@ -152,6 +152,7 @@ public static class Strings
         Add("Settings.Rows", "표시 행 수", "Rows shown", "表示行数", "显示行数");
         Add("Settings.MaxWidth", "최대 폭 (px)", "Maximum width (px)", "最大幅 (px)", "最大宽度 (px)");
         Add("Settings.Save", "저장하고 다시 시작", "Save and restart", "保存して再起動", "保存并重启");
+        Add("Settings.SaveOnly", "저장", "Save", "保存", "保存");
         Add("Settings.Defaults", "기본값", "Defaults", "既定値", "默认值");
         Add("Settings.EnableWebsocket", "OBS websocket 서버 켜기", "Turn on the OBS websocket server",
             "OBS の websocket サーバーを有効化", "打开 OBS websocket 服务器");
@@ -237,6 +238,8 @@ public static class Strings
         Add("Hint.Saved", "저장했습니다. 다시 시작합니다...", "Saved. Restarting...",
             "保存しました。再起動します...", "已保存，正在重启...");
         Add("Hint.Restarted", "다시 시작했습니다.", "Restarted.", "再起動しました。", "已重启。");
+        Add("Hint.SavedNoRestart", "저장했습니다. 다시 시작할 필요는 없습니다.",
+            "Saved. No restart needed.", "保存しました。再起動は不要です。", "已保存，无需重启。");
         Add("Hint.RestartFailed", "다시 시작하지 못했습니다. 상태 탭의 로그를 확인하세요.",
             "Could not restart. Check the log on the Status tab.",
             "再起動できませんでした。状態タブのログを確認してください。",

@@ -234,15 +234,15 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="{app:Loc Settings.ObsPort}" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="ObsPortBox" Grid.Column="1" Style="{StaticResource Field}"
+                        <TextBox x:Name="ObsPortBox" TextChanged="OnSettingChanged" Grid.Column="1" Style="{StaticResource Field}"
                                  HorizontalAlignment="Left" Width="120" />
                         <TextBlock Grid.Row="1" Text="{app:Loc Settings.ObsSource}" Style="{StaticResource FieldLabel}"
                                    Margin="0,8,0,0" />
-                        <TextBox x:Name="ObsSourceBox" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
+                        <TextBox x:Name="ObsSourceBox" TextChanged="OnSettingChanged" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
                                  Style="{StaticResource Field}" />
                         <TextBlock Grid.Row="2" Text="{app:Loc Settings.ObsPassword}" Style="{StaticResource FieldLabel}"
                                    Margin="0,8,0,0" />
-                        <TextBox x:Name="ObsPasswordBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                        <TextBox x:Name="ObsPasswordBox" TextChanged="OnSettingChanged" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
                                  Style="{StaticResource Field}" />
                     </Grid>
                     <TextBlock Text="{app:Loc Hint.PasswordBlank}"
@@ -264,15 +264,15 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="{app:Loc Settings.WidgetPort}" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="WidgetPortBox" Grid.Column="1" Style="{StaticResource Field}"
+                        <TextBox x:Name="WidgetPortBox" TextChanged="OnSettingChanged" Grid.Column="1" Style="{StaticResource Field}"
                                  HorizontalAlignment="Left" Width="120" />
                         <TextBlock Grid.Row="1" Text="{app:Loc Settings.Rows}" Style="{StaticResource FieldLabel}"
                                    Margin="0,8,0,0" />
-                        <TextBox x:Name="RowsBox" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
+                        <TextBox x:Name="RowsBox" TextChanged="OnSettingChanged" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
                                  Style="{StaticResource Field}" HorizontalAlignment="Left" Width="120" />
                         <TextBlock Grid.Row="2" Text="{app:Loc Settings.MaxWidth}" Style="{StaticResource FieldLabel}"
                                    Margin="0,8,0,0" />
-                        <TextBox x:Name="MaxWidthBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                        <TextBox x:Name="MaxWidthBox" TextChanged="OnSettingChanged" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
                                  Style="{StaticResource Field}" HorizontalAlignment="Left" Width="120" />
                     </Grid>
 
@@ -283,8 +283,8 @@
 
                     <TextBlock x:Name="SavedHint" Style="{StaticResource Hint}" Margin="0,16,0,0" />
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button Style="{StaticResource AccentButton}" Content="{app:Loc Settings.Save}"
-                                Click="OnSaveSettings" />
+                        <Button x:Name="SaveButton" Style="{StaticResource AccentButton}"
+                                Content="{app:Loc Settings.Save}" Click="OnSaveSettings" />
                         <Button Style="{StaticResource GhostButton}" Content="{app:Loc Settings.Defaults}"
                                 Margin="10,0,0,0" Click="OnResetSettings" />
                     </StackPanel>
