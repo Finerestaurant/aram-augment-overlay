@@ -48,6 +48,25 @@ jobs:
           "EXE_SHA256=$hash" | Out-File -Append $env:GITHUB_ENV
           "EXE_SIZE=$size"   | Out-File -Append $env:GITHUB_ENV
 
+      - name: Release notes
+        shell: pwsh
+        run: |
+          # The text people read on the release page lives in the repo rather
+          # than in this file: it is four languages long, and a translation is
+          # not something to review inside a YAML string. Per-version
+          # highlights, when there are any, sit in docs/release-notes/<tag>.md
+          # and go above the standing instructions.
+          $tag = "${{ github.event.inputs.tag || github.ref_name }}"
+          $parts = @()
+          if (Test-Path "docs/release-notes/$tag.md") {
+            $parts += (Get-Content "docs/release-notes/$tag.md" -Raw)
+          }
+          $parts += (Get-Content ".github/release-body.md" -Raw)
+          $body = $parts -join "`n`n---`n`n"
+          $body = $body.Replace('__SHA256__', $env:EXE_SHA256)
+          $body = $body.Replace('__SIZE__', $env:EXE_SIZE)
+          $body | Out-File release-notes.md -Encoding utf8
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
@@ -56,33 +75,6 @@ jobs:
           files: |
             publish/ARAM-Augment-Overlay.exe
             publish/SHA256.txt
-          body: |
-            리그 오브 레전드 **무작위 총력전: 아수라장**에서 획득한 증강을 OBS 화면에 누적 표시합니다.
-
-            ### 받는 법
-            아래 `ARAM-Augment-Overlay.exe` 하나만 받으면 됩니다. 설치도, 다른 프로그램도 필요 없습니다.
-
-            처음 실행할 때 **"Windows에서 PC를 보호했습니다"** 경고가 뜹니다. 코드 서명을 하지 않은
-            프로그램이라 그렇습니다. **추가 정보 → 실행**을 누르면 됩니다.
-            받으신 파일이 맞는지 확인하시려면:
-
-            ```
-            Get-FileHash ARAM-Augment-Overlay.exe -Algorithm SHA256
-            ```
-            `${{ env.EXE_SHA256 }}`
-
-            ### 준비물
-            - Windows 10 / 11, 1920×1080 해상도 100% 배율
-            - OBS Studio 28 이상 (실행해 둔 상태여야 합니다)
-            - 한국어 OCR 언어 팩 — 한국어 윈도우에는 기본 포함
-
-            ### 처음 쓰실 때
-            1. OBS를 한 번 실행하고 자동 구성 마법사를 닫은 뒤 **OBS를 종료**합니다
-            2. 이 프로그램을 실행하고 **설정 탭 → OBS websocket 서버 켜기**
-            3. OBS를 다시 실행하고 **다시 시도**
-            4. OBS에서 **소스 → + → 브라우저**, 주소는 상태 탭에 표시된 `http://127.0.0.1:8777/`
-               (크기는 아무 값이나 넣으면 내용에 맞춰 자동 조정됩니다)
-
-            크기 ${{ env.EXE_SIZE }} MB
+          body_path: release-notes.md
           draft: false
           prerelease: ${{ startsWith(github.event.inputs.tag || github.ref_name, 'v0.') }}
