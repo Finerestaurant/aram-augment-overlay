@@ -230,8 +230,21 @@ static async Task<int> DetectParity(string root)
         return 1;
     }
 
-    var gate = await Assets.GateAsync();
-    var hide = await Assets.HideButtonAsync();
+    // WinRT imaging is not guaranteed on a Windows Server CI image, where the
+    // media stack is optional. Fail loudly on a machine that can run the tool,
+    // skip where the platform simply cannot decode.
+    TemplateGate gate;
+    HideButton hide;
+    try
+    {
+        gate = await Assets.GateAsync();
+        hide = await Assets.HideButtonAsync();
+    }
+    catch (Exception exc)
+    {
+        Console.WriteLine($"SKIP  감지 대조 — 이 환경에서 이미지 디코딩 불가 ({exc.GetType().Name})");
+        return 0;
+    }
 
     using var doc = JsonDocument.Parse(File.ReadAllText(path));
     var decoded = new Dictionary<string, Frame>();
