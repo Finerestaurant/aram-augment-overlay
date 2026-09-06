@@ -28,7 +28,6 @@ public sealed class Settings
     public bool DebugMode { get; set; }
 
     public string Locale { get; set; } = "ko_kr";
-    public string OcrLanguage { get; set; } = "";          // "" -> follow the locale
     public int ScreenWidth { get; set; } = 1920;
     public int ScreenHeight { get; set; } = 1080;
     public int ObsPort { get; set; } = 4455;
@@ -104,7 +103,9 @@ public sealed class Settings
             settings.UiLanguage = json["ui_language"]?.GetValue<string>() ?? settings.UiLanguage;
             settings.DebugMode = json["debug_mode"]?.GetValue<bool>() ?? settings.DebugMode;
             settings.Locale = json["locale"]?.GetValue<string>() ?? settings.Locale;
-            settings.OcrLanguage = json["ocr_language"]?.GetValue<string>() ?? settings.OcrLanguage;
+            // ocr_language used to be a separate setting. It is read no more:
+            // choosing a recogniser that did not match the client language read
+            // nothing at all, and there was no legitimate reason to differ.
             settings.ScreenWidth = Int(json["screen_width"], settings.ScreenWidth);
             settings.ScreenHeight = Int(json["screen_height"], settings.ScreenHeight);
             settings.ObsPort = Int(json["obs_port"], settings.ObsPort);
@@ -141,7 +142,6 @@ public sealed class Settings
             ["ui_language"] = UiLanguage,
             ["debug_mode"] = DebugMode,
             ["locale"] = Locale,
-            ["ocr_language"] = OcrLanguage,
             ["screen_width"] = ScreenWidth,
             ["screen_height"] = ScreenHeight,
             ["obs_port"] = ObsPort,
@@ -169,9 +169,7 @@ public sealed class Settings
 
         string locale = Locales.Any(l => l.Code == Locale) ? Locale : "ko_kr";
         Config.Locale = locale;
-        Config.OcrLanguages = OcrLanguage.Trim().Length > 0
-            ? new[] { OcrLanguage.Trim() }
-            : OcrForLocale.GetValueOrDefault(locale, new[] { "en-US", "en" });
+        Config.OcrLanguages = OcrForLocale.GetValueOrDefault(locale, new[] { "en-US", "en" });
 
         if (ScreenWidth > 0 && ScreenHeight > 0)
         {

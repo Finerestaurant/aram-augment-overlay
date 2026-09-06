@@ -185,17 +185,8 @@
                             <ColumnDefinition Width="130" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{app:Loc Settings.AugmentNames}" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Text="{app:Loc Settings.GameLanguage}" Style="{StaticResource FieldLabel}" />
                         <ComboBox x:Name="LocaleBox" Grid.Column="1" Style="{StaticResource Combo}"
-                                  SelectionChanged="OnLocaleChanged" />
-                    </Grid>
-                    <Grid Margin="0,8,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{app:Loc Settings.OcrLanguage}" Style="{StaticResource FieldLabel}" />
-                        <ComboBox x:Name="OcrBox" Grid.Column="1" Style="{StaticResource Combo}"
                                   SelectionChanged="OnLocaleChanged" />
                     </Grid>
                     <TextBlock x:Name="OcrHint" Style="{StaticResource Hint}" />

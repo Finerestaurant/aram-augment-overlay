@@ -122,11 +122,6 @@ public partial class MainWindow : Window
         int localeIndex = Array.FindIndex(Settings.Locales, l => l.Code == _settings.Locale);
         LocaleBox.SelectedIndex = localeIndex < 0 ? 0 : localeIndex;
 
-        var installed = TooltipOcr.InstalledLanguages();
-        OcrBox.ItemsSource = new[] { Strings.Get("Settings.Auto") }.Concat(installed).ToArray();
-        OcrBox.SelectedIndex = _settings.OcrLanguage.Length == 0
-            ? 0 : Math.Max(0, installed.ToList().IndexOf(_settings.OcrLanguage) + 1);
-
         PresetBox.ItemsSource = new[]
             { "1920 × 1080", "2560 × 1440", "3840 × 2160", "1600 × 900", "1280 × 720" };
 
@@ -198,14 +193,6 @@ public partial class MainWindow : Window
         _settings.Save();
         LocSource.Current.Refresh();
 
-        // The OCR picker holds a translated "auto" entry, so it is rebuilt too.
-        int ocrIndex = OcrBox.SelectedIndex;
-        _loadingSettings = true;
-        OcrBox.ItemsSource = new[] { Strings.Get("Settings.Auto") }
-            .Concat(TooltipOcr.InstalledLanguages()).ToArray();
-        OcrBox.SelectedIndex = Math.Max(0, ocrIndex);
-        _loadingSettings = false;
-
         var (w, h, scale) = ScreenInfo.Detect();
         ScreenHint.Text = w > 0
             ? Strings.Get("Hint.ThisScreen", w, h, scale)
@@ -231,40 +218,39 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// One language drives both halves: which names to fetch and which
+    /// recogniser reads the screen. They used to be separate settings, and a
+    /// pair that did not match read nothing at all while the window kept
+    /// detecting the augment screen perfectly -- the hardest failure to guess at.
+    /// </summary>
     private void UpdateOcrHint()
     {
         if (_loadingSettings || OcrHint is null)
             return;
-        string auto = Strings.Get("Settings.Auto");
-        string chosen = OcrBox.SelectedItem as string ?? auto;
-        _missingOcrTag = null;
-        _missingOcrCapability = null;
-        OcrFixRow.Visibility = Visibility.Collapsed;
-        if (chosen != auto)
-        {
-            OcrHint.Foreground = (Brush)FindResource("Faint");
-            OcrHint.Text = Strings.Get("Hint.ReadsWith", chosen);
-            return;
-        }
 
         string code = Settings.Locales[Math.Max(0, LocaleBox.SelectedIndex)].Code;
         var tags = Settings.OcrForLocale.GetValueOrDefault(code, Array.Empty<string>());
         var installed = TooltipOcr.InstalledLanguages();
         string? have = tags.FirstOrDefault(installed.Contains);
+
+        _missingOcrTag = null;
+        _missingOcrCapability = null;
+        OcrFixRow.Visibility = Visibility.Collapsed;
+
         if (have is not null)
         {
             OcrHint.Foreground = (Brush)FindResource("Faint");
             OcrHint.Text = Strings.Get("Hint.ReadsWith", have);
+            return;
         }
-        else
-        {
-            string want = tags.FirstOrDefault() ?? "?";
-            _missingOcrTag = want;
-            _missingOcrCapability = Settings.CapabilityTag(code);
-            OcrHint.Foreground = (Brush)FindResource("Bad");
-            OcrHint.Text = Strings.Get("Hint.OcrPackMissing", _missingOcrCapability);
-            OcrFixRow.Visibility = Visibility.Visible;
-        }
+
+        string want = tags.FirstOrDefault() ?? "?";
+        _missingOcrTag = want;
+        _missingOcrCapability = Settings.CapabilityTag(code);
+        OcrHint.Foreground = (Brush)FindResource("Bad");
+        OcrHint.Text = Strings.Get("Hint.OcrPackMissing", _missingOcrCapability);
+        OcrFixRow.Visibility = Visibility.Visible;
     }
 
     private void UpdateResolutionHint()
@@ -429,13 +415,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        string ocr = OcrBox.SelectedItem as string ?? Strings.Get("Settings.Auto");
         _settings = new Settings
         {
             UiLanguage = Strings.Languages[Math.Max(0, UiLanguageBox.SelectedIndex)].Code,
             DebugMode = DebugModeSwitch.IsChecked == true,
             Locale = Settings.Locales[Math.Max(0, LocaleBox.SelectedIndex)].Code,
-            OcrLanguage = ocr == Strings.Get("Settings.Auto") ? "" : ocr,
             ScreenWidth = width,
             ScreenHeight = height,
             ObsPort = obsPort,

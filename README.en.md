@@ -93,8 +93,7 @@ is why a restart is needed.
 
 | | |
 |---|---|
-| Augment names | Which client language to fetch from CommunityDragon. Cached per language |
-| OCR language | Which Windows OCR language reads the screen. **자동** (auto) follows the setting above, and tells you the install command when the pack is missing |
+| Game language | The language your League client is in. Augment names are fetched in it and the screen is read with it. If the matching OCR pack is missing, the app can install it |
 | Game resolution | Coordinates are rescaled to this. 16:9 works as-is; anything else warns |
 | OBS | websocket port · game capture source name · password (blank reads it from the OBS config) |
 | Overlay | widget port · rows shown · maximum width |
