@@ -98,6 +98,12 @@ public sealed class OverlayLoop
 
         int sizedSeq = 0;
         bool anvil = false;
+        // The frame the window was last seen alive in. Detection frames are
+        // small JPEGs that were being thrown away as soon as their brightness
+        // was taken, which left the moment the pick actually happened with no
+        // picture at all -- the only dump was of whenever the titles last read,
+        // which on a wrong pick is not the frame anyone wants to look at.
+        Frame? lastAlive = null;
         int? seenRaw = null;
         double? currentGameId = null;
         DateTime lastProbe = DateTime.MinValue;
@@ -188,6 +194,7 @@ public sealed class OverlayLoop
                     kept = new Kept();
                     diag = new Diagnostics();
                     flareHistory.Clear();
+                    lastAlive = null;
                     anvil = false;
                     seenRaw = null;
                     Log.Write(Strings.Get("Loop.WindowOpen", level,
@@ -202,7 +209,7 @@ public sealed class OverlayLoop
                     Log.Write(Strings.Get("Loop.WindowClosed"));
                     Log.Write($"    {Summary(diag, win)}");
                     await OnWindowClosedAsync(win, kept, diag, anvil, level, flareHistory,
-                                             picksLock, probe);
+                                             picksLock, probe, lastAlive);
                     win = new AugmentWindowState();
                     kept = new Kept();
                     await Task.Delay(300, token);
@@ -223,7 +230,10 @@ public sealed class OverlayLoop
             diag.Frames++;
 
             var means = Detect.CardMeans(gray);
-            flareHistory.Add((DateTime.UtcNow, means, weak));
+            var frameAt = DateTime.UtcNow;
+            flareHistory.Add((frameAt, means, weak));
+            if (weak)
+                lastAlive = frame;
             if (flareHistory.Count > 45)             // ~4 s at the loop's cadence
                 flareHistory.RemoveRange(0, 10);
 
@@ -292,21 +302,25 @@ public sealed class OverlayLoop
     }
 
     /// <summary>
-    /// The frame the titles were last read from, with the chosen card outlined
-    /// in green and the other two in grey.
+    /// One frame with the chosen card outlined in green and the other two in
+    /// grey. Two get written per pick: <c>read</c>, the full-resolution frame
+    /// the titles came off, and <c>close</c>, the last small frame the window
+    /// was still up in.
     ///
     /// A wrong pick is a claim about which card was brighter, and the numbers
     /// alone do not settle it -- a cursor resting on a card looks the same in a
-    /// ratio as a card being taken. This is the picture that does.
+    /// ratio as a card being taken. These are the pictures that do, and it takes
+    /// both: the readable one is not the deciding moment, and the deciding
+    /// moment is not readable.
     /// </summary>
-    private static async Task DumpDecisionAsync(Kept kept, string slot, int? level)
+    private static async Task DumpDecisionAsync(Frame? frame, string slot, int? level, string tag)
     {
-        if (!Config.DebugMode || kept.Frame is null)
+        if (!Config.DebugMode || frame is null)
             return;
         try
         {
-            var marked = new Frame(kept.Frame.Width, kept.Frame.Height,
-                                   (byte[])kept.Frame.Bgra.Clone());
+            var marked = new Frame(frame.Width, frame.Height,
+                                   (byte[])frame.Bgra.Clone());
             foreach (var (key, box) in Config.Cards)
             {
                 if (key == slot)
@@ -317,7 +331,7 @@ public sealed class OverlayLoop
             marked.DrawBox(Config.HoverTooltip, 255, 170, 60, 3);
 
             string path = Path.Combine(Config.State, "debug",
-                $"{DateTime.Now:yyyyMMdd-HHmmss}_lv{level}_{slot}.png");
+                $"{DateTime.Now:yyyyMMdd-HHmmss}_lv{level}_{slot}_{tag}.png");
             await Imaging.SavePngAsync(marked, path);
             Log.Write(Strings.Get("Loop.DumpSaved", path));
         }
@@ -485,7 +499,7 @@ public sealed class OverlayLoop
     private async Task OnWindowClosedAsync(
         AugmentWindowState win, Kept kept, Diagnostics diag, bool anvil, int? level,
         List<(DateTime At, Dictionary<string, double> Means, bool Alive)> history,
-        object picksLock, Task? probe)
+        object picksLock, Task? probe, Frame? lastAlive)
     {
         if (anvil)
         {
@@ -513,8 +527,22 @@ public sealed class OverlayLoop
         // absence, so "now" is over a second late and would make every reading
         // look stale by the same amount.
         DateTime closedAt = DateTime.UtcNow;
+        Dictionary<string, double>? closeMeans = null;
         for (int i = history.Count - 1; i >= 0; i--)
-            if (history[i].Alive) { closedAt = history[i].At; break; }
+            if (history[i].Alive) { (closedAt, closeMeans, _) = history[i]; break; }
+
+        // What the cards looked like at the close, written down whether or not
+        // brightness ends up deciding. It is one line and it is the line that
+        // says whether a wrong pick was brightness being overruled or brightness
+        // being right and ignored.
+        if (closeMeans is not null)
+        {
+            var byMean = closeMeans.OrderByDescending(kv => kv.Value).ToArray();
+            Log.Write(Strings.Get("Loop.CloseMeans",
+                string.Join(", ", closeMeans.Select(kv => $"{kv.Key}={kv.Value:F1}")),
+                byMean[0].Key,
+                byMean[1].Value > 0 ? (byMean[0].Value / byMean[1].Value).ToString("F2") : "-"));
+        }
 
         // Two signals, both measured against known answers. Card brightness over
         // the window as a whole is not a third: it was wrong on the windows it
@@ -626,6 +654,7 @@ public sealed class OverlayLoop
             kept.Cards.Where(kv => kv.Key != slot)
                 .Select(kv => $"{kv.Key}={kv.Value.Name}"))));
 
-        await DumpDecisionAsync(kept, slot, level);
+        await DumpDecisionAsync(kept.Frame, slot, level, "read");
+        await DumpDecisionAsync(lastAlive, slot, level, "close");
     }
 }

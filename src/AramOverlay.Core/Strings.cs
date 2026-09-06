@@ -402,6 +402,10 @@ public static class Strings
             "    The tooltip points at card {0}, but the reading is {1}s old and is not used.",
             "    ツールチップは カード {0} を指していますが、{1} 秒前の読み取りのため使いません。",
             "    提示框指向卡片 {0}，但该读数已是 {1} 秒前的，不予采用。");
+        Add("Loop.CloseMeans", "    종료 시점 카드 밝기: {0} — 최고 {1}, 차순 대비 {2}배",
+            "    Card brightness at the close: {0} -- brightest {1}, {2}x the next",
+            "    終了時点のカード明度: {0} — 最高 {1}、次点比 {2} 倍",
+            "    关闭时的卡片亮度: {0} — 最高 {1}，为次高的 {2} 倍");
         Add("Loop.DumpSaved", "    판정 화면 저장: {0}", "    decision frame saved: {0}",
             "    判定画面を保存: {0}", "    已保存判定画面: {0}");
         Add("Loop.DumpFailed", "    판정 화면 저장 실패: {0}", "    could not save the decision frame: {0}",
