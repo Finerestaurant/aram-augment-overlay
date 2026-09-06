@@ -149,6 +149,26 @@ public static class Strings
             "留空则从 OBS 配置文件自动读取。");
         Add("Hint.ReadsWith", "'{0}' 로 읽습니다.", "Reads with {0}.",
             "{0} で読み取ります。", "使用 {0} 读取。");
+        Add("Action.InstallOcr", "OCR 언어 팩 설치", "Install the OCR language pack",
+            "OCR 言語パックをインストール", "安装 OCR 语言包");
+        Add("Action.OpenLanguageSettings", "언어 설정 열기", "Open language settings",
+            "言語設定を開く", "打开语言设置");
+        Add("Hint.OcrInstalling", "설치 중입니다. 몇 분 걸릴 수 있습니다...",
+            "Installing. This can take a few minutes...",
+            "インストール中です。数分かかることがあります...", "正在安装，可能需要几分钟...");
+        Add("Hint.OcrInstalled", "'{0}' 설치 완료. 저장하고 다시 시작을 눌러 주세요.",
+            "{0} installed. Press Save and restart.",
+            "{0} をインストールしました。保存して再起動を押してください。",
+            "已安装 {0}。请点击保存并重启。");
+        Add("Hint.OcrInstallDeclined", "설치를 취소했습니다. 관리자 권한이 필요합니다.",
+            "Installation was cancelled. It needs administrator rights.",
+            "インストールをキャンセルしました。管理者権限が必要です。",
+            "已取消安装。此操作需要管理员权限。");
+        Add("Hint.OcrInstallFailed",
+            "설치하지 못했습니다. 설정 앱에서 언어를 추가하거나, 관리자 PowerShell에서\nAdd-WindowsCapability -Online -Name '{0}'",
+            "Could not install it. Add the language in Settings, or in an admin PowerShell:\nAdd-WindowsCapability -Online -Name '{0}'",
+            "インストールできませんでした。設定アプリで言語を追加するか、管理者 PowerShell で:\nAdd-WindowsCapability -Online -Name '{0}'",
+            "安装失败。请在设置中添加语言，或在管理员 PowerShell 中执行:\nAdd-WindowsCapability -Online -Name '{0}'");
         Add("Hint.OcrPackMissing",
             "'{0}' OCR 언어 팩이 없습니다. 관리자 PowerShell에서\nAdd-WindowsCapability -Online -Name 'Language.OCR~~~{0}~0.0.1.0'",
             "The {0} OCR language pack is missing. In an admin PowerShell:\nAdd-WindowsCapability -Online -Name 'Language.OCR~~~{0}~0.0.1.0'",

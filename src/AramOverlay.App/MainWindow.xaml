@@ -199,6 +199,15 @@
                                   SelectionChanged="OnLocaleChanged" />
                     </Grid>
                     <TextBlock x:Name="OcrHint" Style="{StaticResource Hint}" />
+                    <StackPanel x:Name="OcrFixRow" Orientation="Horizontal" Margin="0,8,0,0"
+                                Visibility="Collapsed">
+                        <Button x:Name="InstallOcrButton" Style="{StaticResource GhostButton}"
+                                Content="{app:Loc Action.InstallOcr}" Padding="12,7"
+                                Click="OnInstallOcr" />
+                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="12,7"
+                                Content="{app:Loc Action.OpenLanguageSettings}"
+                                Click="OnOpenLanguageSettings" />
+                    </StackPanel>
 
                     <TextBlock Text="{app:Loc Settings.Resolution}" Style="{StaticResource SectionLabel}" />
                     <TextBlock x:Name="ScreenHint" Style="{StaticResource Hint}" Margin="0,0,0,8" />

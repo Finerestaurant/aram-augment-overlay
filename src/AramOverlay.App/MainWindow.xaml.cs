@@ -25,6 +25,8 @@ public partial class MainWindow : Window
     private string? _lastPicksKey;
     private bool _loadingSettings;
     private bool _awaitingRestart;
+    private string? _missingOcrTag;
+    private DispatcherTimer? _ocrWatch;
 
     public MainWindow(OverlayRunner runner)
     {
@@ -234,6 +236,8 @@ public partial class MainWindow : Window
             return;
         string auto = Strings.Get("Settings.Auto");
         string chosen = OcrBox.SelectedItem as string ?? auto;
+        _missingOcrTag = null;
+        OcrFixRow.Visibility = Visibility.Collapsed;
         if (chosen != auto)
         {
             OcrHint.Foreground = (Brush)FindResource("Faint");
@@ -253,8 +257,10 @@ public partial class MainWindow : Window
         else
         {
             string want = tags.FirstOrDefault() ?? "?";
+            _missingOcrTag = want;
             OcrHint.Foreground = (Brush)FindResource("Bad");
             OcrHint.Text = Strings.Get("Hint.OcrPackMissing", want);
+            OcrFixRow.Visibility = Visibility.Visible;
         }
     }
 
@@ -293,6 +299,67 @@ public partial class MainWindow : Window
         WebsocketHint.Text = message;
         Log.Write(message.Replace("\n", " "));
     }
+
+    /// <summary>
+    /// Adds the language pack through an elevated prompt, then waits for the
+    /// recogniser to report it. Windows only ships OCR for the display
+    /// languages the machine came with, so anyone reading a different language
+    /// lands here, and the manual route is an admin PowerShell -- which is
+    /// where most people would stop.
+    /// </summary>
+    private void OnInstallOcr(object sender, RoutedEventArgs e)
+    {
+        if (_missingOcrTag is null)
+            return;
+        string tag = _missingOcrTag;
+
+        var (result, process) = OcrSetup.Install(tag);
+        if (result != OcrSetup.Result.Started)
+        {
+            OcrHint.Foreground = (Brush)FindResource("Bad");
+            OcrHint.Text = Strings.Get(result == OcrSetup.Result.Declined
+                ? "Hint.OcrInstallDeclined"
+                : "Hint.OcrInstallFailed", OcrSetup.CapabilityName(tag));
+            return;
+        }
+
+        InstallOcrButton.IsEnabled = false;
+        OcrHint.Foreground = (Brush)FindResource("Warn");
+        OcrHint.Text = Strings.Get("Hint.OcrInstalling");
+        AppendLog(Strings.Get("Hint.OcrInstalling"));
+
+        // The install runs for minutes; watch for the language rather than
+        // blocking, so the window stays usable while it works.
+        _ocrWatch?.Stop();
+        _ocrWatch = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        var started = DateTime.UtcNow;
+        _ocrWatch.Tick += (_, _) =>
+        {
+            bool present = TooltipOcr.InstalledLanguages().Contains(tag);
+            bool finished = process?.HasExited == true;
+            if (!present && !finished && DateTime.UtcNow - started < TimeSpan.FromMinutes(15))
+                return;
+
+            _ocrWatch!.Stop();
+            InstallOcrButton.IsEnabled = true;
+            if (present || process?.ExitCode == 0)
+            {
+                OcrHint.Foreground = (Brush)FindResource("Ok");
+                OcrHint.Text = Strings.Get("Hint.OcrInstalled", tag);
+                OcrFixRow.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                OcrHint.Foreground = (Brush)FindResource("Bad");
+                OcrHint.Text = Strings.Get("Hint.OcrInstallFailed", OcrSetup.CapabilityName(tag));
+            }
+            AppendLog(OcrHint.Text.Replace("\n", " "));
+        };
+        _ocrWatch.Start();
+    }
+
+    private void OnOpenLanguageSettings(object sender, RoutedEventArgs e) =>
+        OcrSetup.OpenLanguageSettings();
 
     private void OnSaveSettings(object sender, RoutedEventArgs e)
     {
