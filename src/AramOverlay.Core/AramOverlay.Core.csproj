@@ -18,15 +18,15 @@
   </PropertyGroup>
 
   <!-- The widget page and the match templates are embedded, so the published exe
-       carries them and there is no assets folder to ship alongside it. They are
-       referenced where the Python implementation already keeps them rather than
-       copied, so the two cannot drift apart while both exist. -->
+       carries them and there is no assets folder to ship alongside it. The
+       templates are cut to the coordinates in Config and cannot be regenerated
+       from anything else, so they are the one binary asset in the repo. -->
   <ItemGroup>
-    <EmbeddedResource Include="..\..\aram_overlay\assets\widget.html" LogicalName="widget.html" />
-    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_reroll_1.png" LogicalName="tpl_reroll_1.png" />
-    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_reroll_2.png" LogicalName="tpl_reroll_2.png" />
-    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_reroll_3.png" LogicalName="tpl_reroll_3.png" />
-    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_hide.png" LogicalName="tpl_hide.png" />
+    <EmbeddedResource Include="Assets\widget.html" LogicalName="widget.html" />
+    <EmbeddedResource Include="Assets\tpl_reroll_1.png" LogicalName="tpl_reroll_1.png" />
+    <EmbeddedResource Include="Assets\tpl_reroll_2.png" LogicalName="tpl_reroll_2.png" />
+    <EmbeddedResource Include="Assets\tpl_reroll_3.png" LogicalName="tpl_reroll_3.png" />
+    <EmbeddedResource Include="Assets\tpl_hide.png" LogicalName="tpl_hide.png" />
   </ItemGroup>
 
 </Project>

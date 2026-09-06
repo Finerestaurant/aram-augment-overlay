@@ -1,19 +1,20 @@
-__pycache__/
-*.pyc
-.venv/
-venv/
+# 빌드 산출물
+src/**/bin/
+src/**/obj/
+publish/
 
-# OCR model, fetched on first run (see aram_overlay/ocr.py)
-models/
-
-# Cached augment data from CommunityDragon, one file per client language
-data/augments_*.json
-data/augments.json
-
-# Runtime state and local config
+# 실행 중 만들어지는 것들 (exe 옆에 생긴다)
+data/
 state/
 config.json
 *.log
+
+# 파이썬 구현이 남긴 것들. 소스는 커밋 ecd9cb5 이전에 있다.
+.venv/
+build/
+dist/
+__pycache__/
+*.pyc
 
 # Full calibration capture set and run logs stay local -- tests/fixtures/ holds
 # the handful the self test needs, and the measurements taken from the rest are
@@ -26,17 +27,3 @@ logs/
 video/
 vidframes/
 frames_*/
-
-# 아이템 이름 캐시 (모루 판별용, CommunityDragon 에서 받음)
-data/items_*.json
-data/items.json
-
-# 빌드 산출물
-# PyInstaller
-build/
-dist/
-*.spec
-# .NET — publish/ 는 바탕화면 바로가기가 가리키는 곳이라 파일은 남지만 커밋하지 않는다
-publish/
-dotnet/**/bin/
-dotnet/**/obj/

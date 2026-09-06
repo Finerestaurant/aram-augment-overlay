@@ -236,6 +236,10 @@
                     </Grid>
                     <TextBlock Text="비워 두면 OBS 설정 파일에서 자동으로 읽습니다."
                                Style="{StaticResource Hint}" />
+                    <Button x:Name="EnableWebsocketButton" Style="{StaticResource GhostButton}"
+                            Content="OBS websocket 서버 켜기" HorizontalAlignment="Left"
+                            Margin="0,10,0,0" Click="OnEnableWebsocket" />
+                    <TextBlock x:Name="WebsocketHint" Style="{StaticResource Hint}" />
 
                     <TextBlock Text="오버레이" Style="{StaticResource SectionLabel}" />
                     <Grid>

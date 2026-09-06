@@ -215,6 +215,20 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Writes obs-websocket's own config, which is the only thing that actually
+    /// switches the server on -- the OBS command-line flags only override values.
+    /// </summary>
+    private void OnEnableWebsocket(object sender, RoutedEventArgs e)
+    {
+        int port = int.TryParse(ObsPortBox.Text, out int p) ? p : 4455;
+        var (result, message) = ObsSetup.Enable(port);
+        WebsocketHint.Foreground = (Brush)FindResource(
+            result is ObsSetup.Result.Enabled or ObsSetup.Result.AlreadyOn ? "Ok" : "Warn");
+        WebsocketHint.Text = message;
+        Log.Write(message.Replace("\n", " "));
+    }
+
     private void OnSaveSettings(object sender, RoutedEventArgs e)
     {
         if (!int.TryParse(WidthBox.Text, out int width) ||
