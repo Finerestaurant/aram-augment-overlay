@@ -1,6 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>아수라장 증강</title>
+<!--CONFIG-->
 <style>
   :root {
     --silver: #b8c4d0;
@@ -14,11 +15,12 @@
     -webkit-font-smoothing: antialiased;
   }
   /* inline-flex so the box hugs its contents instead of filling the source --
-     the tool reads the measured size back and resizes the OBS source to match */
-  /* inline-flex so the box hugs its contents instead of filling the source --
-     the tool reads the measured size back and resizes the OBS source to match */
+     the tool reads the measured size back and resizes the OBS source to match.
+     width:max-content keeps that measurement intrinsic: without it the cards
+     would stretch to whatever the source is currently sized to, so a narrow
+     source would measure narrow and ratchet itself smaller every frame. */
   #wrap { display: inline-flex; flex-direction: column; gap: 8px; padding: 12px;
-          max-width: 420px; }
+          width: max-content; max-width: 420px; }
   .card {
     display: flex; align-items: center; gap: 10px;
     padding: 8px 12px 8px 8px;
@@ -106,18 +108,23 @@
     }
   }
 
-  // The source is sized to a full list, not to what is on screen right now.
-  // Sizing to the current contents makes the box collapse to one card, which is
-  // fiddly to grab and place in OBS before going live; the extra area is
-  // transparent, so nothing shows on air either way.
-  const MAX_PICKS = 6, PAD = 12, GAP = 8, CARD_H = 58, BOX_W = 420;
-  let sentW = 0, sentH = 0;
+  // Width follows the cards, height is held at ROWS rows. A fixed 420-wide box
+  // left a wide transparent strip on the right that made the source awkward to
+  // place against a stream layout; the height stays fixed because a box that
+  // grew a row at a time would shift the layout mid-game. The last card width
+  // is kept while the list is empty so the box does not collapse to its padding
+  // and become fiddly to grab in OBS before going live.
+  const CFG = window.__CFG__ || {};
+  const ROWS = CFG.rows || 4, PAD = 12, GAP = 8, CARD_H = 58, EMPTY_W = 260;
+  if (CFG.maxWidth) wrap.style.maxWidth = CFG.maxWidth + "px";
+  let sentW = 0, sentH = 0, lastCardW = 0;
   function reportSize() {
     const first = wrap.firstElementChild;
-    const cardH = first ? Math.round(first.getBoundingClientRect().height) || CARD_H
-                        : CARD_H;
-    const h = PAD * 2 + MAX_PICKS * cardH + (MAX_PICKS - 1) * GAP;
-    const w = BOX_W;
+    const box = first ? first.getBoundingClientRect() : null;
+    const cardH = box ? Math.round(box.height) || CARD_H : CARD_H;
+    if (box && box.width) lastCardW = Math.ceil(box.width);
+    const w = (lastCardW || EMPTY_W) + PAD * 2;
+    const h = PAD * 2 + ROWS * cardH + (ROWS - 1) * GAP;
     if (w === sentW && h === sentH) return;
     sentW = w; sentH = h;
     fetch("/size", {method: "POST", body: JSON.stringify({w, h})}).catch(() => {});

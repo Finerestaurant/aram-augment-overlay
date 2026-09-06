@@ -6,7 +6,8 @@ venv/
 # OCR model, fetched on first run (see aram_overlay/ocr.py)
 models/
 
-# Cached augment data from CommunityDragon
+# Cached augment data from CommunityDragon, one file per client language
+data/augments_*.json
 data/augments.json
 
 # Runtime state and local config
@@ -27,4 +28,15 @@ vidframes/
 frames_*/
 
 # 아이템 이름 캐시 (모루 판별용, CommunityDragon 에서 받음)
+data/items_*.json
 data/items.json
+
+# 빌드 산출물
+# PyInstaller
+build/
+dist/
+*.spec
+# .NET — publish/ 는 바탕화면 바로가기가 가리키는 곳이라 파일은 남지만 커밋하지 않는다
+publish/
+dotnet/**/bin/
+dotnet/**/obj/

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The windows10.0.19041.0 target is what brings in the WinRT projections:
+       Windows.Media.Ocr for reading the cards and Windows.Graphics.Imaging for
+       decoding the frames OBS sends. Both ship with Windows, so nothing here
+       pulls a NuGet package or a native DLL. SupportedOSPlatformVersion is kept
+       at 10.0.17763.0 so the app still starts on older Windows 10 and reports a
+       missing OCR language itself rather than failing to load. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Needed only to reach SoftwareBitmap's pixels through
+         IMemoryBufferByteAccess, which is how WinRT hands them over. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- The widget page and the match templates are embedded, so the published exe
+       carries them and there is no assets folder to ship alongside it. They are
+       referenced where the Python implementation already keeps them rather than
+       copied, so the two cannot drift apart while both exist. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\aram_overlay\assets\widget.html" LogicalName="widget.html" />
+    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_reroll_1.png" LogicalName="tpl_reroll_1.png" />
+    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_reroll_2.png" LogicalName="tpl_reroll_2.png" />
+    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_reroll_3.png" LogicalName="tpl_reroll_3.png" />
+    <EmbeddedResource Include="..\..\aram_overlay\assets\tpl_hide.png" LogicalName="tpl_hide.png" />
+  </ItemGroup>
+
+</Project>

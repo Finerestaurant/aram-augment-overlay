@@ -14,6 +14,7 @@ import argparse
 import json
 import statistics
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -22,7 +23,7 @@ import numpy as np
 import requests
 import urllib3
 
-from . import config, detect
+from . import config, detect, settings
 from .augments import AugmentDB
 from .items import ItemNames
 from .obs import ObsCapture, read_obs_websocket_config
@@ -38,8 +39,25 @@ urllib3.disable_warnings()
 TOOLTIP_PROBE_S = 0.35
 
 
+# The GUI reads the loop rather than wrapping it: it subscribes to LOG_SINKS,
+# shares the objects published in RUNTIME, and asks for a shutdown with STOP.
+# With nothing subscribed this file behaves exactly as it did from a console.
+LOG_SINKS: list = []
+STOP = threading.Event()
+RUNTIME: dict = {}
+
+
 def log(msg: str) -> None:
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+    line = f"[{time.strftime('%H:%M:%S')}] {msg}"
+    # pythonw.exe has no stdout at all, so printing there raises rather than
+    # going nowhere quietly.
+    if sys.stdout is not None:
+        print(line, flush=True)
+    for sink in list(LOG_SINKS):
+        try:
+            sink(line)
+        except Exception:
+            pass
 
 
 def _new_kept() -> dict:
@@ -121,13 +139,33 @@ def load_password(cli_password: str | None) -> str:
 
 
 def main(argv=None) -> int:
+    # Before the parser is built: its defaults are read off `config`, which this
+    # rewrites from config.json.
+    settings.apply()
+
     ap = argparse.ArgumentParser(description="아수라장 증강 오버레이")
     ap.add_argument("--password", help="OBS websocket 비밀번호 (생략 시 OBS 설정에서 자동 인식)")
     ap.add_argument("--port", type=int, default=config.OBS_PORT)
     ap.add_argument("--source", default=config.OBS_SOURCE)
     ap.add_argument("--widget-port", type=int, default=config.WIDGET_PORT)
     ap.add_argument("--refresh-data", action="store_true", help="증강 데이터를 새로 받습니다")
+    ap.add_argument("--gui", action="store_true", help="상태 창과 트레이 아이콘으로 실행합니다")
+    ap.add_argument("--stop", action="store_true",
+                    help="실행 중인 오버레이를 정상 종료합니다 (트레이 아이콘까지 정리됩니다)")
     args = ap.parse_args(argv)
+
+    if args.stop:
+        from .gui import stop_running
+        if stop_running():
+            log("실행 중인 오버레이에 종료를 요청했습니다.")
+            return 0
+        log("실행 중인 오버레이가 없습니다.")
+        return 1
+
+    if args.gui:
+        from .gui import run
+        rest = list(argv if argv is not None else sys.argv[1:])
+        return run([a for a in rest if a != "--gui"])
 
     log("증강 데이터 불러오는 중...")
     db = AugmentDB.load(refresh=args.refresh_data)
@@ -157,10 +195,11 @@ def main(argv=None) -> int:
     state = RunState()
     server = WidgetServer(state, port=args.widget_port)
     url = server.start()
-    log(f"위젯 주소: {url}   <- OBS 브라우저 소스에 이 주소를 넣으세요 (권장 크기 420x600)")
+    log(f"위젯 주소: {url}   <- OBS 브라우저 소스에 이 주소를 넣으세요 (크기는 내용에 맞춰 자동 조정됩니다)")
     refreshed = obs.refresh_browser_sources(url)
     if refreshed:
         log(f"브라우저 소스 새로고침: {', '.join(refreshed)}")
+    RUNTIME.update(state=state, server=server, url=url)
 
     # The tooltip grab runs off the detection loop -- it costs ~250 ms and the
     # selection flare is only a few frames long, so blocking on it loses the very
@@ -184,7 +223,7 @@ def main(argv=None) -> int:
     log("대기 중... 아수라장 게임을 시작하세요.")
 
     try:
-        while True:
+        while not STOP.is_set():
             if server.size["seq"] != sized_seq and server.size["h"]:
                 sized_seq = server.size["seq"]
                 w_, h_ = server.size["w"], server.size["h"]
@@ -196,12 +235,14 @@ def main(argv=None) -> int:
                 if state.connected:
                     log("게임이 종료되었습니다.")
                 state.connected = False
+                state.level = None
                 win = detect.WindowState()
                 time.sleep(3)
                 continue
 
             mode = (game.get("gameData") or {}).get("gameMode", "")
             level = ((game.get("activePlayer") or {}).get("level"))
+            state.level = level
             game_id = (game.get("gameData") or {}).get("gameTime", 0)
 
             if not state.connected:

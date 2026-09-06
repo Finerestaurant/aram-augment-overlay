@@ -19,3 +19,7 @@ opencv-python-headless>=4.10
 numpy>=2.0
 Pillow>=10.0
 requests>=2.31
+# Tray icon for the status window. Tkinter itself ships with Python; this is the
+# only piece of the GUI that needs a download, and the window still runs (window
+# close then quits instead of hiding) if it is missing.
+pystray>=0.19

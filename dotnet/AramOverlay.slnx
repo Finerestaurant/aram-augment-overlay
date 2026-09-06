@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="AramOverlay.App/AramOverlay.App.csproj" />
+  <Project Path="AramOverlay.Core/AramOverlay.Core.csproj" />
+  <Project Path="AramOverlay.SelfTest/AramOverlay.SelfTest.csproj" />
+</Solution>

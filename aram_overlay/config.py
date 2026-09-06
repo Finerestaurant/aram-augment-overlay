@@ -3,15 +3,28 @@
 Every pixel coordinate here is for 1920x1080 at 100% scale, measured from real
 captures. Other resolutions need all of them rescaled -- see RESOLUTION_NOTE.
 """
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-ASSETS = Path(__file__).resolve().parent / "assets"
+# Packaged with PyInstaller the code lives in a temp folder that is deleted on
+# exit, so anything written -- config.json, the augment cache, debug frames --
+# has to go next to the .exe instead, while the bundled assets stay with the
+# unpacked code.
+if getattr(sys, "frozen", False):
+    ROOT = Path(sys.executable).resolve().parent
+    ASSETS = Path(getattr(sys, "_MEIPASS", ".")) / "aram_overlay" / "assets"
+else:
+    ROOT = Path(__file__).resolve().parent.parent
+    ASSETS = Path(__file__).resolve().parent / "assets"
 DATA = ROOT / "data"
 STATE = ROOT / "state"
 
 RESOLUTION_NOTE = "coordinates assume 1920x1080 @ 100% scale"
 BASE_W, BASE_H = 1920, 1080
+# Client language, and the Windows OCR tags that go with it. settings.apply()
+# rewrites both from config.json; these are the defaults it falls back to.
+LOCALE = "ko_kr"
+OCR_LANGUAGES = ("ko-KR", "ko")
 
 # --- OBS ---
 OBS_HOST = "127.0.0.1"
@@ -199,3 +212,7 @@ _load_box_overrides()
 # --- widget ---
 WIDGET_HOST = "127.0.0.1"
 WIDGET_PORT = 8777
+# How tall the OBS source is held at, in card rows, and how wide a card may grow
+# before its name is ellipsised. The page measures itself against these.
+WIDGET_ROWS = 4
+WIDGET_MAX_W = 420

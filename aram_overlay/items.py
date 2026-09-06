@@ -32,7 +32,7 @@ class ItemNames:
     @classmethod
     def load(cls, refresh: bool = False, max_age_days: int = 7) -> "ItemNames":
         config.DATA.mkdir(parents=True, exist_ok=True)
-        cache = config.DATA / "items.json"
+        cache = config.DATA / f"items_{config.LOCALE}.json"
         fresh = cache.exists() and (time.time() - cache.stat().st_mtime) < max_age_days * 86400
         if fresh and not refresh:
             raw = json.loads(cache.read_text(encoding="utf-8"))

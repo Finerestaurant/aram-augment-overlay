@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- No WinForms. It was referenced for NotifyIcon alone, which cost 23 MB of
+       framework and blocked trimming outright (NETSDK1175); TrayIcon.cs does
+       the same job against Shell_NotifyIcon in about a hundred lines. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <AssemblyName>ARAM-Augment-Overlay</AssemblyName>
+    <RootNamespace>AramOverlay.App</RootNamespace>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AramOverlay.Core\AramOverlay.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="app.ico" />
+  </ItemGroup>
+
+</Project>

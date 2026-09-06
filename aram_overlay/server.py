@@ -29,12 +29,14 @@ class RunState:
     picks: list[Pick] = field(default_factory=list)
     game_mode: str = ""
     connected: bool = False
+    level: int | None = None      # shown in the status window, ignored by the widget
 
     def to_json(self) -> str:
         return json.dumps({
             "picks": [asdict(p) for p in self.picks],
             "game_mode": self.game_mode,
             "connected": self.connected,
+            "level": self.level,
         }, ensure_ascii=False)
 
 
@@ -51,7 +53,12 @@ class WidgetServer:
 
     def _handler(self):
         state = self.state
-        page = (config.ASSETS / "widget.html").read_bytes()
+        # Row count and width cap are settings, so they are handed to the page
+        # rather than duplicated in its script.
+        page = (config.ASSETS / "widget.html").read_text(encoding="utf-8")
+        cfg = json.dumps({"rows": config.WIDGET_ROWS, "maxWidth": config.WIDGET_MAX_W})
+        page = page.replace("<!--CONFIG-->",
+                            f"<script>window.__CFG__ = {cfg};</script>").encode("utf-8")
         on_reset = self.save
         size = self.size
 

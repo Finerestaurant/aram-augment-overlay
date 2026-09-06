@@ -1,0 +1,1262 @@
+[
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "L",
+  "scale": 1,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "상급 조준경 부착",
+  "match": "상급 조준경 부착",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "L",
+  "scale": 2,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "상급 조준경 부착",
+  "match": "상급 조준경 부착",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "L",
+  "scale": 3,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "사그 入 八7혜 曰 차 O 曰 = O 丁 그",
+  "match": "상급 조준경 부착",
+  "score": 0.2857142857142857,
+  "accepted": false
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "M",
+  "scale": 1,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "영혼의 정화",
+  "match": "영혼의 정화",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "M",
+  "scale": 2,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "영혼의 정화",
+  "match": "영혼의 정화",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "M",
+  "scale": 3,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "영혼의 정화",
+  "match": "영혼의 정화",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "R",
+  "scale": 1,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "되풀이",
+  "match": "되풀이",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "R",
+  "scale": 2,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "도\\풀0\\",
+  "match": "떠도는 폭풍",
+  "score": 0.4,
+  "accepted": false
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "R",
+  "scale": 3,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "되풀이",
+  "match": "되풀이",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "tooltip",
+  "scale": 1,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "상급 조준경 부착",
+  "match": "상급 조준경 부착",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "tooltip",
+  "scale": 2,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "사그 入 入 겨 曰 차 O 曰 = = o 丁 그",
+  "match": "상급 조준경 부착",
+  "score": 0.38095238095238093,
+  "accepted": false
+ },
+ {
+  "file": "01_lv7_hovL.jpg",
+  "slot": "tooltip",
+  "scale": 3,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "사그 入 八2혜 曰 차 O 曰 --L- = o 丁 그",
+  "match": "상급 조준경 부착",
+  "score": 0.24,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "L",
+  "scale": 1,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "L",
+  "scale": 2,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "L",
+  "scale": 3,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "M",
+  "scale": 1,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "M",
+  "scale": 2,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "M",
+  "scale": 3,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "R",
+  "scale": 1,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "R",
+  "scale": 2,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "R",
+  "scale": 3,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "tooltip",
+  "scale": 1,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "tooltip",
+  "scale": 2,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv11_05.png",
+  "slot": "tooltip",
+  "scale": 3,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "L",
+  "scale": 1,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "최상급 조준경 부착",
+  "match": "최상급 조준경 부착",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "L",
+  "scale": 2,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "최상급 조준경 부착",
+  "match": "최상급 조준경 부착",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "L",
+  "scale": 3,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "최상급 조준경 부착",
+  "match": "최상급 조준경 부착",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "M",
+  "scale": 1,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "궁극의 히드라",
+  "match": "궁극의 히드라",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "M",
+  "scale": 2,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "궁극의 히드라",
+  "match": "궁극의 히드라",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "M",
+  "scale": 3,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "궁극의 히드라",
+  "match": "궁극의 히드라",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "R",
+  "scale": 1,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "전능의 영혼",
+  "match": "전능의 영혼",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "R",
+  "scale": 2,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "전능의 영혼",
+  "match": "전능의 영혼",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "R",
+  "scale": 3,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "전능의 영혼",
+  "match": "전능의 영혼",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "tooltip",
+  "scale": 1,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "궁극의 히드라",
+  "match": "궁극의 히드라",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "tooltip",
+  "scale": 2,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "궁극의 히드라",
+  "match": "궁극의 히드라",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "aug_lv7_11.png",
+  "slot": "tooltip",
+  "scale": 3,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "궁극의 히드라",
+  "match": "궁극의 히드라",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "L",
+  "scale": 1,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "L",
+  "scale": 2,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "L",
+  "scale": 3,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "M",
+  "scale": 1,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "굶주린 히드라 업그레이드",
+  "match": "굶주린 히드라 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "M",
+  "scale": 2,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "굶주린 히드라 업그레이드",
+  "match": "굶주린 히드라 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "M",
+  "scale": 3,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "굶주린 히드라 업그레이드",
+  "match": "굶주린 히드라 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "R",
+  "scale": 1,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "노련한 저격수",
+  "match": "노련한 저격수",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "R",
+  "scale": 2,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "노련한저격수",
+  "match": "노련한 저격수",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "R",
+  "scale": 3,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "노련한 저격수",
+  "match": "노련한 저격수",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "tooltip",
+  "scale": 1,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "tooltip",
+  "scale": 2,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "frame_05.png",
+  "slot": "tooltip",
+  "scale": 3,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "L",
+  "scale": 1,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "L",
+  "scale": 2,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "L",
+  "scale": 3,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "광휘의 검 업그레이드",
+  "match": "광휘의 검 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "M",
+  "scale": 1,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "굶주린 히드라 업그레이드",
+  "match": "굶주린 히드라 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "M",
+  "scale": 2,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "굶주린 히드라 업그레이드",
+  "match": "굶주린 히드라 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "M",
+  "scale": 3,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "굶주린 히드라 업그레이드",
+  "match": "굶주린 히드라 업그레이드",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "R",
+  "scale": 1,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "노련한 저격수",
+  "match": "노련한 저격수",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "R",
+  "scale": 2,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "노련한저격수",
+  "match": "노련한 저격수",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "R",
+  "scale": 3,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "노련한 저격수",
+  "match": "노련한 저격수",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "tooltip",
+  "scale": 1,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "tooltip",
+  "scale": 2,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "gamecap.png",
+  "slot": "tooltip",
+  "scale": 3,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "L",
+  "scale": 1,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "L",
+  "scale": 2,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "L",
+  "scale": 3,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "M",
+  "scale": 1,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "M",
+  "scale": 2,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "M",
+  "scale": 3,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "R",
+  "scale": 1,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "R",
+  "scale": 2,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "R",
+  "scale": 3,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "tooltip",
+  "scale": 1,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "tooltip",
+  "scale": 2,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "hud_clean_lv9.png",
+  "slot": "tooltip",
+  "scale": 3,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "",
+  "match": null,
+  "score": 0.0,
+  "accepted": false
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "L",
+  "scale": 1,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "도`풀0\\",
+  "match": "떠도는 폭풍",
+  "score": 0.4,
+  "accepted": false
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "L",
+  "scale": 2,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "도\\풀0\\",
+  "match": "떠도는 폭풍",
+  "score": 0.4,
+  "accepted": false
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "L",
+  "scale": 3,
+  "box": [
+   460,
+   420,
+   738,
+   463
+  ],
+  "text": "되풀이",
+  "match": "되풀이",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "M",
+  "scale": 1,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "지명적인 공격",
+  "match": "치명적인 공격",
+  "score": 0.8333333333333334,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "M",
+  "scale": 2,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "치명적인 공격",
+  "match": "치명적인 공격",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "M",
+  "scale": 3,
+  "box": [
+   828,
+   420,
+   1106,
+   463
+  ],
+  "text": "치명적인 공격",
+  "match": "치명적인 공격",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "R",
+  "scale": 1,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "처형 시간",
+  "match": "처형 시간",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "R",
+  "scale": 2,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "처형 시간",
+  "match": "처형 시간",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "R",
+  "scale": 3,
+  "box": [
+   1196,
+   420,
+   1474,
+   463
+  ],
+  "text": "처형 시간",
+  "match": "처형 시간",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "tooltip",
+  "scale": 1,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "치명적인 공격",
+  "match": "치명적인 공격",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "tooltip",
+  "scale": 2,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "치명적인 공격",
+  "match": "치명적인 공격",
+  "score": 1.0,
+  "accepted": true
+ },
+ {
+  "file": "lv15_03_hovM.png",
+  "slot": "tooltip",
+  "scale": 3,
+  "box": [
+   620,
+   788,
+   1330,
+   842
+  ],
+  "text": "치명적인 공격",
+  "match": "치명적인 공격",
+  "score": 1.0,
+  "accepted": true
+ }
+]

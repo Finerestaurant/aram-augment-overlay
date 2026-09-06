@@ -41,13 +41,9 @@ import winrt.windows.foundation.collections  # noqa: F401  -- needed to iterate 
 
 from . import config
 
-_LANG_TAGS = ("ko-KR", "ko")
-
-
-
 def _engine():
-    """The Korean OCR engine, or None when the language pack is missing."""
-    for tag in _LANG_TAGS:
+    """The engine for the configured language, or None when its pack is missing."""
+    for tag in config.OCR_LANGUAGES:
         lang = Language(tag)
         if OcrEngine.is_language_supported(lang):
             eng = OcrEngine.try_create_from_language(lang)
@@ -64,8 +60,14 @@ def available() -> bool:
 
 
 def installed_languages() -> list[str]:
+    # Projected as a static property in winrt 3.x and as a getter in older
+    # builds; asking for the wrong one raises and the settings tab then reports
+    # every language pack as missing.
     try:
-        return [l.language_tag for l in OcrEngine.get_available_recognizer_languages()]
+        langs = getattr(OcrEngine, "available_recognizer_languages", None)
+        if langs is None:
+            langs = OcrEngine.get_available_recognizer_languages()
+        return [l.language_tag for l in langs]
     except Exception:
         return []
 
@@ -76,11 +78,13 @@ class TooltipOCR:
         self._engine = _engine()
         if self._engine is None:
             langs = ", ".join(installed_languages()) or "(없음)"
+            want = config.OCR_LANGUAGES[0]
             raise RuntimeError(
-                "Windows 한국어 OCR을 사용할 수 없습니다.\n"
+                f"Windows OCR에 '{want}' 언어가 없습니다.\n"
                 f"    현재 사용 가능한 언어: {langs}\n"
+                "    설정 탭에서 사용 가능한 언어를 고르거나,\n"
                 "    관리자 PowerShell에서 다음을 실행한 뒤 다시 시도하세요:\n"
-                "    Add-WindowsCapability -Online -Name 'Language.OCR~~~ko-KR~0.0.1.0'"
+                f"    Add-WindowsCapability -Online -Name 'Language.OCR~~~{want}~0.0.1.0'"
             )
 
     async def _read(self, img: Image.Image) -> str:
