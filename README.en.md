@@ -8,14 +8,22 @@
 Shows the augments you pick in League of Legends **ARAM: Mayhem** as a running list on your OBS
 stream. It reads them off the screen, so there is no account linking and nothing to log into.
 
+![The overlay over a game frame](docs/images/overlay.png)
+
+Each augment you take joins the list within seconds. The background is transparent, so it sits
+straight on the broadcast.
+
+![Augments stacking up](docs/images/overlay.gif)
+
 - Detects the moment an augment is taken → adds its name, rarity and icon to the overlay
 - Silver / gold / prismatic are told apart by colour
 - Attaches as an OBS browser source, so it goes straight onto the broadcast
 
 > Win rates, tiers and other performance stats are not shown — Riot policy does not allow it.
 
-> **The interface of the program itself is Korean.** Only this README is translated, and the
-> detection thresholds were measured against the Korean client. See [Limits](#limits).
+> The window speaks Korean, English, Japanese or Chinese — it follows your Windows language and
+> can be changed under Settings → Interface. The detection thresholds, though, were measured
+> against the Korean client; see [Limits](#limits).
 
 ---
 
@@ -32,7 +40,7 @@ program is not code-signed. Click **More info → Run anyway**.
 | OS | Windows 10 / 11, **1920×1080 at 100% scaling** |
 | OBS Studio | 28 or newer |
 | Game setting | **Borderless fullscreen** recommended |
-| OCR | The Windows OCR language pack for your client language |
+| OCR | The Windows OCR language pack for your client language — the app can install it for you |
 
 ---
 
@@ -42,17 +50,17 @@ program is not code-signed. Click **More info → Run anyway**.
 
 Start OBS **once** and dismiss the Auto-Configuration Wizard that appears. (While that wizard is
 open, OBS does not save its config at all.) Then **close OBS completely**, run this program and
-press **OBS websocket 서버 켜기** on the 설정 (Settings) tab. Doing it inside OBS under
+press **Turn on the OBS websocket server** on the Settings tab. Doing it inside OBS under
 **Tools → WebSocket Server Settings → Enable WebSocket server** is equivalent.
 
 **2. Run it**
 
-Start OBS again and press **다시 시도** (Retry) on the 상태 (Status) tab. Once connected the
+Start OBS again and press **Retry** on the Status tab. Once connected the
 indicator turns green and the widget address appears.
 
 The ✕ on the window does not quit — it **hides to the tray**. Double-click the tray icon, or launch
-the program again, to bring the window back. To actually stop it, use the **종료** (Quit) button or
-right-click the tray icon and choose 종료.
+the program again, to bring the window back. To actually stop it, use the **Quit** button or
+right-click the tray icon and choose Quit.
 
 **3. Add the widget to OBS**
 
@@ -66,19 +74,30 @@ created for you.
 
 ---
 
+### The window
+
+The status tab shows the connection and what has been taken so far; the settings tab covers language, resolution, OBS and the overlay.
+
+
+| | |
+|---|---|
+| ![](docs/images/app-status.png) | ![](docs/images/app-settings.png) |
+
+---
+
 ## Settings tab
 
 Changes are written to `config.json` next to the exe and take effect when you press
-**저장하고 다시 시작** (Save and restart). Language and coordinates are read once at startup, which
+**Save and restart**. Language and coordinates are read once at startup, which
 is why a restart is needed.
 
 | | |
 |---|---|
-| 증강 이름 (Augment names) | Which client language to fetch from CommunityDragon. Cached per language |
-| OCR 언어 (OCR language) | Which Windows OCR language reads the screen. **자동** (auto) follows the setting above, and tells you the install command when the pack is missing |
-| 게임 해상도 (Game resolution) | Coordinates are rescaled to this. 16:9 works as-is; anything else warns |
+| Augment names | Which client language to fetch from CommunityDragon. Cached per language |
+| OCR language | Which Windows OCR language reads the screen. **자동** (auto) follows the setting above, and tells you the install command when the pack is missing |
+| Game resolution | Coordinates are rescaled to this. 16:9 works as-is; anything else warns |
 | OBS | websocket port · game capture source name · password (blank reads it from the OBS config) |
-| 오버레이 (Overlay) | widget port · rows shown · maximum width |
+| Overlay | widget port · rows shown · maximum width |
 
 Command-line flags work too. `--stop` shuts a running overlay down cleanly (tray icon included),
 and flags such as `--widget-port` override the saved settings.
@@ -87,13 +106,13 @@ and flags such as `--widget-port` override the saved settings.
 
 ## When it does not work
 
-**"OBS 연결 안 됨" (not connected to OBS)**
-Check that OBS is running and its websocket server is on — the button on the 설정 tab. Start OBS,
-then press **다시 시도** (Retry); there is no need to close and reopen the window.
+**"OBS not connected"**
+Check that OBS is running and its websocket server is on — the button on the Settings tab. Start
+OBS, then press **Retry**; there is no need to close and reopen the window.
 
 **Tray icons piling up**
 Killing the program from Task Manager gives it no chance to remove its icon, so a dead one is left
-behind. Moving the mouse across the tray makes Windows clear them. Use the **종료** button or
+behind. Moving the mouse across the tray makes Windows clear them. Use the **Quit** button or
 `--stop` instead of killing it.
 
 **OBS asks "Start in safe mode?"**
@@ -117,9 +136,9 @@ is offered after OBS was closed abnormally.
 - The rarity and selection thresholds come from measurements on real games and gameplay footage.
   The silver sample is still small, so silver may be less reliable.
 - Works only in ARAM Mayhem (`gameMode: KIWI`).
-- **Everything was measured against the Korean client.** Other client languages can be selected in
-  the settings, but how well they read has not been verified, and the interface of the program is
-  Korean only.
+- **The thresholds were all measured against the Korean client.** Other client languages can be
+  selected in the settings and English reads cleanly in testing, but no language other than Korean
+  has been verified over a run of games.
 
 ---
 
