@@ -124,7 +124,7 @@ is why a restart is needed.
 
 | Setting | What it does |
 |---|---|
-| Game language | The language your League client is in. Augment names are fetched in it and the screen is read with it. If the matching OCR pack is missing, the app can install it. Defaults to the Windows display language |
+| Game language | The language your League client is in. Augment names are fetched in it and the screen is read with it. If the matching OCR pack is missing, the app can install it. It starts from what the League install says it is set to, and only falls back to the Windows display language |
 | Game resolution | Coordinates are rescaled to this. 16:9 works as-is; anything else warns |
 | OBS | websocket port · game capture source name · password (blank reads it from the OBS config) |
 | Overlay | widget port · rows shown · maximum width |

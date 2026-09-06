@@ -28,7 +28,7 @@ public sealed class Settings
     /// answer, and the log is for working out why an answer is missing.</summary>
     public bool DebugMode { get; set; }
 
-    public string Locale { get; set; } = SystemLocale();
+    public string Locale { get; set; } = DefaultLocale();
     public int ScreenWidth { get; set; } = 1920;
     public int ScreenHeight { get; set; } = 1080;
     public int ObsPort { get; set; } = 4455;
@@ -70,8 +70,12 @@ public sealed class Settings
     };
 
     /// <summary>
-    /// The client language to assume before anyone has picked one, taken from
-    /// the Windows display language.
+    /// The client language to guess from the Windows display language, used only
+    /// when <see cref="ClientLocale"/> found nothing on disk to read.
+    ///
+    /// This is a guess and a poor one -- a player on an English Windows with a
+    /// Korean client is the case that started all this -- but it beats assuming
+    /// one country outright.
     ///
     /// Riot's regional splits are not symmetric -- Chinese splits on script,
     /// Spanish on continent, Portuguese does not split at all -- so the cases
@@ -79,6 +83,12 @@ public sealed class Settings
     /// A language with no folder of its own lands on English, which a player is
     /// far more likely to read than whatever we picked first.
     /// </summary>
+    /// <summary>
+    /// The client language to start from when nobody has chosen one: what the
+    /// League install says, and only failing that, what Windows is set to.
+    /// </summary>
+    public static string DefaultLocale() => ClientLocale.Detect() ?? SystemLocale();
+
     public static string SystemLocale()
     {
         CultureInfo culture = CultureInfo.CurrentUICulture;
@@ -233,7 +243,7 @@ public sealed class Settings
     {
         Strings.Language = UiLanguage.Length > 0 ? UiLanguage : Strings.SystemDefault();
 
-        string locale = Locales.Any(l => l.Code == Locale) ? Locale : SystemLocale();
+        string locale = Locales.Any(l => l.Code == Locale) ? Locale : DefaultLocale();
         Config.Locale = locale;
         Config.OcrLanguages = OcrForLocale.GetValueOrDefault(locale, new[] { "en-US", "en" });
 
