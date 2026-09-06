@@ -153,6 +153,16 @@ public static class Strings
             "OCR 言語パックをインストール", "安装 OCR 语言包");
         Add("Action.OpenLanguageSettings", "언어 설정 열기", "Open language settings",
             "言語設定を開く", "打开语言设置");
+        Add("Hint.OcrElevating",
+            "Windows가 관리자 권한을 묻습니다 — [예]를 눌러 주세요.",
+            "Windows will ask for administrator permission — choose Yes.",
+            "Windows が管理者権限を求めます — [はい] を選んでください。",
+            "Windows 会请求管理员权限 — 请选择“是”。");
+        Add("Hint.OcrInstallingFor",
+            "'{0}' 설치 중입니다 ({1} 경과). 몇 분 걸리며, 창을 닫지 마세요.",
+            "Installing {0} ({1} elapsed). This takes a few minutes; leave the window open.",
+            "{0} をインストール中です（{1} 経過）。数分かかります。ウィンドウは閉じないでください。",
+            "正在安装 {0}（已用 {1}）。需要几分钟，请不要关闭窗口。");
         Add("Hint.OcrInstalling", "설치 중입니다. 몇 분 걸릴 수 있습니다...",
             "Installing. This can take a few minutes...",
             "インストール中です。数分かかることがあります...", "正在安装，可能需要几分钟...");
@@ -160,6 +170,11 @@ public static class Strings
             "{0} installed. Press Save and restart.",
             "{0} をインストールしました。保存して再起動を押してください。",
             "已安装 {0}。请点击保存并重启。");
+        Add("Hint.OcrInstalledNeedsRestart",
+            "'{0}' 설치가 끝났지만 아직 인식되지 않습니다. 프로그램을 다시 시작해 확인하세요.",
+            "{0} finished installing but is not being reported yet. Restart the app to check.",
+            "{0} のインストールは終わりましたが、まだ認識されていません。アプリを再起動して確認してください。",
+            "{0} 已安装完成，但尚未被识别。请重启程序后确认。");
         Add("Hint.OcrInstallDeclined", "설치를 취소했습니다. 관리자 권한이 필요합니다.",
             "Installation was cancelled. It needs administrator rights.",
             "インストールをキャンセルしました。管理者権限が必要です。",

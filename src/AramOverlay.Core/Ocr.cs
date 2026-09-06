@@ -34,6 +34,20 @@ public sealed class TooltipOcr
         }
     }
 
+    /// <summary>
+    /// Whether the recogniser has this language, comparing the way Windows
+    /// reports it rather than the way it is installed: the capability is called
+    /// ja-JP but the engine lists it as ja, and an exact match never fires.
+    /// </summary>
+    public static bool HasLanguage(string capabilityTag)
+    {
+        var installed = InstalledLanguages();
+        if (installed.Contains(capabilityTag))
+            return true;
+        string prefix = capabilityTag.Split('-')[0];
+        return installed.Any(l => l == prefix || l.StartsWith(prefix + "-", StringComparison.Ordinal));
+    }
+
     /// <summary>The engine for the configured language, or null when its pack is missing.</summary>
     public static TooltipOcr? TryCreate()
     {

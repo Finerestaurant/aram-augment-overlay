@@ -62,6 +62,20 @@ public sealed class Settings
         ["vi_vn"] = new[] { "vi-VN", "vi" }, ["th_th"] = new[] { "th-TH", "th" },
     };
 
+    /// <summary>
+    /// The Windows capability name for a locale, which is not the tag the OCR
+    /// engine reports. Windows installs Language.OCR~~~zh-CN while the engine
+    /// lists the result as zh-Hans-CN; asking to install the engine's tag fails
+    /// silently, because no such capability exists.
+    /// </summary>
+    public static string CapabilityTag(string locale)
+    {
+        var parts = locale.Split('_');
+        return parts.Length == 2
+            ? $"{parts[0]}-{parts[1].ToUpperInvariant()}"
+            : locale;
+    }
+
     private static string Path_ => System.IO.Path.Combine(Config.Root, "config.json");
 
     // The shipped coordinates, kept as written so rescaling always starts from

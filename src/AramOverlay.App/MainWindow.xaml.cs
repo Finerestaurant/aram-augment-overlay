@@ -25,7 +25,8 @@ public partial class MainWindow : Window
     private string? _lastPicksKey;
     private bool _loadingSettings;
     private bool _awaitingRestart;
-    private string? _missingOcrTag;
+    private string? _missingOcrTag;          // what the engine would report
+    private string? _missingOcrCapability;   // what Windows installs
     private DispatcherTimer? _ocrWatch;
 
     public MainWindow(OverlayRunner runner)
@@ -237,6 +238,7 @@ public partial class MainWindow : Window
         string auto = Strings.Get("Settings.Auto");
         string chosen = OcrBox.SelectedItem as string ?? auto;
         _missingOcrTag = null;
+        _missingOcrCapability = null;
         OcrFixRow.Visibility = Visibility.Collapsed;
         if (chosen != auto)
         {
@@ -258,8 +260,9 @@ public partial class MainWindow : Window
         {
             string want = tags.FirstOrDefault() ?? "?";
             _missingOcrTag = want;
+            _missingOcrCapability = Settings.CapabilityTag(code);
             OcrHint.Foreground = (Brush)FindResource("Bad");
-            OcrHint.Text = Strings.Get("Hint.OcrPackMissing", want);
+            OcrHint.Text = Strings.Get("Hint.OcrPackMissing", _missingOcrCapability);
             OcrFixRow.Visibility = Visibility.Visible;
         }
     }
@@ -307,55 +310,106 @@ public partial class MainWindow : Window
     /// lands here, and the manual route is an admin PowerShell -- which is
     /// where most people would stop.
     /// </summary>
+    /// <summary>
+    /// Adds the language pack through an elevated prompt, then waits for the
+    /// recogniser to report it. Windows only ships OCR for the display
+    /// languages the machine came with, so anyone reading a different language
+    /// lands here, and the manual route is an admin PowerShell -- which is
+    /// where most people would stop.
+    ///
+    /// The install runs hidden and takes minutes, so without a running count
+    /// there is nothing on screen to say it is working; that silence is what
+    /// made the first version look broken.
+    /// </summary>
     private void OnInstallOcr(object sender, RoutedEventArgs e)
     {
-        if (_missingOcrTag is null)
+        if (_missingOcrTag is null || _missingOcrCapability is null)
             return;
-        string tag = _missingOcrTag;
+        string engineTag = _missingOcrTag;
+        string capability = _missingOcrCapability;
 
-        var (result, process) = OcrSetup.Install(tag);
+        // Say the prompt is coming before it steals focus, and paint it first.
+        OcrHint.Foreground = (Brush)FindResource("Warn");
+        OcrHint.Text = Strings.Get("Hint.OcrElevating");
+        Dispatcher.Invoke(() => { }, DispatcherPriority.Render);
+
+        var (result, process) = OcrSetup.Install(capability);
         if (result != OcrSetup.Result.Started)
         {
             OcrHint.Foreground = (Brush)FindResource("Bad");
             OcrHint.Text = Strings.Get(result == OcrSetup.Result.Declined
                 ? "Hint.OcrInstallDeclined"
-                : "Hint.OcrInstallFailed", OcrSetup.CapabilityName(tag));
+                : "Hint.OcrInstallFailed", OcrSetup.CapabilityName(capability));
             return;
         }
 
+        // Only the enabled state changes: assigning Content would replace the
+        // language binding with a fixed string, and it would stop following a
+        // language switch from then on.
         InstallOcrButton.IsEnabled = false;
-        OcrHint.Foreground = (Brush)FindResource("Warn");
-        OcrHint.Text = Strings.Get("Hint.OcrInstalling");
-        AppendLog(Strings.Get("Hint.OcrInstalling"));
+        AppendLog(Strings.Get("Hint.OcrInstallingFor", capability, "0:00"));
 
-        // The install runs for minutes; watch for the language rather than
-        // blocking, so the window stays usable while it works.
-        _ocrWatch?.Stop();
-        _ocrWatch = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         var started = DateTime.UtcNow;
+        _ocrWatch?.Stop();
+        _ocrWatch = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _ocrWatch.Tick += (_, _) =>
         {
-            bool present = TooltipOcr.InstalledLanguages().Contains(tag);
+            try
+            {
+                WatchInstall(started, engineTag, capability, process);
+            }
+            catch (Exception exc)
+            {
+                _ocrWatch!.Stop();
+                InstallOcrButton.IsEnabled = true;
+                OcrHint.Foreground = (Brush)FindResource("Bad");
+                OcrHint.Text = Strings.Get("Hint.OcrInstallFailed",
+                                           OcrSetup.CapabilityName(capability));
+                AppendLog($"{exc.GetType().Name}: {exc.Message}");
+            }
+        };
+        _ocrWatch.Start();
+    }
+
+    private void WatchInstall(DateTime started, string engineTag, string capability,
+                              System.Diagnostics.Process? process)
+    {
+        {
+            var elapsed = DateTime.UtcNow - started;
+            // The capability is ja-JP while the engine lists ja, so this asks
+            // the engine its own way rather than comparing the strings.
+            bool present = TooltipOcr.HasLanguage(engineTag);
             bool finished = process?.HasExited == true;
-            if (!present && !finished && DateTime.UtcNow - started < TimeSpan.FromMinutes(15))
+
+            if (!present && !finished && elapsed < TimeSpan.FromMinutes(20))
+            {
+                OcrHint.Foreground = (Brush)FindResource("Warn");
+                OcrHint.Text = Strings.Get("Hint.OcrInstallingFor", capability,
+                                           $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}");
                 return;
+            }
 
             _ocrWatch!.Stop();
             InstallOcrButton.IsEnabled = true;
-            if (present || process?.ExitCode == 0)
-            {
-                OcrHint.Foreground = (Brush)FindResource("Ok");
-                OcrHint.Text = Strings.Get("Hint.OcrInstalled", tag);
+
+            // Three outcomes, and the exit code alone cannot tell them apart:
+            // the recogniser sees it, the install finished but the recogniser
+            // has not picked it up yet, or it failed. Claiming success on exit
+            // code 0 is what made a silent no-op look like it had worked.
+            // ExitCode throws while the process is still running, and the
+            // recogniser can report the language before the installer has
+            // finished -- reading it unguarded took the whole app down.
+            bool installed = finished && process!.ExitCode == 0;
+            OcrHint.Foreground = (Brush)FindResource(present || installed ? "Ok" : "Bad");
+            OcrHint.Text = present
+                ? Strings.Get("Hint.OcrInstalled", engineTag)
+                : installed
+                    ? Strings.Get("Hint.OcrInstalledNeedsRestart", capability)
+                    : Strings.Get("Hint.OcrInstallFailed", OcrSetup.CapabilityName(capability));
+            if (present)
                 OcrFixRow.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                OcrHint.Foreground = (Brush)FindResource("Bad");
-                OcrHint.Text = Strings.Get("Hint.OcrInstallFailed", OcrSetup.CapabilityName(tag));
-            }
-            AppendLog(OcrHint.Text.Replace("\n", " "));
-        };
-        _ocrWatch.Start();
+            AppendLog(OcrHint.Text);
+        }
     }
 
     private void OnOpenLanguageSettings(object sender, RoutedEventArgs e) =>
