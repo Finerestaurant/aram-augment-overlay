@@ -114,8 +114,7 @@ public static class Strings
         // ---- settings: sections and fields --------------------------------
         Add("Settings.Language", "언어", "LANGUAGE", "言語", "语言");
         Add("Settings.UiLanguage", "프로그램 언어", "Interface", "表示言語", "界面语言");
-        Add("Settings.AugmentNames", "증강 이름", "Augment names", "オーグメント名", "强化符文名称");
-        Add("Settings.OcrLanguage", "OCR 언어", "OCR language", "OCR 言語", "OCR 语言");
+        Add("Settings.GameLanguage", "게임 언어", "Game language", "ゲームの言語", "游戏语言");
         Add("Settings.Resolution", "해상도", "RESOLUTION", "解像度", "分辨率");
         Add("Settings.GameResolution", "게임 해상도", "Game resolution", "ゲーム解像度", "游戏分辨率");
         Add("Settings.Obs", "OBS", "OBS", "OBS", "OBS");
@@ -142,13 +141,15 @@ public static class Strings
             "会原样输出检测过程。只在某个强化符文没有被记录、想查清原因时才打开。");
 
         // ---- settings: hints ----------------------------------------------
-        Add("Settings.Auto", "자동", "Auto", "自動", "自动");
         Add("Hint.PasswordBlank", "비워 두면 OBS 설정 파일에서 자동으로 읽습니다.",
             "Leave blank to read it from the OBS config file.",
             "空欄にすると OBS の設定ファイルから自動で読み取ります。",
             "留空则从 OBS 配置文件自动读取。");
-        Add("Hint.ReadsWith", "'{0}' 로 읽습니다.", "Reads with {0}.",
-            "{0} で読み取ります。", "使用 {0} 读取。");
+        Add("Hint.ReadsWith",
+            "증강 이름을 이 언어로 받아오고, 화면도 '{0}' 로 읽습니다.",
+            "Augment names come in this language, and the screen is read with {0}.",
+            "オーグメント名をこの言語で取得し、画面も {0} で読み取ります。",
+            "以该语言获取强化符文名称，并用 {0} 读取画面。");
         Add("Action.InstallOcr", "OCR 언어 팩 설치", "Install the OCR language pack",
             "OCR 言語パックをインストール", "安装 OCR 语言包");
         Add("Action.OpenLanguageSettings", "언어 설정 열기", "Open language settings",
@@ -392,10 +393,15 @@ public static class Strings
         Add("Loop.Others", "    나머지 선택지: {0}", "    The other offers: {0}",
             "    残りの選択肢: {0}", "    其余选项: {0}");
         Add("Loop.SignalsDisagree",
-            "    [주의] 밝기는 {0} 카드, 툴팁은 {1} 카드('{2}')를 가리킵니다 — 밝기를 따릅니다.",
-            "    [note] brightness says card {0}, the tooltip says card {1} ('{2}') -- going with brightness.",
-            "    [注意] 明度は カード {0}、ツールチップは カード {1}（'{2}'）を指しています — 明度に従います。",
-            "    [注意] 亮度指向卡片 {0}，提示框指向卡片 {1}（'{2}'）— 采用亮度。");
+            "    [주의] 밝기는 {0} 카드, 툴팁은 {1} 카드('{2}', {3}초 전)를 가리킵니다 — 툴팁을 따릅니다.",
+            "    [note] brightness says card {0}, the tooltip says card {1} ('{2}', {3}s old) -- going with the tooltip.",
+            "    [注意] 明度は カード {0}、ツールチップは カード {1}（'{2}'、{3} 秒前）を指しています — ツールチップに従います。",
+            "    [注意] 亮度指向卡片 {0}，提示框指向卡片 {1}（'{2}'，{3} 秒前）— 采用提示框。");
+        Add("Loop.HoverStale",
+            "    툴팁은 {0} 카드를 가리키지만 {1}초 전 값이라 쓰지 않습니다.",
+            "    The tooltip points at card {0}, but the reading is {1}s old and is not used.",
+            "    ツールチップは カード {0} を指していますが、{1} 秒前の読み取りのため使いません。",
+            "    提示框指向卡片 {0}，但该读数已是 {1} 秒前的，不予采用。");
         Add("Loop.DumpSaved", "    판정 화면 저장: {0}", "    decision frame saved: {0}",
             "    判定画面を保存: {0}", "    已保存判定画面: {0}");
         Add("Loop.DumpFailed", "    판정 화면 저장 실패: {0}", "    could not save the decision frame: {0}",

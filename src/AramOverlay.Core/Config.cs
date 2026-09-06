@@ -102,6 +102,12 @@ public static class Config
 
     public const double SelectFlare = 1.15;
     public const double FlareLookbackS = 2.5;
+    // How old a tooltip reading may be, measured from the last frame the window
+    // was up, and still be taken as where the cursor was at the click. Scans run
+    // every 0.35 s and a grab plus OCR costs about as much again, so a cursor
+    // resting on a card produces a reading well inside this; anything older is a
+    // card the player has since moved off.
+    public const double HoverTrustS = 1.5;
 
     // The augment screen can be tucked away with a button under the cards; the
     // window is over only when this goes too.

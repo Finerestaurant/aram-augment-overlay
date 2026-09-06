@@ -27,6 +27,11 @@ public sealed class Kept
     public DateTime FullAt;
     public string? Hover;
     public string HoverRaw = "";
+    // When the frame that tooltip came off was grabbed. Hover is never cleared
+    // -- a cursor leaving the cards just stops updating it -- so without a time
+    // beside it a hover from the start of the window looks exactly like one
+    // from the moment of the click.
+    public DateTime HoverAt;
     public List<(string Raw, string Name, double Score)> TipMisses = new();
 }
 
@@ -196,7 +201,8 @@ public sealed class OverlayLoop
                 {
                     Log.Write(Strings.Get("Loop.WindowClosed"));
                     Log.Write($"    {Summary(diag, win)}");
-                    await OnWindowClosedAsync(win, kept, diag, anvil, level, flareHistory, picksLock);
+                    await OnWindowClosedAsync(win, kept, diag, anvil, level, flareHistory,
+                                             picksLock, probe);
                     win = new AugmentWindowState();
                     kept = new Kept();
                     await Task.Delay(300, token);
@@ -372,6 +378,7 @@ public sealed class OverlayLoop
         }
         if (shot is null)
             return;
+        var shotAt = DateTime.UtcNow;
         kept.Last = shot;
 
         int readNow = 0;
@@ -413,6 +420,7 @@ public sealed class OverlayLoop
             {
                 kept.Hover = slot;
                 kept.HoverRaw = raw;
+                kept.HoverAt = shotAt;
                 miss = null;
                 break;
             }
@@ -424,7 +432,7 @@ public sealed class OverlayLoop
     }
 
     /// <summary>
-    /// Which card lit up, found by walking back from the close.
+    /// Which card the cursor was on when the window went, read off brightness.
     ///
     /// Reading this off one full-resolution frame was wrong: that frame is
     /// whenever the titles last happened to be read. On one window it caught the
@@ -432,15 +440,22 @@ public sealed class OverlayLoop
     /// got published, while the augment actually taken was the dimmest of three.
     /// Only the stretch just before the close is searched, because a reroll
     /// earlier in the window flares just as brightly.
+    ///
+    /// Within that stretch the *newest* qualifying frame wins, not the
+    /// brightest. Taking the maximum published 閃光 for a window where 歯の妖精
+    /// was taken: the player rerolled the left card and took the middle one, and
+    /// the reroll animation at 1.56x, 0.7 s before the close, outshouted the
+    /// 1.28x the hovered card held right up to the click. Brightness here is not
+    /// a selection animation -- there is none -- it is where the cursor is
+    /// resting, so the reading closest to the click is the one that matters.
     /// </summary>
-    private static (string? Slot, string Via) FlareSlot(
-        List<(DateTime At, Dictionary<string, double> Means, bool Alive)> history, DateTime now)
+    private static (string? Slot, DateTime At, string Via) FlareSlot(
+        List<(DateTime At, Dictionary<string, double> Means, bool Alive)> history, DateTime closedAt)
     {
-        (string Slot, double Ratio, double Ago)? best = null;
         for (int i = history.Count - 1; i >= 0; i--)
         {
             var (at, means, alive) = history[i];
-            double ago = (now - at).TotalSeconds;
+            double ago = (closedAt - at).TotalSeconds;
             if (ago > Config.FlareLookbackS)
                 break;
             if (!alive)
@@ -449,13 +464,12 @@ public sealed class OverlayLoop
             if (order.Length < 2 || order[1].Value <= 0)
                 continue;
             double ratio = order[0].Value / order[1].Value;
-            if (ratio >= Config.SelectFlare && (best is null || ratio > best.Value.Ratio))
-                best = (order[0].Key, ratio, ago);
+            if (ratio < Config.SelectFlare)
+                continue;
+            return (order[0].Key, at, Strings.Get("Loop.ViaFlare",
+                ratio.ToString("F2"), ago.ToString("F1")));
         }
-        if (best is null)
-            return (null, "");
-        return (best.Value.Slot, Strings.Get("Loop.ViaFlare",
-            best.Value.Ratio.ToString("F2"), best.Value.Ago.ToString("F1")));
+        return (null, default, "");
     }
 
     /// <summary>
@@ -471,7 +485,7 @@ public sealed class OverlayLoop
     private async Task OnWindowClosedAsync(
         AugmentWindowState win, Kept kept, Diagnostics diag, bool anvil, int? level,
         List<(DateTime At, Dictionary<string, double> Means, bool Alive)> history,
-        object picksLock)
+        object picksLock, Task? probe)
     {
         if (anvil)
         {
@@ -484,6 +498,24 @@ public sealed class OverlayLoop
             return;
         }
 
+        // A scan is usually still in flight when the close is noticed, and it is
+        // the one holding the tooltip from the moment of the click. Deciding
+        // without it threw that away: the window that published 閃光 had the
+        // correct 歯の妖精 tooltip land a moment later, in time for the debug
+        // dump and too late for the pick. A scan that grabbed its frame after
+        // the window went reads nothing and changes nothing, so waiting is only
+        // ever an improvement.
+        if (probe is not null && !probe.IsCompleted)
+            await Task.WhenAny(probe, Task.Delay(TimeSpan.FromSeconds(1.5)));
+
+        // Ages are measured from the last frame the window was still up, not
+        // from now: the close is only declared after CloseMisses frames of
+        // absence, so "now" is over a second late and would make every reading
+        // look stale by the same amount.
+        DateTime closedAt = DateTime.UtcNow;
+        for (int i = history.Count - 1; i >= 0; i--)
+            if (history[i].Alive) { closedAt = history[i].At; break; }
+
         // Two signals, both measured against known answers. Card brightness over
         // the window as a whole is not a third: it was wrong on the windows it
         // was asked to decide, and a confident wrong augment on stream is worse
@@ -491,16 +523,43 @@ public sealed class OverlayLoop
         // Both signals are recorded every time, not just the one that won. A
         // wrong pick is almost always the two disagreeing, and that cannot be
         // seen after the fact unless the loser is written down too.
-        var (flareSlot, via) = FlareSlot(history, DateTime.UtcNow);
-        string? slot = flareSlot;
-        if (slot is null && kept.Hover is not null)
+        var (flareSlot, flareAt, via) = FlareSlot(history, closedAt);
+
+        // The tooltip is exact OCR of the card under the cursor, which is worth
+        // more than a brightness ratio -- but only while it is current. Hover is
+        // never cleared, so an old one keeps naming a card the player moved off
+        // seconds ago, and that is precisely how ピンボール came to be nominated
+        // for a window in which the cursor ended on 歯の妖精.
+        string? hoverSlot = kept.Hover;
+        double hoverAge = (closedAt - kept.HoverAt).TotalSeconds;
+        if (hoverSlot is not null && hoverAge > Config.HoverTrustS)
         {
-            slot = kept.Hover;
+            Log.Write(Strings.Get("Loop.HoverStale", hoverSlot, hoverAge.ToString("F1")));
+            hoverSlot = null;
+        }
+
+        // A current tooltip beats brightness, and it is not close. The tooltip is
+        // the game naming the card under the cursor and the OCR of it scored
+        // 1.00; brightness is an inference from a ratio that a reroll animation
+        // can win outright. Both windows that published the wrong augment had
+        // the right answer sitting in a tooltip that brightness overruled:
+        // 歯の妖精 lost to a card rerolled 0.7 s earlier at 1.56x, and 脱出プラン
+        // to one rerolled at 4.25x. Brightness stays as the fallback for the
+        // player who clicks before any tooltip is read.
+        string? slot;
+        if (hoverSlot is not null)
+        {
+            if (flareSlot is not null && flareSlot != hoverSlot)
+                Log.Write(Strings.Get("Loop.SignalsDisagree", flareSlot, hoverSlot, kept.HoverRaw,
+                    hoverAge.ToString("F1")));
+            slot = hoverSlot;
             via = Strings.Get("Loop.ViaTooltip", kept.HoverRaw);
         }
-        if (flareSlot is not null && kept.Hover is not null && kept.Hover != flareSlot)
-            Log.Write(Strings.Get("Loop.SignalsDisagree", flareSlot, kept.Hover, kept.HoverRaw));
-        if (slot is null)
+        else if (flareSlot is not null)
+        {
+            slot = flareSlot;
+        }
+        else
         {
             Log.Write(Strings.Get("Loop.Undecidable"));
             return;
