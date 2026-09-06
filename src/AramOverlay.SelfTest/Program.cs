@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using AramOverlay.Core;
 
 // Holds the port to the Python implementation it replaces. Run from the repo
@@ -17,6 +19,12 @@ int failures = 0;
 // tests are what CI-style runs care about, and this one needs OBS up.
 if (args.Contains("--obs"))
     return await ObsLive(root);
+
+// What the app would pick for a client language on this machine, and where each
+// answer came from. "My augments are not recognised" is usually this being
+// wrong, and it is a great deal easier to read than to reason about.
+if (args.Contains("--locale"))
+    return LocaleReport();
 
 // The whole thing, headless, until Ctrl+C. This is the loop the WPF window will
 // host; running it from a console first keeps the two concerns separate.
@@ -458,4 +466,45 @@ static int HangulShaping()
     if (bad == 0)
         Console.WriteLine("PASS  한글 정규화");
     return bad == 0 ? 0 : 1;
+}
+
+static int LocaleReport()
+{
+    string product = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "Riot Games", "Metadata", "league_of_legends.live",
+        "league_of_legends.live.product_settings.yaml");
+
+    Console.WriteLine($"product_settings.yaml   {(File.Exists(product) ? "있음" : "없음")}");
+    Console.WriteLine($"  {product}");
+
+    if (File.Exists(product))
+    {
+        string text = File.ReadAllText(product);
+        var install = Regex.Match(text, @"product_install_full_path\s*:\s*""?(?<v>[^""\r\n]+?)""?\s*$",
+                                  RegexOptions.Multiline);
+        var fallback = Regex.Match(text, @"default_locale\s*:\s*""?(?<v>[A-Za-z]{2}_[A-Za-z]{2})""?");
+        Console.WriteLine($"  default_locale          {(fallback.Success ? fallback.Groups["v"].Value : "찾지 못함")}");
+        Console.WriteLine($"  install path            {(install.Success ? install.Groups["v"].Value : "찾지 못함")}");
+
+        if (install.Success)
+        {
+            string settings = Path.Combine(install.Groups["v"].Value.Trim(),
+                                           "Config", "LeagueClientSettings.yaml");
+            Console.WriteLine($"LeagueClientSettings    {(File.Exists(settings) ? "있음" : "없음")}");
+            Console.WriteLine($"  {settings}");
+            if (File.Exists(settings))
+            {
+                var chosen = Regex.Match(File.ReadAllText(settings),
+                    @"^\s+locale\s*:\s*""?(?<v>[A-Za-z]{2}_[A-Za-z]{2})""?", RegexOptions.Multiline);
+                Console.WriteLine($"  install.globals.locale  {(chosen.Success ? chosen.Groups["v"].Value : "찾지 못함")}");
+            }
+        }
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"ClientLocale.Detect()     {ClientLocale.Detect() ?? "null (디스크에서 못 읽음)"}");
+    Console.WriteLine($"Settings.SystemLocale()   {Settings.SystemLocale()}   (Windows: {CultureInfo.CurrentUICulture.Name})");
+    Console.WriteLine($"Settings.DefaultLocale()  {Settings.DefaultLocale()}   <-- 첫 실행에 쓰이는 값");
+    return 0;
 }
