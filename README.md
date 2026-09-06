@@ -1,5 +1,10 @@
 # 아수라장 증강 오버레이
 
+[![CI](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/Finerestaurant/aram-augment-overlay/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/Finerestaurant/aram-augment-overlay?include_prereleases)](https://github.com/Finerestaurant/aram-augment-overlay/releases)
+
+**한국어** · [English](README.en.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md)
+
 리그 오브 레전드 **무작위 총력전: 아수라장**에서 획득한 증강을 OBS 화면에 누적 표시하는 도구입니다.
 게임 화면을 읽어서 증강을 인식하므로 별도 계정 연동이나 로그인이 필요 없습니다.
 
@@ -13,7 +18,7 @@
 
 ## 받기
 
-[릴리스 페이지](../../releases/latest)에서 `ARAM-Augment-Overlay.exe` 하나만 받으면 됩니다.
+[릴리스 페이지](../../releases)에서 `ARAM-Augment-Overlay.exe` 하나만 받으면 됩니다.
 설치 과정도, 따로 깔아야 할 것도 없습니다 — .NET 런타임도 필요 없습니다.
 
 처음 실행할 때 **"Windows에서 PC를 보호했습니다"** 경고가 뜹니다. 코드 서명을 하지 않은
@@ -105,6 +110,8 @@ OBS가 실행 중인지, websocket 서버가 켜져 있는지 확인하세요(�
 - 등급 판별과 선택 감지 임계값은 실제 플레이와 게임플레이 영상에서 측정한 값입니다. 검증에 쓴 실버
   등급 표본이 아직 적어, 실버에서 오차가 있을 수 있습니다.
 - 아수라장(`gameMode: KIWI`)에서만 동작합니다.
+- 설정에서 다른 클라이언트 언어도 고를 수 있지만, **임계값은 한국어 클라이언트에서 측정했습니다.**
+  다른 언어에서 얼마나 잘 읽는지는 검증되지 않았습니다. 프로그램 화면도 한국어뿐입니다.
 
 ---
 
