@@ -52,6 +52,31 @@ public static class Strings
     public static string Get(string key, params object?[] args) =>
         string.Format(Get(key), args);
 
+    /// <summary>
+    /// One string in a named language rather than the interface one.
+    ///
+    /// The widget is the case this exists for. It sits on the broadcast beside
+    /// augment names fetched in the client's language, so its own words belong
+    /// to that language too -- a Japanese client with a Korean interface was
+    /// putting 歯の妖精 on stream under "프리즘" and "11레벨".
+    ///
+    /// A client language this app does not speak falls back to English, not to
+    /// Korean: the fallback lands next to the augment names on someone's stream,
+    /// where the more widely readable of the two wins.
+    /// </summary>
+    public static string In(string code, string key, params object?[] args)
+    {
+        if (!Table.TryGetValue(key, out var row))
+            return key;
+        int index = Array.FindIndex(Languages, l => l.Code == code);
+        if (index < 0)
+            index = Array.FindIndex(Languages, l => l.Code == "en");
+        string text = row[index];
+        if (text.Length == 0)
+            text = row[0];
+        return args.Length == 0 ? text : string.Format(text, args);
+    }
+
     private static void Add(string key, string ko, string en, string ja, string zh) =>
         Table[key] = new[] { ko, en, ja, zh };
 

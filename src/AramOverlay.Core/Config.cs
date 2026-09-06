@@ -24,6 +24,13 @@ public readonly record struct Box(int X0, int Y0, int X1, int Y1)
 public static class Config
 {
     public static string Locale = "ko_kr";
+
+    /// <summary>
+    /// The client language as a bare two-letter code, which is the language the
+    /// widget is written in. The window follows the interface setting; the
+    /// widget follows this, because it is read next to the augment names.
+    /// </summary>
+    public static string LocaleLanguage => Locale.Split('_')[0];
     public static string[] OcrLanguages = { "ko-KR", "ko" };
 
     public static int BaseW = 1920;

@@ -158,17 +158,21 @@ public sealed class WidgetServer : IDisposable
         {
             rows = Config.WidgetRows,
             maxWidth = Config.WidgetMaxW,
+            // In the client's language, not the interface's: these words print
+            // beside augment names that came from CommunityDragon in that
+            // language, and a rarity in a second language reads as a bug on
+            // stream.
             text = new
             {
-                silver = Strings.Get("Rarity.silver"),
-                gold = Strings.Get("Rarity.gold"),
-                prismatic = Strings.Get("Rarity.prismatic"),
-                unknown = Strings.Get("Rarity.unknown"),
+                silver = Strings.In(Config.LocaleLanguage, "Rarity.silver"),
+                gold = Strings.In(Config.LocaleLanguage, "Rarity.gold"),
+                prismatic = Strings.In(Config.LocaleLanguage, "Rarity.prismatic"),
+                unknown = Strings.In(Config.LocaleLanguage, "Rarity.unknown"),
                 // "{0}" is the rarity and "{1}" the level, so a language that
                 // puts the level first still reads correctly.
-                withLevel = Strings.Get("Rarity.WithLevel", "{0}", "{1}"),
-                reset = Strings.Get("Widget.Reset"),
-                resetTitle = Strings.Get("Widget.ResetTitle"),
+                withLevel = Strings.In(Config.LocaleLanguage, "Rarity.WithLevel", "{0}", "{1}"),
+                reset = Strings.In(Config.LocaleLanguage, "Widget.Reset"),
+                resetTitle = Strings.In(Config.LocaleLanguage, "Widget.ResetTitle"),
             },
         }, Json);
         return _pageTemplate.Replace("<!--CONFIG-->", $"<script>window.__CFG__ = {cfg};</script>");
