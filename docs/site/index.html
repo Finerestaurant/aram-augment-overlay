@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ARAM Mayhem Augment Overlay</title>
+<meta name="description" content="Shows the augments you take in League of Legends ARAM: Mayhem on your OBS stream.">
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="style.css">
+<link rel="canonical" href="https://finerestaurant.github.io/aram-augment-overlay/">
+<link rel="alternate" hreflang="en" href="https://finerestaurant.github.io/aram-augment-overlay/">
+  <link rel="alternate" hreflang="ko" href="https://finerestaurant.github.io/aram-augment-overlay/ko/">
+  <link rel="alternate" hreflang="ja" href="https://finerestaurant.github.io/aram-augment-overlay/ja/">
+  <link rel="alternate" hreflang="zh" href="https://finerestaurant.github.io/aram-augment-overlay/zh/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ARAM Mayhem Augment Overlay">
+<meta property="og:description" content="Shows the augments you take in League of Legends ARAM: Mayhem on your OBS stream.">
+<meta property="og:image" content="https://finerestaurant.github.io/aram-augment-overlay/img/overlay.png">
+<meta property="og:url" content="https://finerestaurant.github.io/aram-augment-overlay/">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="nav">
+    <a class="brand" href=""><img src="img/icon.png" alt=""> ARAM Mayhem Augment Overlay</a>
+    <div class="nav-right">
+      <div class="langs"><span class="on">English</span><a href="ko/">한국어</a><a href="ja/">日本語</a><a href="zh/">简体中文</a></div>
+      <a class="gh" href="https://github.com/Finerestaurant/aram-augment-overlay">
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span id="nav-stars"></span>
+      </a>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Your ARAM Mayhem augments, on stream.</h1>
+    <p class="sub">It reads the augment you picked off the screen and stacks it on your broadcast. No account linking, no login, nothing to configure in the game.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Finerestaurant/aram-augment-overlay/releases/latest/download/ARAM-Augment-Overlay.exe">Download for Windows</a>
+      <a class="btn" href="https://github.com/Finerestaurant/aram-augment-overlay">View on GitHub</a>
+    </div>
+
+    <p class="stats">
+      <span hidden><b id="stat-downloads"></b> downloads</span>
+      <span hidden><b id="stat-stars"></b> stars</span>
+      <span hidden><b id="stat-forks"></b> forks</span>
+      <span hidden><b id="stat-version"></b></span>
+    </p>
+
+    <div class="showcase">
+      <div class="frame">
+        <img class="shot" src="img/game.jpg" alt="" fetchpriority="high">
+        <img class="widget" src="img/widget.png" alt="">
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="block">
+    <h2>Each pick joins the list</h2>
+    <p>Four augments over a game, at levels 3, 7, 11 and 15. Silver, gold and prismatic are told apart by colour. The background is transparent, so it sits straight on the broadcast.</p>
+    <img class="wide" src="img/overlay.gif" alt="" loading="lazy">
+  </section>
+
+  <section class="block">
+    <div class="two">
+      <div>
+        <h2>One small window beside OBS</h2>
+        <p>It talks to OBS over websocket and serves the widget at a local address you paste into a browser source. Once it says connected, there is nothing left to press.</p>
+        <ul class="reqs">
+      <li><b>OS</b><span>Windows 10 / 11 — 1920×1080 at 100% scaling</span></li>
+      <li><b>OBS Studio</b><span>28 or newer</span></li>
+      <li><b>Game</b><span>Borderless fullscreen recommended</span></li>
+      <li><b>Install</b><span>A single exe. Not even a .NET runtime</span></li>
+        </ul>
+        <p style="margin-top:22px">Setup, settings and troubleshooting are in the README → <a href="https://github.com/Finerestaurant/aram-augment-overlay/blob/main/README.md">README</a></p>
+      </div>
+      <img class="wide" src="img/app-status.png" alt="" loading="lazy">
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <footer>
+    <p>Free and open source under the MIT licence.</p>
+    <p>Win rates and tiers are not shown — Riot policy does not allow it.</p>
+    <p>League of Legends is a trademark of Riot Games, Inc. This project is not affiliated with Riot Games.</p>
+  </footer>
+</div>
+
+<script src="stats.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ランダムミッド: メイヘム オーグメント オーバーレイ</title>
+<meta name="description" content="リーグ・オブ・レジェンドのランダムミッド: メイヘムで獲得したオーグメントを OBS の配信画面に表示します。">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="canonical" href="https://finerestaurant.github.io/aram-augment-overlay/ja/">
+<link rel="alternate" hreflang="en" href="https://finerestaurant.github.io/aram-augment-overlay/">
+  <link rel="alternate" hreflang="ko" href="https://finerestaurant.github.io/aram-augment-overlay/ko/">
+  <link rel="alternate" hreflang="ja" href="https://finerestaurant.github.io/aram-augment-overlay/ja/">
+  <link rel="alternate" hreflang="zh" href="https://finerestaurant.github.io/aram-augment-overlay/zh/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ランダムミッド: メイヘム オーグメント オーバーレイ">
+<meta property="og:description" content="リーグ・オブ・レジェンドのランダムミッド: メイヘムで獲得したオーグメントを OBS の配信画面に表示します。">
+<meta property="og:image" content="https://finerestaurant.github.io/aram-augment-overlay/img/overlay.png">
+<meta property="og:url" content="https://finerestaurant.github.io/aram-augment-overlay/ja/">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="nav">
+    <a class="brand" href="../"><img src="../img/icon.png" alt=""> ランダムミッド: メイヘム オーグメント オーバーレイ</a>
+    <div class="nav-right">
+      <div class="langs"><a href="../">English</a><a href="../ko/">한국어</a><span class="on">日本語</span><a href="../zh/">简体中文</a></div>
+      <a class="gh" href="https://github.com/Finerestaurant/aram-augment-overlay">
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span id="nav-stars"></span>
+      </a>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>獲得したオーグメントを、配信画面にそのまま。</h1>
+    <p class="sub">画面を読み取って選んだオーグメントを判別し、配信画面に積み上げます。アカウント連携もログインも、ゲーム側の設定も必要ありません。</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Finerestaurant/aram-augment-overlay/releases/latest/download/ARAM-Augment-Overlay.exe">Windows 版をダウンロード</a>
+      <a class="btn" href="https://github.com/Finerestaurant/aram-augment-overlay">GitHub で見る</a>
+    </div>
+
+    <p class="stats">
+      <span hidden><b id="stat-downloads"></b> ダウンロード</span>
+      <span hidden><b id="stat-stars"></b> スター</span>
+      <span hidden><b id="stat-forks"></b> フォーク</span>
+      <span hidden><b id="stat-version"></b></span>
+    </p>
+
+    <div class="showcase">
+      <div class="frame">
+        <img class="shot" src="../img/game.jpg" alt="" fetchpriority="high">
+        <img class="widget" src="../img/widget.png" alt="">
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="block">
+    <h2>選ぶたびにリストへ</h2>
+    <p>1 試合でレベル 3・7・11・15 の 4 回。シルバー・ゴールド・プリズムを色で見分けます。背景が透明なので、そのまま配信画面に重なります。</p>
+    <img class="wide" src="../img/overlay.gif" alt="" loading="lazy">
+  </section>
+
+  <section class="block">
+    <div class="two">
+      <div>
+        <h2>OBS の隣に小さな窓がひとつ</h2>
+        <p>websocket で OBS とやり取りし、ブラウザソースに貼るアドレスでウィジェットを配信します。接続と表示されれば、あとは押すものがありません。</p>
+        <ul class="reqs">
+      <li><b>OS</b><span>Windows 10 / 11 — 1920×1080、拡大率 100%</span></li>
+      <li><b>OBS Studio</b><span>28 以上</span></li>
+      <li><b>ゲーム設定</b><span>ボーダーレスフルスクリーン推奨</span></li>
+      <li><b>インストール</b><span>exe 1 つ。.NET ランタイムも不要</span></li>
+        </ul>
+        <p style="margin-top:22px">導入・設定・トラブルシューティングは README にあります → <a href="https://github.com/Finerestaurant/aram-augment-overlay/blob/main/README.ja.md">README</a></p>
+      </div>
+      <img class="wide" src="../img/app-status.png" alt="" loading="lazy">
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <footer>
+    <p>MIT ライセンスの無料オープンソースです。</p>
+    <p>勝率やティアは表示しません — Riot のポリシー上できません。</p>
+    <p>League of Legends は Riot Games, Inc. の商標です。本プロジェクトは Riot Games とは無関係です。</p>
+  </footer>
+</div>
+
+<script src="../stats.js" defer></script>
+</body>
+</html>

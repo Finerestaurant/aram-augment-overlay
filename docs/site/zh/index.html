@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>海克斯大乱斗 强化符文覆盖层</title>
+<meta name="description" content="把你在英雄联盟海克斯大乱斗中获得的强化符文，累计显示在 OBS 直播画面上。">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="canonical" href="https://finerestaurant.github.io/aram-augment-overlay/zh/">
+<link rel="alternate" hreflang="en" href="https://finerestaurant.github.io/aram-augment-overlay/">
+  <link rel="alternate" hreflang="ko" href="https://finerestaurant.github.io/aram-augment-overlay/ko/">
+  <link rel="alternate" hreflang="ja" href="https://finerestaurant.github.io/aram-augment-overlay/ja/">
+  <link rel="alternate" hreflang="zh" href="https://finerestaurant.github.io/aram-augment-overlay/zh/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="海克斯大乱斗 强化符文覆盖层">
+<meta property="og:description" content="把你在英雄联盟海克斯大乱斗中获得的强化符文，累计显示在 OBS 直播画面上。">
+<meta property="og:image" content="https://finerestaurant.github.io/aram-augment-overlay/img/overlay.png">
+<meta property="og:url" content="https://finerestaurant.github.io/aram-augment-overlay/zh/">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="nav">
+    <a class="brand" href="../"><img src="../img/icon.png" alt=""> 海克斯大乱斗 强化符文覆盖层</a>
+    <div class="nav-right">
+      <div class="langs"><a href="../">English</a><a href="../ko/">한국어</a><a href="../ja/">日本語</a><span class="on">简体中文</span></div>
+      <a class="gh" href="https://github.com/Finerestaurant/aram-augment-overlay">
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span id="nav-stars"></span>
+      </a>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>把拿到的强化符文，直接放上直播画面。</h1>
+    <p class="sub">它读取游戏画面来判断你刚选了什么，并累计显示在直播画面上。不绑定账号，不用登录，游戏里也不需要设置什么。</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Finerestaurant/aram-augment-overlay/releases/latest/download/ARAM-Augment-Overlay.exe">下载 Windows 版</a>
+      <a class="btn" href="https://github.com/Finerestaurant/aram-augment-overlay">在 GitHub 上查看</a>
+    </div>
+
+    <p class="stats">
+      <span hidden><b id="stat-downloads"></b> 次下载</span>
+      <span hidden><b id="stat-stars"></b> 星标</span>
+      <span hidden><b id="stat-forks"></b> 复刻</span>
+      <span hidden><b id="stat-version"></b></span>
+    </p>
+
+    <div class="showcase">
+      <div class="frame">
+        <img class="shot" src="../img/game.jpg" alt="" fetchpriority="high">
+        <img class="widget" src="../img/widget.png" alt="">
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="block">
+    <h2>每选一次就加入列表</h2>
+    <p>一局四次，分别在等级 3、7、11、15。白银、黄金、棱彩用颜色区分。背景是透明的，可直接叠在直播画面上。</p>
+    <img class="wide" src="../img/overlay.gif" alt="" loading="lazy">
+  </section>
+
+  <section class="block">
+    <div class="two">
+      <div>
+        <h2>OBS 旁边的一个小窗口</h2>
+        <p>它通过 websocket 与 OBS 通信，并在一个本地地址上提供挂件，把该地址粘贴到浏览器源即可。显示已连接之后，就没有别的要按了。</p>
+        <ul class="reqs">
+      <li><b>操作系统</b><span>Windows 10 / 11 — 1920×1080，缩放 100%</span></li>
+      <li><b>OBS Studio</b><span>28 或更新</span></li>
+      <li><b>游戏设置</b><span>建议无边框全屏</span></li>
+      <li><b>安装</b><span>只有一个 exe，连 .NET 运行时都不需要</span></li>
+        </ul>
+        <p style="margin-top:22px">安装、设置与疑难解答都在 README 里 → <a href="https://github.com/Finerestaurant/aram-augment-overlay/blob/main/README.zh-CN.md">README</a></p>
+      </div>
+      <img class="wide" src="../img/app-status.png" alt="" loading="lazy">
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <footer>
+    <p>基于 MIT 许可证的免费开源项目。</p>
+    <p>不显示胜率与段位 —— 拳头的政策不允许。</p>
+    <p>League of Legends 是 Riot Games, Inc. 的商标。本项目与 Riot Games 无关。</p>
+  </footer>
+</div>
+
+<script src="../stats.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>아수라장 증강 오버레이</title>
+<meta name="description" content="리그 오브 레전드 무작위 총력전: 아수라장에서 획득한 증강을 OBS 방송 화면에 누적 표시합니다.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="canonical" href="https://finerestaurant.github.io/aram-augment-overlay/ko/">
+<link rel="alternate" hreflang="en" href="https://finerestaurant.github.io/aram-augment-overlay/">
+  <link rel="alternate" hreflang="ko" href="https://finerestaurant.github.io/aram-augment-overlay/ko/">
+  <link rel="alternate" hreflang="ja" href="https://finerestaurant.github.io/aram-augment-overlay/ja/">
+  <link rel="alternate" hreflang="zh" href="https://finerestaurant.github.io/aram-augment-overlay/zh/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="아수라장 증강 오버레이">
+<meta property="og:description" content="리그 오브 레전드 무작위 총력전: 아수라장에서 획득한 증강을 OBS 방송 화면에 누적 표시합니다.">
+<meta property="og:image" content="https://finerestaurant.github.io/aram-augment-overlay/img/overlay.png">
+<meta property="og:url" content="https://finerestaurant.github.io/aram-augment-overlay/ko/">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="nav">
+    <a class="brand" href="../"><img src="../img/icon.png" alt=""> 아수라장 증강 오버레이</a>
+    <div class="nav-right">
+      <div class="langs"><a href="../">English</a><span class="on">한국어</span><a href="../ja/">日本語</a><a href="../zh/">简体中文</a></div>
+      <a class="gh" href="https://github.com/Finerestaurant/aram-augment-overlay">
+        <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span id="nav-stars"></span>
+      </a>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>고른 증강을 방송 화면에 그대로.</h1>
+    <p class="sub">화면을 읽어 방금 고른 증강을 알아내고 방송 화면에 쌓아 올립니다. 계정 연동도, 로그인도, 게임에서 만질 설정도 없습니다.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Finerestaurant/aram-augment-overlay/releases/latest/download/ARAM-Augment-Overlay.exe">Windows용 다운로드</a>
+      <a class="btn" href="https://github.com/Finerestaurant/aram-augment-overlay">GitHub에서 보기</a>
+    </div>
+
+    <p class="stats">
+      <span hidden><b id="stat-downloads"></b> 다운로드</span>
+      <span hidden><b id="stat-stars"></b> 스타</span>
+      <span hidden><b id="stat-forks"></b> 포크</span>
+      <span hidden><b id="stat-version"></b></span>
+    </p>
+
+    <div class="showcase">
+      <div class="frame">
+        <img class="shot" src="../img/game.jpg" alt="" fetchpriority="high">
+        <img class="widget" src="../img/widget.png" alt="">
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="block">
+    <h2>고를 때마다 목록에 쌓입니다</h2>
+    <p>한 게임에 레벨 3·7·11·15에서 네 번. 실버·골드·프리즘을 색으로 구분합니다. 배경이 투명해서 방송 화면 위에 그대로 겹칩니다.</p>
+    <img class="wide" src="../img/overlay.gif" alt="" loading="lazy">
+  </section>
+
+  <section class="block">
+    <div class="two">
+      <div>
+        <h2>OBS 옆에 작은 창 하나</h2>
+        <p>websocket으로 OBS와 이야기하고, 브라우저 소스에 붙여 넣을 주소로 위젯을 띄웁니다. 연결됐다고 뜨면 그다음부터 누를 것이 없습니다.</p>
+        <ul class="reqs">
+      <li><b>OS</b><span>Windows 10 / 11 — 1920×1080, 배율 100%</span></li>
+      <li><b>OBS Studio</b><span>28 이상</span></li>
+      <li><b>게임 설정</b><span>테두리 없는 전체화면 권장</span></li>
+      <li><b>설치</b><span>exe 하나. .NET 런타임도 필요 없습니다</span></li>
+        </ul>
+        <p style="margin-top:22px">설치·설정·문제 해결은 README에 있습니다 → <a href="https://github.com/Finerestaurant/aram-augment-overlay/blob/main/README.ko.md">README</a></p>
+      </div>
+      <img class="wide" src="../img/app-status.png" alt="" loading="lazy">
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <footer>
+    <p>MIT 라이선스로 공개된 무료 오픈소스입니다.</p>
+    <p>승률·티어는 표시하지 않습니다 — 라이엇 정책상 허용되지 않습니다.</p>
+    <p>League of Legends는 Riot Games, Inc.의 상표입니다. 이 프로젝트는 Riot Games와 무관합니다.</p>
+  </footer>
+</div>
+
+<script src="../stats.js" defer></script>
+</body>
+</html>

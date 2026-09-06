@@ -1,0 +1,154 @@
+/* Geist — Vercel 서체. steambrew.app 이 쓰는 것과 같다.
+   SIL OFL, 가변 폰트를 직접 호스팅한다 (외부 요청 없음).
+   CJK 글리프는 없으므로 한국어·일본어·중국어는 아래 스택에서 시스템 폰트로 떨어진다. */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('fonts/geist-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('fonts/geist-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* 위젯이 쓰는 색을 그대로 가져왔다: 어두운 카드 바탕에 등급별 띠. */
+:root {
+  --bg:        #0c0d11;
+  --surface:   #15171d;
+  --line:      #262a33;
+  --text:      #e9eaee;
+  --muted:     #8b909c;
+  --gold:      #e0a83c;
+  --prismatic: #c98fd6;
+  --silver:    #9aa0ac;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "Apple SD Gothic Neo", "Noto Sans KR", "Hiragino Sans", "Noto Sans JP",
+        "PingFang SC", "Noto Sans SC", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+.wrap { width: min(1040px, 100% - 48px); margin-inline: auto; }
+
+/* ---- nav ---------------------------------------------------------- */
+
+.nav {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 18px 0;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; text-decoration: none; }
+.brand img { width: 26px; height: 26px; }
+.nav-right { display: flex; align-items: center; gap: 18px; font-size: 14px; }
+.langs { display: flex; gap: 10px; color: var(--muted); }
+.langs a { text-decoration: none; }
+.langs a:hover { color: var(--text); }
+.langs .on { color: var(--text); font-weight: 600; }
+.nav-right > a { color: var(--muted); text-decoration: none; }
+.nav-right > a:hover { color: var(--text); }
+.gh { display: flex; align-items: center; gap: 6px; }
+.gh span:empty { display: none; }
+
+/* ---- hero --------------------------------------------------------- */
+
+.hero { padding: 72px 0 40px; text-align: center; }
+.hero h1 {
+  margin: 0 0 14px;
+  font-size: clamp(30px, 5vw, 52px);
+  line-height: 1.15; letter-spacing: -0.02em;
+}
+.hero .sub { margin: 0 auto 30px; max-width: 620px; color: var(--muted); font-size: 17px; }
+
+/* 별·다운로드 수. 값이 오기 전이나 실패했을 때는 hidden 이라 아무것도 안 보인다. */
+.stats {
+  margin: 20px 0 0; display: flex; gap: 8px 18px; justify-content: center;
+  flex-wrap: wrap; color: var(--muted); font-size: 14px;
+}
+.stats span:not([hidden]) ~ span:not([hidden])::before {
+  content: "·"; margin-right: 18px; color: var(--line);
+}
+.stats b { color: var(--text); font-weight: 600; }
+
+.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--text); text-decoration: none; font-size: 15px; font-weight: 500;
+}
+.btn:hover { border-color: #3a4050; }
+.btn.primary { background: var(--text); color: #0c0d11; border-color: var(--text); }
+.btn.primary:hover { background: #fff; }
+
+/* ---- showcase: 게임 화면(자리) 위에 위젯이 얹힌 모습 ---------------- */
+
+.showcase { margin-top: 56px; }
+.frame {
+  position: relative; aspect-ratio: 16 / 9;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); overflow: hidden;
+}
+.frame > img.shot {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  /* 게임 화면은 배경이다. 살짝 눌러야 위젯의 흰 글자가 앞으로 나온다. */
+  filter: brightness(.62) saturate(.9);
+}
+
+/* 아직 스크린샷이 없는 자리 */
+.frame.empty {
+  display: grid; place-items: center;
+  border-style: dashed;
+  background:
+    repeating-linear-gradient(45deg, #14161c 0 12px, #12141a 12px 24px);
+}
+.frame.empty .note { color: #4b515f; font-size: 13px; letter-spacing: .04em; }
+
+.frame .widget {
+  position: absolute; left: 4%; top: 10%;
+  width: 30%; max-width: 300px;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.6);
+}
+
+/* ---- blocks ------------------------------------------------------- */
+
+.block { padding: 64px 0; border-top: 1px solid var(--line); }
+.block h2 { margin: 0 0 10px; font-size: clamp(22px, 3vw, 30px); letter-spacing: -0.01em; }
+.block p  { margin: 0 0 26px; color: var(--muted); max-width: 640px; }
+.block img.wide { width: 100%; border: 1px solid var(--line); border-radius: 10px; display: block; }
+
+.two { display: grid; gap: 32px; grid-template-columns: 1fr 1fr; align-items: center; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+
+.reqs { list-style: none; margin: 22px 0 0; padding: 0; font-size: 15px; }
+.reqs li { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.reqs li:last-child { border-bottom: 0; }
+.reqs b { min-width: 116px; color: var(--muted); font-weight: 500; }
+
+/* ---- footer ------------------------------------------------------- */
+
+footer {
+  border-top: 1px solid var(--line); padding: 34px 0 56px;
+  color: var(--muted); font-size: 13.5px;
+}
+footer p { margin: 0 0 8px; }
+footer a { color: var(--muted); }
