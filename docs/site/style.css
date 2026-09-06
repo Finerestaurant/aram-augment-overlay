@@ -70,17 +70,19 @@ a { color: inherit; }
 
 /* ---- hero --------------------------------------------------------- */
 
-.hero { padding: 72px 0 40px; text-align: center; }
+/* 히어로를 쓰지 않는다. 설명이 건조한데 활자만 크면 목소리만 커진다.
+   이름은 문서 제목 크기로 왼쪽에 두고, 설명하는 일은 아래 이미지가 한다. */
+.hero { padding: 44px 0 36px; }
 .hero h1 {
   margin: 0 0 14px;
-  font-size: clamp(30px, 5vw, 52px);
-  line-height: 1.15; letter-spacing: -0.02em;
+  font-size: clamp(24px, 2.6vw, 30px);
+  line-height: 1.25; letter-spacing: -0.015em; font-weight: 600;
 }
-.hero .sub { margin: 0 auto 30px; max-width: 620px; color: var(--muted); font-size: 17px; }
+.hero .sub { margin: 0 0 26px; max-width: 620px; color: var(--muted); font-size: 16px; }
 
 /* 별·다운로드 수. 값이 오기 전이나 실패했을 때는 hidden 이라 아무것도 안 보인다. */
 .stats {
-  margin: 20px 0 0; display: flex; gap: 8px 18px; justify-content: center;
+  margin: 18px 0 0; display: flex; gap: 8px 18px; justify-content: flex-start;
   flex-wrap: wrap; color: var(--muted); font-size: 14px;
 }
 .stats span:not([hidden]) ~ span:not([hidden])::before {
@@ -88,7 +90,7 @@ a { color: inherit; }
 }
 .stats b { color: var(--text); font-weight: 600; }
 
-.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.cta { display: flex; gap: 12px; justify-content: flex-start; flex-wrap: wrap; }
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 11px 20px; border-radius: 8px;
@@ -101,7 +103,7 @@ a { color: inherit; }
 
 /* ---- showcase: 게임 화면(자리) 위에 위젯이 얹힌 모습 ---------------- */
 
-.showcase { margin-top: 56px; }
+.showcase { margin-top: 38px; }
 .frame {
   position: relative; aspect-ratio: 16 / 9;
   border: 1px solid var(--line); border-radius: 12px;
@@ -137,6 +139,22 @@ a { color: inherit; }
 .block img.wide { width: 100%; border: 1px solid var(--line); border-radius: 10px; display: block; }
 
 .two { display: grid; gap: 32px; grid-template-columns: 1fr 1fr; align-items: center; }
+
+/* 프로그램 창과 OBS 화면을 나란히. 아직 없는 쪽은 빈 자리로 둔다. */
+.pair { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; align-items: start; }
+.pair figure { margin: 0; }
+.pair img {
+  width: 100%; display: block;
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.pair figcaption { margin-top: 9px; color: var(--muted); font-size: 13px; }
+.ph {
+  display: grid; place-items: center; aspect-ratio: 16 / 9;
+  border: 1px dashed var(--line); border-radius: 10px;
+  background: repeating-linear-gradient(45deg, #14161c 0 12px, #12141a 12px 24px);
+}
+.ph span { color: #4b515f; font-size: 13px; letter-spacing: .04em; }
+@media (max-width: 620px) { .pair { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
 
 .reqs { list-style: none; margin: 22px 0 0; padding: 0; font-size: 15px; }

@@ -23,7 +23,7 @@
 
 <div class="wrap">
   <header class="nav">
-    <a class="brand" href="../"><img src="../img/icon.png" alt=""> 海克斯大乱斗 强化符文覆盖层</a>
+    <a class="brand" href="../"><img src="../img/icon.png" alt="海克斯大乱斗 强化符文覆盖层"></a>
     <div class="nav-right">
       <div class="langs"><a href="../">English</a><a href="../ko/">한국어</a><a href="../ja/">日本語</a><span class="on">简体中文</span></div>
       <a class="gh" href="https://github.com/Finerestaurant/aram-augment-overlay">
@@ -36,8 +36,8 @@
 
 <div class="wrap">
   <section class="hero">
-    <h1>把拿到的强化符文，直接放上直播画面。</h1>
-    <p class="sub">它读取游戏画面来判断你刚选了什么，并累计显示在直播画面上。不绑定账号，不用登录，游戏里也不需要设置什么。</p>
+    <h1>海克斯大乱斗 强化符文覆盖层</h1>
+    <p class="sub">把你在英雄联盟海克斯大乱斗中获得的强化符文显示在 OBS 直播画面上。它靠读取游戏画面来识别，不绑定账号，也不用登录。</p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/Finerestaurant/aram-augment-overlay/releases/latest/download/ARAM-Augment-Overlay.exe">下载 Windows 版</a>
       <a class="btn" href="https://github.com/Finerestaurant/aram-augment-overlay">在 GitHub 上查看</a>
@@ -79,7 +79,18 @@
         </ul>
         <p style="margin-top:22px">安装、设置与疑难解答都在 README 里 → <a href="https://github.com/Finerestaurant/aram-augment-overlay/blob/main/README.zh-CN.md">README</a></p>
       </div>
-      <img class="wide" src="../img/app-status.png" alt="" loading="lazy">
+      <div class="pair">
+        <figure>
+          <img src="../img/app-status.png" alt="" loading="lazy">
+          <figcaption>程序窗口</figcaption>
+        </figure>
+        <figure>
+          <!-- OBS 안에서 브라우저 소스로 띄운 화면이 들어올 자리.
+               준비되면 이 div 를 <img src="../img/obs.png" ...> 로 바꾼다. 16:9 로. -->
+          <div class="ph"><span>OBS 截图</span></div>
+          <figcaption>作为 OBS 浏览器源</figcaption>
+        </figure>
+      </div>
     </div>
   </section>
 </div>
