@@ -34,11 +34,17 @@ public static class Strings
         }
     }
 
-    /// <summary>The system language when it is one this app speaks, else Korean.</summary>
+    /// <summary>
+    /// The window's language, taken from the Windows display language.
+    ///
+    /// Falling back to English rather than Korean: a player whose language this
+    /// app has no words for is far more likely to read English than Korean, and
+    /// the Korean default was only ever the author's own machine showing through.
+    /// </summary>
     public static string SystemDefault()
     {
         string tag = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        return Array.Exists(Languages, l => l.Code == tag) ? tag : "ko";
+        return Array.Exists(Languages, l => l.Code == tag) ? tag : "en";
     }
 
     public static string Get(string key)

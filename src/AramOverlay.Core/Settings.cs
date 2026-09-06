@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -27,7 +28,7 @@ public sealed class Settings
     /// answer, and the log is for working out why an answer is missing.</summary>
     public bool DebugMode { get; set; }
 
-    public string Locale { get; set; } = "ko_kr";
+    public string Locale { get; set; } = SystemLocale();
     public int ScreenWidth { get; set; } = 1920;
     public int ScreenHeight { get; set; } = 1080;
     public int ObsPort { get; set; } = 4455;
@@ -67,6 +68,51 @@ public sealed class Settings
         ("pt_br", "Português"), ("tr_tr", "Türkçe"), ("vi_vn", "Tiếng Việt"),
         ("th_th", "ไทย"),
     };
+
+    /// <summary>
+    /// The client language to assume before anyone has picked one, taken from
+    /// the Windows display language.
+    ///
+    /// Riot's regional splits are not symmetric -- Chinese splits on script,
+    /// Spanish on continent, Portuguese does not split at all -- so the cases
+    /// that matter are written out rather than derived from the culture name.
+    /// A language with no folder of its own lands on English, which a player is
+    /// far more likely to read than whatever we picked first.
+    /// </summary>
+    public static string SystemLocale()
+    {
+        CultureInfo culture = CultureInfo.CurrentUICulture;
+        string lang = culture.TwoLetterISOLanguageName.ToLowerInvariant();
+
+        string region = "";
+        try { region = new RegionInfo(culture.Name).TwoLetterISORegionName.ToLowerInvariant(); }
+        catch (ArgumentException) { }          // a neutral culture carries no region
+
+        switch (lang)
+        {
+            case "zh":
+                bool traditional =
+                    culture.Name.Contains("Hant", StringComparison.OrdinalIgnoreCase)
+                    || region is "tw" or "hk" or "mo";
+                return traditional ? "zh_tw" : "zh_cn";
+            case "es":
+                return region == "es" ? "es_es" : "es_mx";
+            case "pt":
+                return "pt_br";                // Riot ships no European Portuguese
+            case "en":
+                return "en_us";
+        }
+
+        string exact = lang + "_" + region;
+        if (Array.Exists(Locales, l => l.Code == exact))
+            return exact;
+
+        foreach (var (code, _) in Locales)     // right language, whatever region is listed
+            if (code.StartsWith(lang + "_", StringComparison.Ordinal))
+                return code;
+
+        return "en_us";
+    }
 
     /// <summary>The Windows OCR tags for each language, most specific first.</summary>
     public static readonly Dictionary<string, string[]> OcrForLocale = new()
@@ -187,7 +233,7 @@ public sealed class Settings
     {
         Strings.Language = UiLanguage.Length > 0 ? UiLanguage : Strings.SystemDefault();
 
-        string locale = Locales.Any(l => l.Code == Locale) ? Locale : "ko_kr";
+        string locale = Locales.Any(l => l.Code == Locale) ? Locale : SystemLocale();
         Config.Locale = locale;
         Config.OcrLanguages = OcrForLocale.GetValueOrDefault(locale, new[] { "en-US", "en" });
 
