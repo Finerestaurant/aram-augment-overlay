@@ -20,6 +20,13 @@ namespace AramOverlay.Core;
 /// </summary>
 public sealed class Settings
 {
+    /// <summary>Which language the window itself speaks. "" follows Windows.</summary>
+    public string UiLanguage { get; set; } = "";
+
+    /// <summary>Shows the log panel. Off by default: the picks list is the
+    /// answer, and the log is for working out why an answer is missing.</summary>
+    public bool DebugMode { get; set; }
+
     public string Locale { get; set; } = "ko_kr";
     public string OcrLanguage { get; set; } = "";          // "" -> follow the locale
     public int ScreenWidth { get; set; } = 1920;
@@ -80,6 +87,8 @@ public sealed class Settings
             var json = JsonNode.Parse(File.ReadAllText(Path_));
             if (json is null)
                 return settings;
+            settings.UiLanguage = json["ui_language"]?.GetValue<string>() ?? settings.UiLanguage;
+            settings.DebugMode = json["debug_mode"]?.GetValue<bool>() ?? settings.DebugMode;
             settings.Locale = json["locale"]?.GetValue<string>() ?? settings.Locale;
             settings.OcrLanguage = json["ocr_language"]?.GetValue<string>() ?? settings.OcrLanguage;
             settings.ScreenWidth = Int(json["screen_width"], settings.ScreenWidth);
@@ -115,6 +124,8 @@ public sealed class Settings
     {
         var json = new JsonObject
         {
+            ["ui_language"] = UiLanguage,
+            ["debug_mode"] = DebugMode,
             ["locale"] = Locale,
             ["ocr_language"] = OcrLanguage,
             ["screen_width"] = ScreenWidth,
@@ -140,6 +151,8 @@ public sealed class Settings
 
     public void Apply()
     {
+        Strings.Language = UiLanguage.Length > 0 ? UiLanguage : Strings.SystemDefault();
+
         string locale = Locales.Any(l => l.Code == Locale) ? Locale : "ko_kr";
         Config.Locale = locale;
         Config.OcrLanguages = OcrLanguage.Trim().Length > 0

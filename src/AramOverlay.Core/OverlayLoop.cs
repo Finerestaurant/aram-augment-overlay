@@ -99,7 +99,7 @@ public sealed class OverlayLoop
         Task? probe = null;
         int? level = null;
 
-        Log.Write("대기 중... 아수라장 게임을 시작하세요.");
+        Log.Write(Strings.Get("Loop.Waiting"));
 
         while (!token.IsCancellationRequested)
         {
@@ -109,14 +109,15 @@ public sealed class OverlayLoop
                 var resized = await _obs.ResizeBrowserSourcesAsync(
                     _server.Url, _server.Size.W, _server.Size.H);
                 if (resized.Count > 0)
-                    Log.Write($"위젯 크기에 맞춰 브라우저 소스 조정: {_server.Size.W}x{_server.Size.H}");
+                    Log.Write(Strings.Get("Loop.SourceResized",
+                        _server.Size.W, _server.Size.H));
             }
 
             var game = await LiveGame.PollAsync();
             if (game is null)
             {
                 if (_state.Connected)
-                    Log.Write("게임이 종료되었습니다.");
+                    Log.Write(Strings.Get("Loop.GameOver"));
                 _state.Connected = false;
                 _state.Level = null;
                 win = new AugmentWindowState();
@@ -133,15 +134,15 @@ public sealed class OverlayLoop
             {
                 _state.Connected = true;
                 _state.GameMode = mode;
-                Log.Write($"게임 감지: gameMode={mode}, level={level}");
+                Log.Write(Strings.Get("Loop.GameDetected", mode, level));
                 if (mode != Config.MayhemGameMode)
-                    Log.Write("  아수라장(KIWI)이 아닙니다. 증강 감지를 건너뜁니다.");
+                    Log.Write(Strings.Get("Loop.NotMayhem"));
             }
 
             // A fresh game rewinds gameTime; start a new list.
             if (currentGameId is not null && gameId + 5 < currentGameId)
             {
-                Log.Write("새 게임이 시작되어 목록을 초기화합니다.");
+                Log.Write(Strings.Get("Loop.NewGame"));
                 lock (picksLock) _state.Picks.Clear();
                 _server.Save();
             }
@@ -184,8 +185,8 @@ public sealed class OverlayLoop
                     flareHistory.Clear();
                     anvil = false;
                     seenRaw = null;
-                    Log.Write($"=== 증강 선택창 (레벨 {level}) === 게이트 " +
-                              $"[{string.Join(", ", scores.Select(s => s.ToString("F2")))}]");
+                    Log.Write(Strings.Get("Loop.WindowOpen", level,
+                        string.Join(", ", scores.Select(s => s.ToString("F2")))));
                 }
             }
             else
@@ -193,7 +194,7 @@ public sealed class OverlayLoop
                 win.MissStreak = weak ? 0 : win.MissStreak + 1;
                 if (win.MissStreak >= Config.CloseMisses)
                 {
-                    Log.Write("=== 선택창 종료 ===");
+                    Log.Write(Strings.Get("Loop.WindowClosed"));
                     Log.Write($"    {Summary(diag, win)}");
                     await OnWindowClosedAsync(win, kept, diag, anvil, level, flareHistory, picksLock);
                     win = new AugmentWindowState();
@@ -261,8 +262,8 @@ public sealed class OverlayLoop
                 if (itemsWin >= 2 && !anvil)
                 {
                     anvil = true;
-                    Log.Write("  모루(아이템) 화면으로 판단 — 이 창은 건너뜁니다: " +
-                              string.Join(", ", kept.Cards.Select(kv => $"{kv.Key}='{kv.Value.Raw}'")));
+                    Log.Write(Strings.Get("Loop.Anvil", string.Join(", ",
+                        kept.Cards.Select(kv => $"{kv.Key}='{kv.Value.Raw}'"))));
                 }
             }
 
@@ -287,8 +288,8 @@ public sealed class OverlayLoop
     private static double Now() => DateTime.UtcNow.Ticks / (double)TimeSpan.TicksPerSecond;
 
     private static string Summary(Diagnostics d, AugmentWindowState win) =>
-        $"[주의] 프레임 {d.Frames}, 안정 {d.Settled}, 게이트 최저 {d.GateMin:F2}, " +
-        $"숨김 최대 {d.HideMax:F2}, 최대 밝기비 {d.Peak:F2}, 기준 {win.Baseline:F1}";
+        Strings.Get("Loop.Summary", d.Frames, d.Settled, d.GateMin.ToString("F2"),
+            d.HideMax.ToString("F2"), d.Peak.ToString("F2"), win.Baseline.ToString("F1"));
 
     /// <summary>Best reading of one card's title, escalating scale until confident.</summary>
     private async Task<CardReading> ReadCardAsync(Frame shot, string slot)
@@ -417,7 +418,8 @@ public sealed class OverlayLoop
         }
         if (best is null)
             return (null, "");
-        return (best.Value.Slot, $"카드 밝기 {best.Value.Ratio:F2}배, 종료 {best.Value.Ago:F1}초 전");
+        return (best.Value.Slot, Strings.Get("Loop.ViaFlare",
+            best.Value.Ratio.ToString("F2"), best.Value.Ago.ToString("F1")));
     }
 
     /// <summary>
@@ -437,12 +439,12 @@ public sealed class OverlayLoop
     {
         if (anvil)
         {
-            Log.Write("  모루 화면이었으므로 기록하지 않습니다.");
+            Log.Write(Strings.Get("Loop.AnvilSkipped"));
             return;
         }
         if (diag.Settled == 0)
         {
-            Log.Write("  카드가 안정된 프레임이 없었습니다 — 증강창이 아니라고 보고 기록하지 않습니다.");
+            Log.Write(Strings.Get("Loop.NeverSettled"));
             return;
         }
 
@@ -454,19 +456,19 @@ public sealed class OverlayLoop
         if (slot is null && kept.Hover is not null)
         {
             slot = kept.Hover;
-            via = $"툴팁 '{kept.HoverRaw}'";
+            via = Strings.Get("Loop.ViaTooltip", kept.HoverRaw);
         }
         if (slot is null)
         {
-            Log.Write("  어느 카드를 골랐는지 확정할 수 없습니다 " +
-                      "(카드 밝기 차이가 작고 툴팁도 못 읽음). 기록하지 않습니다.");
+            Log.Write(Strings.Get("Loop.Undecidable"));
             return;
         }
 
         if (!kept.Cards.TryGetValue(slot, out var card) || card.Score < Config.OcrMinScore)
         {
-            string got = card is not null ? $"'{card.Raw}' {card.Score:F2}" : "읽은 값 없음";
-            Log.Write($"  {slot} 카드 제목을 확정하지 못했습니다: {got}");
+            string got = card is not null
+                ? $"'{card.Raw}' {card.Score:F2}" : Strings.Get("Loop.NoReading");
+            Log.Write(Strings.Get("Loop.TitleUnconfirmed", slot, got));
             return;
         }
 
@@ -488,20 +490,19 @@ public sealed class OverlayLoop
             return;
 
         foreach (var (slot_, was, now) in kept.Rerolls)
-            Log.Write($"    리롤 감지: {slot_} 카드 {was} -> {now}");
+            Log.Write(Strings.Get("Loop.RerollSeen", slot_, was, now));
         if (kept.TipMisses.Count > 0)
-            Log.Write("    툴팁 대조 실패: " +
-                      string.Join(" | ", kept.TipMisses.TakeLast(3)
-                          .Select(m => $"'{m.Raw}'->{m.Name}({m.Score})")) +
-                      $"  (총 {kept.TipMisses.Count}종)");
+            Log.Write(Strings.Get("Loop.TooltipMisses",
+                string.Join(" | ", kept.TipMisses.TakeLast(3)
+                    .Select(m => $"'{m.Raw}'->{m.Name}({m.Score})")),
+                kept.TipMisses.Count));
         else if (kept.Hover is null)
-            Log.Write("    툴팁이 한 번도 읽히지 않았습니다 (커서가 카드 밖이었거나 미출현).");
+            Log.Write(Strings.Get("Loop.TooltipNever"));
 
         var confirmedAt = kept.FullAt == default ? kept.At : kept.FullAt;
         double age = (DateTime.UtcNow - confirmedAt).TotalSeconds;
         if (age > 2.0)
-            Log.Write($"    [주의] 세 장이 모두 확정된 것은 {age:F1}초 전입니다 — " +
-                      "리롤 직후라면 낡았을 수 있습니다.");
+            Log.Write(Strings.Get("Loop.StaleOffer", age.ToString("F1")));
 
         lock (picksLock)
         {
@@ -514,11 +515,11 @@ public sealed class OverlayLoop
         }
         _server.Save();
 
-        Log.Write($"  선택: {aug.Name} ({aug.Rarity}, 일치도 {card.Score:F2}, " +
-                  $"OCR '{card.Raw}' x{card.Scale}, {slot} 카드 / {via})");
-        Log.Write("    나머지 선택지: " +
-                  string.Join(", ", kept.Cards.Where(kv => kv.Key != slot)
-                      .Select(kv => $"{kv.Key}={kv.Value.Name}")));
+        Log.Write(Strings.Get("Loop.Picked", aug.Name, aug.Rarity,
+            card.Score.ToString("F2"), card.Raw, card.Scale, slot, via));
+        Log.Write(Strings.Get("Loop.Others", string.Join(", ",
+            kept.Cards.Where(kv => kv.Key != slot)
+                .Select(kv => $"{kv.Key}={kv.Value.Name}"))));
         await Task.CompletedTask;
     }
 }

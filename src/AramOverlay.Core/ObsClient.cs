@@ -38,8 +38,8 @@ public sealed class ObsClient : IAsyncDisposable
         await _socket.ConnectAsync(new Uri($"ws://{host}:{port}"), connectCts.Token);
 
         var hello = await ReceiveMessageAsync(connectCts.Token)
-            ?? throw new IOException("OBS가 Hello를 보내지 않았습니다.");
-        var helloData = hello["d"] ?? throw new IOException("OBS Hello 형식이 올바르지 않습니다.");
+            ?? throw new IOException(Strings.Get("Obs.NoHello"));
+        var helloData = hello["d"] ?? throw new IOException(Strings.Get("Obs.BadHello"));
 
         var identify = new JsonObject
         {
@@ -60,9 +60,9 @@ public sealed class ObsClient : IAsyncDisposable
         await SendAsync(identify, connectCts.Token);
 
         var identified = await ReceiveMessageAsync(connectCts.Token)
-            ?? throw new IOException("OBS 인증에 응답이 없습니다.");
+            ?? throw new IOException(Strings.Get("Obs.NoAuthReply"));
         if (identified["op"]?.GetValue<int>() != 2)
-            throw new IOException("OBS 인증 실패 — websocket 비밀번호를 확인하세요.");
+            throw new IOException(Strings.Get("Obs.AuthFailed"));
 
         _receiver = Task.Run(ReceiveLoopAsync);
     }
@@ -187,7 +187,7 @@ public sealed class ObsClient : IAsyncDisposable
 }
 
 public sealed class ObsRequestException(int code, string comment)
-    : Exception($"OBS 요청 실패 (코드 {code}): {comment}")
+    : Exception(Strings.Get("Obs.RequestFailed", code, comment))
 {
     public int Code { get; } = code;
 }

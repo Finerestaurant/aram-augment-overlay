@@ -307,6 +307,44 @@
         </Setter>
     </Style>
 
+    <Style x:Key="Switch" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="track" Width="38" Height="21" CornerRadius="11"
+                                Background="#15151A" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1">
+                            <Ellipse x:Name="knob" Width="15" Height="15"
+                                     HorizontalAlignment="Left" Margin="3,0,0,0"
+                                     Fill="{StaticResource Faint}" />
+                        </Border>
+                        <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="track" Property="Background"
+                                    Value="{StaticResource AccentFill}" />
+                            <Setter TargetName="track" Property="BorderBrush"
+                                    Value="{StaticResource Accent}" />
+                            <Setter TargetName="knob" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="knob" Property="Margin" Value="0,0,3,0" />
+                            <Setter TargetName="knob" Property="Fill" Value="White" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="track" Property="BorderBrush"
+                                    Value="{StaticResource Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="SectionLabel" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource Faint}" />
         <Setter Property="FontFamily" Value="{StaticResource UiFont}" />

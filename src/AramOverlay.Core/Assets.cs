@@ -16,7 +16,7 @@ public static class Assets
     public static byte[] Bytes(string name)
     {
         using var stream = Self.GetManifestResourceStream(name)
-            ?? throw new FileNotFoundException($"내장 리소스가 없습니다: {name}");
+            ?? throw new FileNotFoundException($"embedded resource missing: {name}");
         using var memory = new MemoryStream();
         stream.CopyTo(memory);
         return memory.ToArray();

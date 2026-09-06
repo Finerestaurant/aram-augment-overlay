@@ -40,7 +40,7 @@ public sealed class OverlayRunner
                 {
                     int code = await host.RunAsync(cts.Token);
                     if (code != 0)
-                        Log.Write("오버레이가 시작되지 못했습니다.");
+                        Log.Write(Strings.Get("Core.StartFailed"));
                 }
                 catch (OperationCanceledException)
                 {
@@ -48,7 +48,7 @@ public sealed class OverlayRunner
                 }
                 catch (Exception exc)
                 {
-                    Log.Write($"오류로 중단됐습니다: {exc.Message}");
+                    Log.Write(Strings.Get("Core.CrashedWith", exc.Message));
                 }
                 finally
                 {

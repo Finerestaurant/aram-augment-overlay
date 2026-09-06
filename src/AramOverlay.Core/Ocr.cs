@@ -59,13 +59,9 @@ public sealed class TooltipOcr
     public static string MissingLanguageMessage()
     {
         string have = InstalledLanguages().Count > 0
-            ? string.Join(", ", InstalledLanguages()) : "(없음)";
+            ? string.Join(", ", InstalledLanguages()) : Strings.Get("Ocr.None");
         string want = Config.OcrLanguages.FirstOrDefault() ?? "?";
-        return $"Windows OCR에 '{want}' 언어가 없습니다.\n" +
-               $"    현재 사용 가능한 언어: {have}\n" +
-               "    설정 탭에서 사용 가능한 언어를 고르거나,\n" +
-               "    관리자 PowerShell에서 다음을 실행한 뒤 다시 시도하세요:\n" +
-               $"    Add-WindowsCapability -Online -Name 'Language.OCR~~~{want}~0.0.1.0'";
+        return Strings.Get("Ocr.LanguageMissing", want, have);
     }
 
     /// <summary>One reading of one region, at one scale.</summary>
@@ -85,7 +81,7 @@ public sealed class TooltipOcr
         }
         catch (Exception exc)
         {
-            Log.Write($"  OCR 호출 실패: {exc.GetType().Name}: {exc.Message}");
+            Log.Write(Strings.Get("Ocr.CallFailed", exc.GetType().Name, exc.Message));
             return "";
         }
     }

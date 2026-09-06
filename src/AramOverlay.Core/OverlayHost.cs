@@ -20,9 +20,9 @@ public sealed class OverlayHost : IAsyncDisposable
 
     public async Task<int> RunAsync(CancellationToken token)
     {
-        Log.Write("증강 데이터 불러오는 중...");
+        Log.Write(Strings.Get("Core.LoadingAugments"));
         var db = await AugmentDb.LoadAsync();
-        Log.Write($"  증강 {db.Augments.Count}종");
+        Log.Write(Strings.Get("Core.AugmentCount", db.Augments.Count));
         var items = await ItemNames.LoadAsync();
 
         string password = Config.ObsPassword;
@@ -31,7 +31,7 @@ public sealed class OverlayHost : IAsyncDisposable
             var cfg = ObsCapture.ReadWebsocketConfig();
             password = cfg?["server_password"]?.GetValue<string>() ?? "";
             if (password.Length > 0)
-                Log.Write("OBS 설정 파일에서 websocket 비밀번호를 읽었습니다.");
+                Log.Write(Strings.Get("Core.PasswordFromConfig"));
         }
 
         try
@@ -41,20 +41,20 @@ public sealed class OverlayHost : IAsyncDisposable
         }
         catch (Exception exc)
         {
-            Log.Write($"OBS 연결 실패: {exc.Message}");
-            Log.Write("  OBS가 실행 중인지, 도구 > WebSocket 서버 설정에서 서버가 켜져 있는지 확인하세요.");
+            Log.Write(Strings.Get("Core.ObsConnectFailed", exc.Message));
+            Log.Write(Strings.Get("Core.ObsCheckHint"));
             return 2;
         }
 
         if (await _obs.EnsureGameCaptureAsync())
-            Log.Write($"게임 캡처 소스 '{_obs.Source}' 를 새로 만들었습니다.");
+            Log.Write(Strings.Get("Core.GameCaptureCreated", _obs.Source));
         else if (!await _obs.HasSourceAsync())
         {
-            Log.Write($"소스 '{_obs.Source}' 를 찾을 수 없습니다.");
+            Log.Write(Strings.Get("Core.SourceMissing", _obs.Source));
             return 2;
         }
 
-        Log.Write("OCR 준비 중...");
+        Log.Write(Strings.Get("Core.OcrPreparing"));
         var ocr = TooltipOcr.TryCreate();
         if (ocr is null)
         {
@@ -67,11 +67,10 @@ public sealed class OverlayHost : IAsyncDisposable
 
         _server = new WidgetServer(State, Assets.Text("widget.html"));
         Url = _server.Start();
-        Log.Write($"위젯 주소: {Url}   <- OBS 브라우저 소스에 이 주소를 넣으세요 " +
-                  "(크기는 내용에 맞춰 자동 조정됩니다)");
+        Log.Write(Strings.Get("Core.WidgetUrl", Url));
         var refreshed = await _obs.RefreshBrowserSourcesAsync(Url);
         if (refreshed.Count > 0)
-            Log.Write($"브라우저 소스 새로고침: {string.Join(", ", refreshed)}");
+            Log.Write(Strings.Get("Core.BrowserRefreshed", string.Join(", ", refreshed)));
 
         // The tooltip grab costs ~250 ms and the selection is only a few frames
         // long, so it runs off the detection loop on its own connection.
@@ -84,7 +83,7 @@ public sealed class OverlayHost : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            Log.Write("종료합니다.");
+            Log.Write(Strings.Get("Core.Quitting"));
         }
         finally
         {
