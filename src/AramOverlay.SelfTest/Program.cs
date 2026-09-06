@@ -31,6 +31,7 @@ if (args.Contains("--loop"))
 
 failures += DifflibParity(Path.Combine(root, "tests", "difflib_parity.json"));
 failures += HangulShaping();
+failures += await AugmentPool(root);
 failures += await OcrParity(root);
 failures += await DetectParity(root);
 
@@ -133,6 +134,55 @@ static int DifflibParity(string path)
     Console.WriteLine(bad == 0
         ? $"PASS  difflib 일치 {checked_}쌍 (최대 오차 {worst:E2})"
         : $"FAIL  difflib 불일치 {bad}/{checked_}쌍, 최악: {worstPair}");
+    return bad == 0 ? 0 : 1;
+}
+
+// A level 11 pick of 적응형 능력치 was published as 이동 속도, which is not an
+// augment at all -- it is Arena's Stat_Movespeed shard, riding along in
+// cherry-augments.json. Short names like that match misread text hard, so the
+// pool must hold only what can actually appear on a Mayhem card.
+static async Task<int> AugmentPool(string root)
+{
+    Config.Root = root;
+    AugmentDb db;
+    try
+    {
+        db = await AugmentDb.LoadAsync();
+    }
+    catch (Exception exc)
+    {
+        Console.WriteLine($"SKIP  증강 목록 — 캐시도 네트워크도 없습니다 ({exc.GetType().Name})");
+        return 0;
+    }
+
+    int bad = 0;
+    var rarities = db.Augments.Select(a => a.Rarity).Distinct().OrderBy(r => r).ToArray();
+    if (!rarities.SequenceEqual(new[] { "gold", "prismatic", "silver" }))
+    {
+        Console.WriteLine($"FAIL  등급이 셋뿐이어야 합니다: {string.Join(", ", rarities)}");
+        bad++;
+    }
+
+    // Names that must never be reachable: stat shards and event picks.
+    foreach (string name in new[] { "이동 속도", "방어력", "스킬 가속", "증강 슬롯 획득", "증강 교체" })
+    {
+        if (db.Augments.Any(a => a.Name == name))
+        {
+            Console.WriteLine($"FAIL  '{name}' 은 증강이 아닌데 후보에 있습니다");
+            bad++;
+        }
+    }
+
+    // ...and one that must still be, exactly.
+    var (aug, score) = db.Match("적응형 능력치");
+    if (aug?.Name != "적응형 능력치" || score < 0.999)
+    {
+        Console.WriteLine($"FAIL  '적응형 능력치' 가 {aug?.Name} ({score:F2}) 로 매칭됩니다");
+        bad++;
+    }
+
+    if (bad == 0)
+        Console.WriteLine($"PASS  증강 후보 {db.Augments.Count}종, 능력치 파편·이벤트 선택지 제외됨");
     return bad == 0 ? 0 : 1;
 }
 

@@ -7,11 +7,19 @@ public sealed record Augment(int Id, string NameId, string Name, string Rarity, 
 /// <summary>
 /// The augment list from CommunityDragon, and the fuzzy lookup over it.
 ///
-/// cherry-augments.json holds 657 rows covering both Arena and ARAM Mayhem and
-/// there is no clean field to split them -- Mayhem reuses Arena icon assets, and
-/// the ARAM_ prefix misses entries like 선동 that appear in Mayhem anyway. So it
-/// is not filtered: everything is matched against, and duplicate names are
-/// disambiguated by the rarity read off the card border.
+/// cherry-augments.json holds 657 rows covering both Arena and ARAM Mayhem, and
+/// Arena augments are deliberately kept: there is no clean field to split the
+/// two, Mayhem reuses Arena icon assets, and the ARAM_ prefix misses entries
+/// like 선동 that appear in Mayhem anyway. Duplicate names are disambiguated by
+/// the rarity read off the card border instead.
+///
+/// What is dropped is the 39 rows that are not augments at all. kBronze is
+/// Arena's stat shards (Stat_Movespeed 이동 속도, Stat_Armor 방어력, ...) and
+/// kEventChoice its event picks; neither can ever appear on a Mayhem augment
+/// card. They were pure false-match fodder, and being short names they matched
+/// hard: a level 11 pick of 적응형 능력치 was published as 이동 속도. Mayhem's
+/// rarity ladder is silver/gold/prismatic, which is also all the border
+/// classifier can produce, so nothing legitimate is lost.
 /// </summary>
 public sealed class AugmentDb
 {
@@ -49,11 +57,13 @@ public sealed class AugmentDb
             if (name.Length == 0)
                 continue;
             string rarityRaw = row.TryGetProperty("rarity", out var r) ? r.GetString() ?? "" : "";
+            if (!RarityNames.TryGetValue(rarityRaw, out string? rarity))
+                continue;                     // stat shards and event picks -- see above
             augments.Add(new Augment(
                 Id: row.TryGetProperty("id", out var id) ? id.GetInt32() : -1,
                 NameId: row.TryGetProperty("augmentNameId", out var ni) ? ni.GetString() ?? "" : "",
                 Name: name,
-                Rarity: RarityNames.GetValueOrDefault(rarityRaw, "other"),
+                Rarity: rarity,
                 IconUrl: IconUrl(row.TryGetProperty("augmentSmallIconPath", out var ip)
                                  ? ip.GetString() ?? "" : "")));
         }
