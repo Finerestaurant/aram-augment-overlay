@@ -203,9 +203,12 @@ public static class Trace
         }
         await File.WriteAllTextAsync(Path.Combine(dir, "trace.txt"), text.ToString());
 
+        // IncludeFields, because TraceSample is fields all the way down and the
+        // serializer's default is properties only -- which writes a manifest of
+        // the right length full of empty objects, and says nothing about it.
         await File.WriteAllTextAsync(Path.Combine(dir, "trace.json"),
             JsonSerializer.Serialize(new { verdict, written, dropped, samples },
-                                     new JsonSerializerOptions { WriteIndented = true }));
+                new JsonSerializerOptions { WriteIndented = true, IncludeFields = true }));
 
         // The app carries no encoder and is not going to grow one for a debug
         // feature. This just hands the frames to ffmpeg if the machine has it.
@@ -298,16 +301,45 @@ public static class Trace
             if (s.Titles.TryGetValue(slot, out string? title) && title.Length > 0)
                 lines.Add($" {slot}= {Clip(title, 20)}");
 
+        // What each box on the picture is. A frame full of coloured rectangles
+        // is not self-explanatory a week later, and the legend costs six lines.
+        var key = new (byte B, byte G, byte R, string Label)[]
+        {
+            (90, 200, 90, "CARD L/M/R - GATE SEES CARDS"),
+            (130, 130, 130, "CARD - GATE DOES NOT"),
+            (60, 240, 255, "CARD TAKEN BY THE FLARE"),
+            (200, 160, 60, "INNER BOX - FLARE READS THIS"),
+            (60, 170, 255, "TOOLTIP OCR STRIP"),
+            (220, 220, 80, "REROLL BUTTON GATE"),
+            (200, 80, 200, "HIDE BUTTON"),
+        };
+
         int pad = 6 * scale;
         int lineH = (Glyphs.H + 2) * scale;
+        int keyScale = Math.Max(1, scale - 1);
+        int keyH = (Glyphs.H + 3) * keyScale;
         int wide = 0;
         foreach (string line in lines)
             wide = Math.Max(wide, Glyphs.Width(line, scale));
+        int swatch = Glyphs.H * keyScale;
+        foreach (var (_, _, _, label) in key)
+            wide = Math.Max(wide, swatch + 4 * keyScale + Glyphs.Width(label, keyScale));
+
         int x0 = pad, y0 = pad;
-        frame.FillBox(x0 - pad / 2, y0 - pad / 2, x0 + wide + pad, y0 + lines.Count * lineH + pad,
-                      0, 0, 0, 0.62);
+        int body = lines.Count * lineH;
+        frame.FillBox(x0 - pad / 2, y0 - pad / 2, x0 + wide + pad,
+                      y0 + body + key.Length * keyH + pad + keyH, 0, 0, 0, 0.62);
         for (int i = 0; i < lines.Count; i++)
             Glyphs.Text(frame, x0, y0 + i * lineH, lines[i], scale, 230, 240, 240);
+
+        int ky = y0 + body + keyH / 2;
+        for (int i = 0; i < key.Length; i++)
+        {
+            var (b, g, r, label) = key[i];
+            int top = ky + i * keyH;
+            frame.FillBox(x0, top, x0 + swatch, top + swatch, b, g, r, 1.0);
+            Glyphs.Text(frame, x0 + swatch + 4 * keyScale, top, label, keyScale, 165, 178, 188);
+        }
     }
 
     private static string Clip(string text, int max) =>
