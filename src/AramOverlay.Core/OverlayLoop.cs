@@ -586,7 +586,29 @@ public sealed class OverlayLoop
             double rise = beat.Stats[slot].Inner / baseline;
             if (rise < Config.FlareRise)
                 continue;
-            return (slot, beat.At, ratio, rise);
+
+            // The newest qualifying frame is what decides the slot, because a
+            // reroll earlier in the window must not get to answer. But it is a
+            // terrible thing to quote. The flare's light bleeds into the
+            // neighbouring cards as it spreads, so the ratio falls frame by
+            // frame, and the newest one over the bar is by construction the
+            // last one before it drops under: eight real windows all reported
+            // 3.07-3.36 against a threshold of 3.00 and read as though they
+            // were scraping through, while their peaks were 3.7-6.2. Quote the
+            // peak, or the log invites exactly the wrong conclusion about how
+            // much room this test has.
+            double peakRatio = ratio, peakRise = rise;
+            foreach (var other in history)
+            {
+                if (Math.Abs((other.At - anchor).TotalSeconds) > Config.FlareWindowS)
+                    continue;
+                var (otherSlot, _, otherRatio) = Detect.Flare(other.Stats);
+                if (otherSlot != slot || otherRatio <= peakRatio)
+                    continue;
+                peakRatio = otherRatio;
+                peakRise = other.Stats[slot].Inner / baseline;
+            }
+            return (slot, beat.At, peakRatio, peakRise);
         }
         return (null, default, 0, 0);
     }
@@ -741,8 +763,8 @@ public sealed class OverlayLoop
 
         Note(flareSlot is null
             ? "flare      none"
-            : $"flare      {flareSlot}  inner {flareRatio:F2}x the next card, {flareRise:F2}x its own " +
-              $"baseline, {(closedAt - flareAt).TotalSeconds:F2}s before the close");
+            : $"flare      {flareSlot}  peak inner {flareRatio:F2}x the next card, {flareRise:F2}x its " +
+              $"own baseline; decided off the frame {(closedAt - flareAt).TotalSeconds:F2}s before the close");
         Note(hoverSlot is null
             ? "tooltip    none current"
             : $"tooltip    {hoverSlot}  '{kept.HoverRaw}', {hoverAge:F1}s old");
