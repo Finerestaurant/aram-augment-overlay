@@ -33,6 +33,11 @@ public sealed class Kept
     // from the moment of the click.
     public DateTime HoverAt;
     public List<(string Raw, string Name, double Score)> TipMisses = new();
+    /// <summary>What the panel finder made of the newest scanned frame.</summary>
+    public string TipPanel = "";
+    /// <summary>The last panel state a debug frame was written for, and how many.</summary>
+    public string TipDumped = "";
+    public int TipDumps;
 }
 
 /// <summary>
@@ -394,6 +399,40 @@ public sealed class OverlayLoop
         }
     }
 
+    /// <summary>
+    /// One frame showing where the tooltip finder decided the panel is.
+    ///
+    /// Written only when the verdict changes, and at most a handful per window:
+    /// the scan runs three times a second and a picture of every one of those
+    /// is a lot of disk to say the same thing. What the picture has to settle
+    /// is whether the box being handed to OCR sits on the title, so the old
+    /// fixed box is drawn beside the new one -- on the ordinary window they
+    /// nearly coincide, and on a flipped one they are nowhere near each other.
+    /// </summary>
+    private async Task DumpTooltipAsync(Frame shot, Detect.TooltipPanel? panel, Kept kept)
+    {
+        if (!Config.DebugMode)
+            return;
+        string state = panel is { } p ? (p.Flipped ? "flipped" : "below") : "none";
+        if (state == kept.TipDumped || kept.TipDumps >= 6)
+            return;
+        kept.TipDumped = state;
+        kept.TipDumps++;
+        try
+        {
+            var marked = shot.Clone();
+            Detect.Mark(marked, panel);
+            string path = Path.Combine(Config.State, "debug",
+                $"{DateTime.Now:yyyyMMdd-HHmmss}_lv{_state.Level}_tip_{state}.png");
+            await Imaging.SavePngAsync(marked, path);
+            Log.Write(Strings.Get("Loop.TipDump", state, path));
+        }
+        catch (Exception exc)
+        {
+            Log.Write(Strings.Get("Loop.DumpFailed", exc.Message));
+        }
+    }
+
     private static double Now() => DateTime.UtcNow.Ticks / (double)TimeSpan.TicksPerSecond;
 
     private static string Summary(Diagnostics d, AugmentWindowState win) =>
@@ -473,10 +512,22 @@ public sealed class OverlayLoop
         if (names.Count == 0)
             return;
 
+        // Where the tooltip actually is on this frame, rather than where a
+        // fixed box hopes it will be. The panel moves and resizes with the
+        // text, and a long description pushes it above the anchor entirely --
+        // which is how a level 3 window read 'Drop' off a card title the panel
+        // was sitting on top of, and published DropBear over Dropkick.
+        var panel = Detect.FindTooltip(Cv.ToGray(shot));
+        var tipBox = panel?.Title ?? Config.HoverTooltip;
+        kept.TipPanel = panel is { } p
+            ? $"{(p.Flipped ? "flipped" : "below")} top={p.Top} x={p.X0}~{p.X1}"
+            : "not found, using the fixed box";
+        await DumpTooltipAsync(shot, panel, kept);
+
         (string, string, double)? miss = null;
         foreach (int scale in Config.CardScales)
         {
-            string raw = await _ocr.ReadBoxAsync(shot, Config.HoverTooltip, scale);
+            string raw = await _ocr.ReadBoxAsync(shot, tipBox, scale);
             if (raw.Length == 0)
                 continue;
             var (aug, score) = _db.Match(raw);
@@ -768,6 +819,7 @@ public sealed class OverlayLoop
         Note(hoverSlot is null
             ? "tooltip    none current"
             : $"tooltip    {hoverSlot}  '{kept.HoverRaw}', {hoverAge:F1}s old");
+        Note($"tip panel  {(kept.TipPanel.Length > 0 ? kept.TipPanel : "no scan ran")}");
         Note(glowSlot is null
             ? "hover glow none"
             : $"hover glow {glowSlot}  {glowVia}");

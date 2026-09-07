@@ -105,7 +105,40 @@ public static class Config
     public static readonly (double Lo, double Hi) RarityHueGold = (0, 50);
     public static readonly (double Lo, double Hi) RarityHuePrism = (95, 145);
 
+    /// <summary>
+    /// Where the tooltip's title used to be assumed to sit. Still the fallback
+    /// when the panel cannot be found, so a failed detection is no worse than
+    /// what shipped before.
+    /// </summary>
     public static Box HoverTooltip = new(620, 788, 1330, 842);
+
+    // --- tooltip panel ----------------------------------------------------
+    // The panel is not at a fixed place. Measured on five captures, hand-marked
+    // and then snapped onto their edges with the same Sobel the reroll gate
+    // uses: width runs 222 to 697 and height 121 to 341, both following the
+    // text. What does hold still is
+    //
+    //   * a horizontal border on y=783 in every single one, and
+    //   * a horizontal centre of 962 (spread 960.5 to 963.5), and
+    //   * a title row 80 tall with a divider under it at 862-865, and
+    //   * an icon about 68 wide at the panel's left.
+    //
+    // 783 is the anchor. The panel hangs below it, unless it is too tall to fit
+    // -- 1080 - 783 = 297 -- in which case it flips and hangs its bottom there
+    // instead. The one flipped capture measured 341 tall, bottom at 781.
+    public const int TooltipAnchor = 783;
+    public const int TooltipAnchorTol = 6;
+    public const int TooltipCentre = 960;
+    public const int TooltipCentreTol = 45;
+    // A reroll button is 68 wide and the narrowest panel seen is 222. The bar
+    // sits between them, well clear of both.
+    public const int TooltipMinWidth = 200;
+    public const int TooltipMaxHalfWidth = 430;
+    public const int TooltipTitleHeight = 80;
+    public const int TooltipIconWidth = 68;
+    public const double TooltipEdgeH = 55.0;
+    public const double TooltipEdgeV = 30.0;
+    public const double TooltipSideSupport = 0.7;
 
     public const double SelectFlare = 1.15;
     public const double FlareLookbackS = 2.5;

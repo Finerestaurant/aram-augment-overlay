@@ -199,6 +199,221 @@ public static class Detect
         return "unknown";
     }
 
+    /// <summary>Where the tooltip panel is on this frame, and which way it hangs.</summary>
+    public readonly record struct TooltipPanel(
+        int Top, int X0, int X1, bool Flipped, Box Title);
+
+    /// <summary>Sobel magnitude at one point -- the reroll gate's filter, one pixel at a time.</summary>
+    private static double MagAt(GrayImage g, int x, int y)
+    {
+        if (x < 1 || y < 1 || x >= g.Width - 1 || y >= g.Height - 1)
+            return 0.0;
+        double gx = 0, gy = 0;
+        for (int ky = -1; ky <= 1; ky++)
+        {
+            int row = (y + ky) * g.Width;
+            for (int kx = -1; kx <= 1; kx++)
+            {
+                double v = g.Pixels[row + x + kx];
+                gx += v * SobelX[(ky + 1) * 3 + (kx + 1)];
+                gy += v * SobelY[(ky + 1) * 3 + (kx + 1)];
+            }
+        }
+        return Math.Sqrt(gx * gx + gy * gy);
+    }
+
+    private static readonly double[] SobelX = { -1, 0, 1, -2, 0, 2, -1, 0, 1 };
+    private static readonly double[] SobelY = { -1, -2, -1, 0, 0, 0, 1, 2, 1 };
+
+    /// <summary>
+    /// A column belonging to a reroll button's own side, which must not be
+    /// mistaken for the panel's.
+    ///
+    /// The outer pair, 568 and 1372, sit 392 and 412 from the centre -- close
+    /// enough to pass a symmetry check and wide enough to beat the real panel
+    /// when the widest pair wins. Their positions are known exactly, so they
+    /// are simply skipped rather than argued with.
+    /// </summary>
+    private static bool IsRerollEdge(int x, double sx)
+    {
+        int slack = (int)(5 * sx);
+        foreach (var (bx, _) in Config.RerollBoxes)
+        {
+            if (Math.Abs(x - (int)(bx * sx)) <= slack ||
+                Math.Abs(x - (int)((bx + Config.RerollSize.W) * sx)) <= slack)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>How much of a vertical run has an edge at this column.</summary>
+    private static double SideSupport(GrayImage g, int x, int y0, int y1)
+    {
+        int hit = 0, total = 0;
+        for (int y = y0; y <= y1; y++)
+        {
+            double best = 0;
+            for (int dx = -1; dx <= 1; dx++)
+                best = Math.Max(best, MagAt(g, x + dx, y));
+            if (best > Config.TooltipEdgeV)
+                hit++;
+            total++;
+        }
+        return total == 0 ? 0.0 : hit / (double)total;
+    }
+
+    /// <summary>
+    /// The panel's sides, found by walking out from the screen's centre.
+    ///
+    /// Not from the horizontal run on the anchor: the reroll buttons' own
+    /// bottom border sits on y=784, one pixel off the anchor, so the run merges
+    /// button, panel and button into one. On a 683-wide panel that read 807 and
+    /// flipped the verdict. The buttons' vertical sides are only 41 tall and
+    /// live above the anchor, so scanning columns is free of them.
+    /// </summary>
+    private static (int X0, int X1)? Sides(GrayImage g, int y0, int y1, double sx, bool skipReroll)
+    {
+        int cx = (int)(Config.TooltipCentre * sx);
+        int lo = (int)(60 * sx), hi = (int)(Config.TooltipMaxHalfWidth * sx);
+        int tol = (int)(30 * sx);
+
+        // Every column that could be a side, then the widest symmetric pair --
+        // not the first one found walking out from the centre. The tooltip's
+        // own icon has a border 55 rows tall inside the panel, which clears the
+        // support bar and sits 70px closer in on the left than the real edge is
+        // on the right; taking first-found made the pair asymmetric, failed the
+        // check, and sent a perfectly ordinary tooltip down the flipped branch.
+        var left = new List<int>();
+        var right = new List<int>();
+        for (int d = lo; d <= hi; d++)
+        {
+            if (!(skipReroll && IsRerollEdge(cx - d, sx)) &&
+                SideSupport(g, cx - d, y0, y1) >= Config.TooltipSideSupport)
+                left.Add(d);
+            if (!(skipReroll && IsRerollEdge(cx + d, sx)) &&
+                SideSupport(g, cx + d, y0, y1) >= Config.TooltipSideSupport)
+                right.Add(d);
+        }
+        int bestL = -1, bestR = -1;
+        foreach (int dl in left)
+            foreach (int dr in right)
+            {
+                if (Math.Abs(dl - dr) > tol)
+                    continue;
+                if (dl + dr > bestL + bestR)
+                {
+                    bestL = dl;
+                    bestR = dr;
+                }
+            }
+        return bestL < 0 ? null : (cx - bestL, cx + bestR);
+    }
+
+    /// <summary>
+    /// Find the tooltip panel, if one is up.
+    ///
+    /// Three questions in order. Is there a long border on the anchor line --
+    /// that alone says a tooltip exists, because the anchor is the panel's top
+    /// when it hangs down and its bottom when it flips up. Then: do the sides
+    /// run downwards from it? If so the panel is below and the title is right
+    /// under the anchor. If not, do they run upwards? Then the panel is above
+    /// and its top has to be found before the title can be read.
+    ///
+    /// Below is tried first because it is the ordinary case, and because the
+    /// card art above the anchor puts vertical edges at plausible columns --
+    /// asking both directions and comparing gives a tie far too often.
+    /// </summary>
+    public static TooltipPanel? FindTooltip(GrayImage g)
+    {
+        double sx = (double)g.Width / Config.BaseW, sy = (double)g.Height / Config.BaseH;
+        int anchor = -1;
+        int a = (int)(Config.TooltipAnchor * sy), tol = (int)(Config.TooltipAnchorTol * sy);
+        int xFrom = (int)(500 * sx), xTo = (int)(1420 * sx);
+        int bestRun = 0;
+        for (int y = a - tol; y <= a + tol; y++)
+        {
+            int start = -1, prev = -1, r0 = 0, r1 = -1;
+            for (int x = xFrom; x < xTo; x++)
+            {
+                if (MagAt(g, x, y) <= Config.TooltipEdgeH)
+                    continue;
+                if (start < 0 || x - prev > (int)(6 * sx))
+                {
+                    if (start >= 0 && prev - start > r1 - r0) { r0 = start; r1 = prev; }
+                    start = x;
+                }
+                prev = x;
+            }
+            if (start >= 0 && prev - start > r1 - r0) { r0 = start; r1 = prev; }
+            int width = r1 - r0;
+            double mid = (r0 + r1) / 2.0 / sx;
+            if (width >= (int)(Config.TooltipMinWidth * sx) &&
+                Math.Abs(mid - Config.TooltipCentre) <= Config.TooltipCentreTol &&
+                width > bestRun)
+            {
+                bestRun = width;
+                anchor = y;
+            }
+        }
+        if (anchor < 0)
+            return null;
+
+        int span = (int)(Config.TooltipTitleHeight * sy), pad = (int)(4 * sy);
+        // The reroll buttons live at y 743..784, entirely above the anchor, so
+        // they can only pollute the upward scan. Skipping their columns in the
+        // downward one costs a real panel: frame_05's right edge is 1302 and a
+        // button's left edge is 1304.
+        var below = Sides(g, anchor + pad, anchor + span, sx, skipReroll: false);
+        if (below is { } b)
+            return new TooltipPanel(anchor, b.X0, b.X1, false,
+                TitleBox(anchor, b.X0, b.X1, sx, sy));
+
+        var above = Sides(g, anchor - span, anchor - pad, sx, skipReroll: true);
+        if (above is not { } u)
+            return null;
+
+        // Flipped: the anchor is the bottom, so the top is the next border up
+        // with the same width. Failing that, fall back to the tallest panel
+        // that can fit, which is what the anchor rule implies anyway.
+        int top = anchor - (int)(297 * sy);
+        for (int y = anchor - (int)(60 * sy); y >= (int)(200 * sy); y--)
+        {
+            if (SideSupport(g, u.X0, y, y + (int)(20 * sy)) < Config.TooltipSideSupport)
+            {
+                top = y;
+                break;
+            }
+        }
+        return new TooltipPanel(top, u.X0, u.X1, true, TitleBox(top, u.X0, u.X1, sx, sy));
+    }
+
+    /// <summary>
+    /// Draw the finding onto a frame: the anchor line, the panel's sides, the
+    /// title box handed to OCR, and the old fixed box for comparison. Shared so
+    /// the debug frame the loop writes and the offline check in SelfTest are
+    /// the same picture.
+    /// </summary>
+    public static void Mark(Frame frame, TooltipPanel? panel)
+    {
+        frame.DrawBox(Config.HoverTooltip, 130, 130, 130, 2);
+        frame.DrawRaw(400, Config.TooltipAnchor, 1520, Config.TooltipAnchor + 2, 60, 170, 255, 1);
+        if (panel is not { } p)
+            return;
+        // The panel always grows downwards from its own top -- flipping moves
+        // where the top is, it does not turn the panel upside down. Drawing it
+        // the other way put the outline 260px above a panel that was sitting
+        // right there under it.
+        int bottom = p.Flipped ? Config.TooltipAnchor : p.Top + 260;
+        frame.DrawRaw(p.X0, p.Top, p.X1, Math.Max(p.Top + 20, bottom), 90, 200, 90, 2);
+        frame.DrawBox(p.Title, 60, 240, 255, 4);
+    }
+
+    private static Box TitleBox(int top, int x0, int x1, double sx, double sy) => new(
+        (int)((x0 + (int)(Config.TooltipIconWidth * sx)) / sx),
+        (int)((top + (int)(4 * sy)) / sy),
+        (int)(x1 / sx),
+        (int)((top + (int)(Config.TooltipTitleHeight * sy)) / sy));
+
     public static double Median(double[] values)
     {
         if (values.Length == 0)

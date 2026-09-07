@@ -34,6 +34,12 @@ if (args.Contains("--locale"))
 if (args.Contains("--flare"))
     return await FlareReport(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".");
 
+// Where the tooltip panel finder puts the panel on each frame in a folder.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --tooltip <folder>
+if (args.Contains("--tooltip"))
+    return await TooltipReport(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".");
+
 // Replay a folder of frames as though it were one augment window: run the same
 // gate, the same measurements and the same verdict the loop would, and leave the
 // same annotated trace behind. A recording of a pick can then be checked against
@@ -65,6 +71,61 @@ failures += await DetectParity(root);
 
 Console.WriteLine(failures == 0 ? "\n전부 통과" : $"\n{failures}개 실패");
 return failures == 0 ? 0 : 1;
+
+// The panel finder over a folder, one line per frame. Answers whose frames are
+// known are the point: a fixed box could only ever be right about the ordinary
+// case, and this has to be right about the flipped one too.
+static async Task<int> TooltipReport(string folder)
+{
+    if (!Directory.Exists(folder))
+    {
+        Console.WriteLine($"폴더가 없습니다: {folder}");
+        return 1;
+    }
+    var files = Directory.EnumerateFiles(folder)
+        .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(f => f, StringComparer.Ordinal)
+        .ToArray();
+    Console.WriteLine($"앵커 y={Config.TooltipAnchor} ±{Config.TooltipAnchorTol}, " +
+                      $"최소 폭 {Config.TooltipMinWidth}, 중심 {Config.TooltipCentre}±{Config.TooltipCentreTol}\n");
+    Console.WriteLine($"{"파일",-34}  {"판정",-10} {"상단",5} {"좌",5} {"우",5} {"폭",5}  제목 영역");
+    var marks = new List<(string File, Frame Frame, Detect.TooltipPanel? Found)>();
+    foreach (string file in files)
+    {
+        Frame frame;
+        try { frame = await Imaging.DecodeAsync(await File.ReadAllBytesAsync(file)); }
+        catch (Exception exc)
+        {
+            Console.WriteLine($"{Path.GetFileName(file),-34}  디코드 실패: {exc.Message}");
+            continue;
+        }
+        var found = Detect.FindTooltip(Cv.ToGray(frame));
+        if (found is not { } p)
+        {
+            Console.WriteLine($"{Path.GetFileName(file),-34}  {"툴팁 없음",-10}");
+            marks.Add((file, frame, found));
+            continue;
+        }
+        Console.WriteLine($"{Path.GetFileName(file),-34}  {(p.Flipped ? "뒤집힘" : "아래"),-10} " +
+                          $"{p.Top,5} {p.X0,5} {p.X1,5} {p.X1 - p.X0,5}  " +
+                          $"({p.Title.X0},{p.Title.Y0})~({p.Title.X1},{p.Title.Y1})");
+        marks.Add((file, frame, found));
+    }
+
+    // The same picture the loop writes at run time, so what is checked here and
+    // what shows up in state\debug are not two different drawings.
+    string outDir = Path.Combine(folder, "marked");
+    Directory.CreateDirectory(outDir);
+    foreach (var (file, frame, found) in marks)
+    {
+        Detect.Mark(frame, found);
+        await Imaging.SavePngAsync(frame,
+            Path.Combine(outDir, "mark_" + Path.GetFileNameWithoutExtension(file) + ".png"));
+    }
+    Console.WriteLine($"\n표시한 화면: {outDir}");
+    return 0;
+}
 
 static double FlagValue(string[] argv, string name, double fallback)
 {

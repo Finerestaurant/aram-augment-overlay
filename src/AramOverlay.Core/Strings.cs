@@ -442,6 +442,10 @@ public static class Strings
             "    关闭时的卡片亮度: {0} — 最高 {1}，为次高的 {2} 倍");
         Add("Loop.DumpSaved", "    판정 화면 저장: {0}", "    decision frame saved: {0}",
             "    判定画面を保存: {0}", "    已保存判定画面: {0}");
+        Add("Loop.TipDump", "    툴팁 패널 검출({0}) 화면 저장: {1}",
+            "    tooltip panel found ({0}), frame saved: {1}",
+            "    ツールチップ検出({0}) 画面を保存: {1}",
+            "    提示框检出({0})，已保存画面: {1}");
         Add("Loop.DumpFailed", "    판정 화면 저장 실패: {0}", "    could not save the decision frame: {0}",
             "    判定画面の保存に失敗: {0}", "    保存判定画面失败: {0}");
         Add("Loop.ViaFlare", "카드 밝기 {0}배, 종료 {1}초 전",
