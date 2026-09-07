@@ -448,5 +448,14 @@ public static class Strings
             "card {0}x brighter, {1}s before the close",
             "カード明度 {0} 倍、終了 {1} 秒前", "卡片亮度 {0} 倍，关闭前 {1} 秒");
         Add("Loop.ViaTooltip", "툴팁 '{0}'", "tooltip '{0}'", "ツールチップ '{0}'", "提示框 '{0}'");
+        Add("Loop.ViaSelectFlare", "선택 플레어 (차순 대비 {0}배, 자기 기준선 대비 {1}배)",
+            "selection flare ({0}x the next card, {1}x its own baseline)",
+            "選択フレア (次点比 {0} 倍、自身の基準比 {1} 倍)",
+            "选择闪光 (为次高的 {0} 倍，为自身基线的 {1} 倍)");
+        Add("Loop.FlareOverTooltip",
+            "    [주의] 선택 플레어는 {0} 카드, 툴팁은 {1} 카드('{2}', {3}초 전) — 플레어를 따릅니다.",
+            "    [note] the selection flare says {0}, the tooltip says {1} ('{2}', {3}s old) -- following the flare.",
+            "    [注意] 選択フレアは {0}、ツールチップは {1} ('{2}'、{3} 秒前) — フレアに従います。",
+            "    [注意] 选择闪光指向 {0}，提示框指向 {1} ('{2}'，{3} 秒前) — 以闪光为准。");
     }
 }

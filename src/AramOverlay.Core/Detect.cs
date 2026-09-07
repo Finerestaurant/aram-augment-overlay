@@ -48,6 +48,79 @@ public static class Detect
         Config.Cards.ToDictionary(kv => kv.Key, kv => Mean(gray, kv.Value));
 
     /// <summary>
+    /// Fraction of the box, as a percentage, at or above <paramref name="level"/>.
+    ///
+    /// The selection flare fills a card with near-white; ordinary gameplay, the
+    /// shop panel and a hovered card do not reach 200 at all. A mean cannot say
+    /// that -- a large dim area and a small blazing one average the same -- and
+    /// the whole point is to recognise the small blazing one.
+    /// </summary>
+    public static double BrightPercent(GrayImage gray, Box box, int level)
+    {
+        var b = Scale(box, gray.Width, gray.Height);
+        int x0 = Math.Max(0, b.X0), y0 = Math.Max(0, b.Y0);
+        int x1 = Math.Min(gray.Width, b.X1), y1 = Math.Min(gray.Height, b.Y1);
+        if (x1 <= x0 || y1 <= y0)
+            return 0.0;
+        long n = 0, hit = 0;
+        for (int y = y0; y < y1; y++)
+        {
+            int row = y * gray.Width;
+            for (int x = x0; x < x1; x++)
+            {
+                if (gray.Pixels[row + x] >= level)
+                    hit++;
+                n++;
+            }
+        }
+        return n == 0 ? 0.0 : 100.0 * hit / n;
+    }
+
+    /// <summary>What one card looked like on one frame.</summary>
+    public readonly record struct CardStat(double Mean, double Inner, double Bright);
+
+    /// <summary>
+    /// All three cards measured three ways on one frame.
+    ///
+    /// <see cref="CardStat.Mean"/> is kept because it is what every threshold in
+    /// the log has always been phrased against; the verdict is taken off
+    /// <see cref="CardStat.Inner"/> and <see cref="CardStat.Bright"/>.
+    /// </summary>
+    public static Dictionary<string, CardStat> CardStats(GrayImage gray) =>
+        Config.Cards.ToDictionary(kv => kv.Key, kv => new CardStat(
+            Mean(gray, kv.Value),
+            Mean(gray, Config.CardInteriors[kv.Key]),
+            BrightPercent(gray, kv.Value, Config.FlareBrightLevel)));
+
+    /// <summary>
+    /// Is this one frame the selection flare, and if so on which card.
+    ///
+    /// Taking a card lights it up: over about five frames at 60 fps the chosen
+    /// card fills with near-white while the other two dissolve. Two independent
+    /// measurements are required, because each one alone has a false positive on
+    /// record. The interior ratio alone is cleared by a map light beam falling
+    /// through a card box after the window has gone -- 14.5% of that box was
+    /// over 200 and nothing had been selected. The bright bar alone is what that
+    /// beam clears. Together, across 213 measured frames -- one 60 fps capture
+    /// of a pick plus 44 frames dumped from 17 real windows -- nothing but an
+    /// actual selection has satisfied both.
+    ///
+    /// Returns the slot and ratio whether or not the ratio passed, so a caller
+    /// writing a trace can record how close a frame came. The second test --
+    /// the same card against its own earlier self -- needs the window's history
+    /// and is applied by the caller.
+    /// </summary>
+    public static (string? Slot, string Top, double Ratio) Flare(
+        Dictionary<string, CardStat> stats)
+    {
+        var order = stats.OrderByDescending(kv => kv.Value.Inner).ToArray();
+        if (order.Length < 2 || order[1].Value.Inner <= 0)
+            return (null, order.Length > 0 ? order[0].Key : "", 0);
+        double ratio = order[0].Value.Inner / order[1].Value.Inner;
+        return (ratio >= Config.FlareInnerRatio ? order[0].Key : null, order[0].Key, ratio);
+    }
+
+    /// <summary>
     /// Median card-interior brightness. Low means the cards have settled.
     ///
     /// During the entry animation the cards are washed out and bright while the

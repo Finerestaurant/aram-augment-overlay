@@ -109,6 +109,57 @@ public static class Config
 
     public const double SelectFlare = 1.15;
     public const double FlareLookbackS = 2.5;
+
+    // --- selection flare --------------------------------------------------
+    // Taking a card IS animated after all: the chosen card fills with white
+    // while the other two go dark, over about five frames at 60 fps. The
+    // earlier reading that "no confirmation animation happens" came from three
+    // windows and did not survive a frame-by-frame capture (docs/FINDINGS.md).
+    //
+    // Two tests, on two different axes, both measured. Across cards: how far
+    // the brightest interior stands above the next. Across time: how far that
+    // same card stands above where it sat earlier in this very window.
+    //
+    // Measured over a 60 fps capture of a level 3 pick (169 frames) and 64
+    // frames dumped from 32 real windows, all scored by SelfTest --flare so the
+    // numbers are the app's own arithmetic and not an approximation of it:
+    //
+    //                        inner ratio    rise over own baseline
+    //   selection flare       4.3 - 6.6      3.8 - 6.1
+    //   shop panel open       1.4 - 1.6      2.3 - 2.6
+    //   hover, window open    1.0 - 2.6      about 1
+    //   window gone, map      1.0 - 1.8      varies
+    //
+    // The interior boxes are used rather than the whole card because they are
+    // small and central, so they do not straddle the edge of an occluder: with
+    // the shop open, whole-card mean puts the exposed card at 5.4x the others
+    // and would answer confidently with a panel covering two of the three.
+    public const double FlareInnerRatio = 3.0;
+    public const double FlareRise = 3.0;
+    // Where the "before" in that rise is taken from -- far enough back that the
+    // flare itself cannot be in it.
+    public const double FlareBaselineFromS = 1.5;
+    public const double FlareBaselineToS = 0.5;
+    // The flare is the last thing that happens before the window goes, so there
+    // is no reason to look far back -- and a reroll earlier in the window is
+    // bright enough that it should not be given the chance to answer.
+    public const double FlareWindowS = 1.2;
+
+    // A bright-pixel bar was tried as the second test and dropped, which is
+    // worth writing down because it looked convincing first time round. Scored
+    // through ffmpeg it separated perfectly -- 0% everywhere, 3-12% on the
+    // flare -- but ffmpeg's gray conversion is limited range, and on this app's
+    // full-range arithmetic the same measurement collapses: over the card box
+    // ordinary frames reach 16.9% and the flare only manages 8.7%; over the
+    // interior box the flare manages 1.2% against 12.3%; at a near-white cutoff
+    // of 245 the flare has no pixels at all. The white of the flare is a
+    // champion-shaped burst that does not fill the interior box and is not
+    // actually white. A measurement is only as good as the arithmetic it was
+    // taken with, and the check that caught this was running it through
+    // SelfTest rather than through the tool it was prototyped in.
+    // CardStat still carries the number, because the trace records it and a
+    // later session may find a cutoff that does work.
+    public const int FlareBrightLevel = 200;
     // How old a tooltip reading may be, measured from the last frame the window
     // was up, and still be taken as where the cursor was at the click. Scans run
     // every 0.35 s and a grab plus OCR costs about as much again, so a cursor
@@ -139,6 +190,18 @@ public static class Config
     public static int WidgetPort = 8777;
     /// <summary>Set from settings. Turns on the frame dumps below.</summary>
     public static bool DebugMode;
+
+    /// <summary>
+    /// Every frame of every window, written out with its numbers drawn on it.
+    ///
+    /// This is the only way to check a verdict against what was on screen at the
+    /// time: the log records the reading that won, and a wrong pick is almost
+    /// always about a frame nobody kept. Costs a JPEG encode per frame and about
+    /// 25 MB per window, so it is off unless asked for.
+    /// </summary>
+    public static bool TraceMode;
+    public const int TraceMaxFrames = 1500;
+    public const int TraceQuality = 82;
 
     public static int WidgetRows = 4;
     public static int WidgetMaxW = 420;

@@ -26,6 +26,25 @@ if (args.Contains("--obs"))
 if (args.Contains("--locale"))
     return LocaleReport();
 
+// Score a folder of frames the way the loop scores them, so the selection-flare
+// thresholds can be checked against pictures whose answer is already known --
+// captures of a pick, and dumps from windows that went wrong.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --flare <folder>
+if (args.Contains("--flare"))
+    return await FlareReport(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".");
+
+// Replay a folder of frames as though it were one augment window: run the same
+// gate, the same measurements and the same verdict the loop would, and leave the
+// same annotated trace behind. A recording of a pick can then be checked against
+// what the tool would have published, without waiting for the situation to come
+// round again in a real game.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --replay <folder>
+if (args.Contains("--replay"))
+    return await Replay(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".",
+                        FlagValue(args, "--fps", 60.0));
+
 // The whole thing, headless, until Ctrl+C. This is the loop the WPF window will
 // host; running it from a console first keeps the two concerns separate.
 if (args.Contains("--loop"))
@@ -46,6 +65,174 @@ failures += await DetectParity(root);
 
 Console.WriteLine(failures == 0 ? "\n전부 통과" : $"\n{failures}개 실패");
 return failures == 0 ? 0 : 1;
+
+static double FlagValue(string[] argv, string name, double fallback)
+{
+    int at = Array.IndexOf(argv, name);
+    return at >= 0 && at + 1 < argv.Length &&
+           double.TryParse(argv[at + 1], NumberStyles.Float, CultureInfo.InvariantCulture,
+                           out double value)
+        ? value : fallback;
+}
+
+// A folder of frames run through the loop's own decision path, start to finish.
+//
+// The frames are timestamped from the given frame rate, which is what makes the
+// two time-based tests -- the flare's own baseline, and how far back the search
+// reaches -- mean the same thing here as they do live. Gate scores are computed
+// rather than assumed, so a frame the reroll buttons have left is excluded from
+// the brightness fallback exactly as it would be in a game.
+static async Task<int> Replay(string folder, double fps)
+{
+    if (!Directory.Exists(folder))
+    {
+        Console.WriteLine($"폴더가 없습니다: {folder}");
+        return 1;
+    }
+    var files = Directory.EnumerateFiles(folder)
+        .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(f => f, StringComparer.Ordinal)
+        .ToArray();
+    if (files.Length == 0)
+    {
+        Console.WriteLine($"이미지가 없습니다: {folder}");
+        return 1;
+    }
+
+    Config.Root = folder;
+    Config.TraceMode = true;
+    Config.DebugMode = true;
+    var gate = await Assets.GateAsync();
+    var hide = await Assets.HideButtonAsync();
+
+    var history = new List<Beat>();
+    var start = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    Trace.Begin(null);
+    Console.WriteLine($"{files.Length}개 프레임을 {fps} fps 로 재생합니다 -> {Trace.Dir}\n");
+
+    for (int i = 0; i < files.Length; i++)
+    {
+        var frame = await Imaging.DecodeAsync(await File.ReadAllBytesAsync(files[i]));
+        var gray = Cv.ToGray(frame);
+        var scores = gate.Scores(gray);
+        double hideScore = hide.Score(gray);
+        bool cardsUp = scores.Min() >= Config.GateStay ||
+                       scores.Count(s => s >= Config.GateStayTwo) >= 2;
+        bool alive = cardsUp || hideScore >= Config.HidePresent;
+        var stats = Detect.CardStats(gray);
+        var at = start.AddSeconds(i / fps);
+        history.Add(new Beat(at, stats, alive, cardsUp));
+
+        var (slot, top, ratio) = Detect.Flare(stats);
+        Trace.Add(frame, new TraceSample
+        {
+            Index = i,
+            T = i / fps,
+            Gate = scores,
+            Hide = hideScore,
+            Alive = alive,
+            CardsUp = cardsUp,
+            Settled = Detect.InteriorDarkness(gray) < 60,
+            Stats = stats,
+            Flare = $"{top} {ratio:F2}X{(slot is null ? "" : " HIT")}",
+        });
+    }
+
+    // The close is taken as the last frame the window was alive in, which is
+    // what the loop does rather than "now".
+    DateTime closedAt = history[^1].At;
+    for (int i = history.Count - 1; i >= 0; i--)
+        if (history[i].Alive) { closedAt = history[i].At; break; }
+
+    var (flareSlot, flareAt, flareRatio, flareRise) = OverlayLoop.SelectionFlare(history, closedAt);
+    var (glowSlot, _, glowVia) = OverlayLoop.HoverGlowSlot(history, closedAt);
+
+    var why = new List<string>
+    {
+        $"frames      {files.Length} at {fps} fps",
+        $"close taken at frame {(int)Math.Round((closedAt - start).TotalSeconds * fps)}",
+        flareSlot is null
+            ? "flare       none"
+            : $"flare       {flareSlot}  inner {flareRatio:F2}x the next card, " +
+              $"{flareRise:F2}x its own baseline, " +
+              $"{(closedAt - flareAt).TotalSeconds:F2}s before the close",
+        glowSlot is null ? "hover glow  none" : $"hover glow  {glowSlot}  {glowVia}",
+        "tooltip     not available in a replay (no OCR probe ran)",
+        flareSlot is not null ? $"would take  {flareSlot} on the flare"
+            : glowSlot is not null ? $"would take  {glowSlot} on hover brightness"
+            : "would take  nothing",
+    };
+    foreach (string line in why)
+        Console.WriteLine("  " + line);
+    await Trace.FinishAsync(why);
+    Console.WriteLine($"\n트레이스: {Path.Combine(folder, "state", "trace")}");
+    return 0;
+}
+
+// Every frame in a folder, measured the way the loop measures one, with the
+// selection-flare verdict beside it. Prints the ratio and the bright fraction
+// even when they fail, because the useful question is usually how close a
+// negative came rather than which ones passed.
+static async Task<int> FlareReport(string folder)
+{
+    if (!Directory.Exists(folder))
+    {
+        Console.WriteLine($"폴더가 없습니다: {folder}");
+        return 1;
+    }
+    var files = Directory.EnumerateFiles(folder)
+        .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(f => f, StringComparer.Ordinal)
+        .ToArray();
+    if (files.Length == 0)
+    {
+        Console.WriteLine($"이미지가 없습니다: {folder}");
+        return 1;
+    }
+
+    // Only the across-cards half of the flare test can be judged from a still.
+    // The other half asks how far the card has risen since earlier in its own
+    // window, and a folder of unrelated pictures has no window to compare with.
+    Console.WriteLine($"프레임 단위 검사: inner 비율 {Config.FlareInnerRatio}배 이상");
+    Console.WriteLine("(자기 기준선 대비 상승 조건은 창의 이력이 필요하므로 여기서는 판정하지 않습니다)\n");
+    Console.WriteLine("파일                                      " +
+                      "L mean/in/br        M mean/in/br        R mean/in/br        top  inner  판정");
+
+    int flares = 0;
+    foreach (string file in files)
+    {
+        Frame frame;
+        try
+        {
+            frame = await Imaging.DecodeAsync(await File.ReadAllBytesAsync(file));
+        }
+        catch (Exception exc)
+        {
+            Console.WriteLine($"{Path.GetFileName(file),-40}  디코드 실패: {exc.Message}");
+            continue;
+        }
+        var stats = Detect.CardStats(Cv.ToGray(frame));
+        var (slot, top, ratio) = Detect.Flare(stats);
+        if (slot is not null)
+            flares++;
+
+        var cells = new List<string>();
+        foreach (string key in new[] { "L", "M", "R" })
+        {
+            var v = stats[key];
+            cells.Add($"{v.Mean,5:F1}/{v.Inner,5:F1}/{v.Bright,4:F1}");
+        }
+        Console.WriteLine($"{Path.GetFileName(file),-40}  {string.Join("  ", cells)}  " +
+                          $"{top}  {ratio,5:F2}  " +
+                          $"{(slot is null ? "-" : "RATIO PASSES " + slot)}");
+    }
+
+    Console.WriteLine($"\n{files.Length}개 중 {flares}개가 inner 비율 조건을 통과했습니다.");
+    return 0;
+}
 
 // End to end against the real thing: connect, find the capture source, pull a
 // frame, run the gate on it, and serve the widget page the OBS browser source

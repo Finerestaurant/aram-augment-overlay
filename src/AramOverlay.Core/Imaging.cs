@@ -93,6 +93,49 @@ public sealed class Frame
         Bgra[i + 2] = r;
     }
 
+    /// <summary>One pixel, in this frame's own coordinates -- no 1920x1080 rescale.</summary>
+    public void Set(int x, int y, byte b, byte g, byte r) => Plot(x, y, b, g, r);
+
+    /// <summary>
+    /// Wash a rectangle towards a colour, in this frame's own coordinates.
+    /// The trace panels sit over gameplay, and a solid block hides the very
+    /// thing the numbers are describing.
+    /// </summary>
+    public void FillBox(int x0, int y0, int x1, int y1, byte b, byte g, byte r, double alpha)
+    {
+        double keep = 1.0 - Math.Clamp(alpha, 0, 1);
+        for (int y = Math.Max(0, y0); y < Math.Min(Height, y1); y++)
+        {
+            for (int x = Math.Max(0, x0); x < Math.Min(Width, x1); x++)
+            {
+                int i = Index(x, y);
+                Bgra[i] = (byte)(Bgra[i] * keep + b * (1 - keep));
+                Bgra[i + 1] = (byte)(Bgra[i + 1] * keep + g * (1 - keep));
+                Bgra[i + 2] = (byte)(Bgra[i + 2] * keep + r * (1 - keep));
+            }
+        }
+    }
+
+    /// <summary>A box in this frame's own coordinates.</summary>
+    public void DrawRaw(int x0, int y0, int x1, int y1, byte b, byte g, byte r, int thickness)
+    {
+        for (int t = 0; t < thickness; t++)
+        {
+            for (int x = x0; x < x1; x++)
+            {
+                Plot(x, y0 + t, b, g, r);
+                Plot(x, y1 - 1 - t, b, g, r);
+            }
+            for (int y = y0; y < y1; y++)
+            {
+                Plot(x0 + t, y, b, g, r);
+                Plot(x1 - 1 - t, y, b, g, r);
+            }
+        }
+    }
+
+    public Frame Clone() => new(Width, Height, (byte[])Bgra.Clone());
+
     public static double Gray(byte r, byte g, byte b) => 0.299 * r + 0.587 * g + 0.114 * b;
 
     public byte[] ToGray()
@@ -115,6 +158,34 @@ public static class Imaging
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var stream = new InMemoryRandomAccessStream();
         var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+        encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore,
+                             (uint)frame.Width, (uint)frame.Height, 96, 96, frame.Bgra);
+        await encoder.FlushAsync();
+
+        stream.Seek(0);
+        var reader = new DataReader(stream.GetInputStreamAt(0));
+        await reader.LoadAsync((uint)stream.Size);
+        var bytes = new byte[stream.Size];
+        reader.ReadBytes(bytes);
+        await File.WriteAllBytesAsync(path, bytes);
+    }
+
+    /// <summary>
+    /// Write a frame out as JPEG. The trace writes one of these per frame of
+    /// every window, so the ~20x saving over PNG is the difference between a
+    /// usable feature and filling the disk.
+    /// </summary>
+    public static async Task SaveJpegAsync(Frame frame, string path, int quality)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var options = new BitmapPropertySet
+        {
+            ["ImageQuality"] = new BitmapTypedValue(
+                Math.Clamp(quality, 1, 100) / 100.0f, Windows.Foundation.PropertyType.Single),
+        };
+        var stream = new InMemoryRandomAccessStream();
+        var encoder = await BitmapEncoder.CreateAsync(
+            BitmapEncoder.JpegEncoderId, stream, options);
         encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore,
                              (uint)frame.Width, (uint)frame.Height, 96, 96, frame.Bgra);
         await encoder.FlushAsync();

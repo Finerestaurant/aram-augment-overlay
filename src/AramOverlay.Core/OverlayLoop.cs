@@ -35,6 +35,19 @@ public sealed class Kept
     public List<(string Raw, string Name, double Score)> TipMisses = new();
 }
 
+/// <summary>
+/// One detection frame, kept as numbers rather than pixels.
+///
+/// <paramref name="Alive"/> is the window-still-open test, which the hide
+/// button alone can hold up. <paramref name="CardsUp"/> is the narrower
+/// question of whether the reroll gate could still see cards, and it is the one
+/// brightness may be read from: the hide button survives the cards by over a
+/// second, and every wrong pick traced back to a brightness reading has been a
+/// measurement of whatever the map put there afterwards.
+/// </summary>
+public readonly record struct Beat(
+    DateTime At, Dictionary<string, Detect.CardStat> Stats, bool Alive, bool CardsUp);
+
 /// <summary>Per-window record of why selection did or did not trigger.</summary>
 public sealed class Diagnostics
 {
@@ -93,8 +106,9 @@ public sealed class OverlayLoop
         var kept = new Kept();
         var diag = new Diagnostics();
         var baselineSamples = new List<double>();
-        var flareHistory = new List<(DateTime At, Dictionary<string, double> Means, bool Alive)>();
+        var history = new List<Beat>();
         var picksLock = new object();
+        int traceIndex = 0;
 
         int sizedSeq = 0;
         bool anvil = false;
@@ -132,6 +146,7 @@ public sealed class OverlayLoop
                 _state.Connected = false;
                 _state.Level = null;
                 win = new AugmentWindowState();
+                Trace.End();
                 await Task.Delay(3000, token);
                 continue;
             }
@@ -193,10 +208,12 @@ public sealed class OverlayLoop
                     baselineSamples.Clear();
                     kept = new Kept();
                     diag = new Diagnostics();
-                    flareHistory.Clear();
+                    history.Clear();
                     lastAlive = null;
                     anvil = false;
                     seenRaw = null;
+                    traceIndex = 0;
+                    Trace.Begin(level);
                     Log.Write(Strings.Get("Loop.WindowOpen", level,
                         string.Join(", ", scores.Select(s => s.ToString("F2")))));
                 }
@@ -208,7 +225,7 @@ public sealed class OverlayLoop
                 {
                     Log.Write(Strings.Get("Loop.WindowClosed"));
                     Log.Write($"    {Summary(diag, win)}");
-                    await OnWindowClosedAsync(win, kept, diag, anvil, level, flareHistory,
+                    await OnWindowClosedAsync(win, kept, diag, anvil, level, history,
                                              picksLock, probe, lastAlive);
                     win = new AugmentWindowState();
                     kept = new Kept();
@@ -229,13 +246,24 @@ public sealed class OverlayLoop
             diag.HideMax = Math.Max(diag.HideMax, hideScore);
             diag.Frames++;
 
-            var means = Detect.CardMeans(gray);
+            var stats = Detect.CardStats(gray);
+            var means = stats.ToDictionary(kv => kv.Key, kv => kv.Value.Mean);
             var frameAt = DateTime.UtcNow;
-            flareHistory.Add((frameAt, means, weak));
+            // Cards up is the reroll gate on its own. The hide button is what
+            // keeps `weak` true after the cards have gone, which is right for
+            // deciding the window is over and wrong for deciding what a card
+            // looked like.
+            bool cardsUp = scores.Min() >= Config.GateStay ||
+                           scores.Count(s => s >= Config.GateStayTwo) >= 2;
+            history.Add(new Beat(frameAt, stats, weak, cardsUp));
             if (weak)
                 lastAlive = frame;
-            if (flareHistory.Count > 45)             // ~4 s at the loop's cadence
-                flareHistory.RemoveRange(0, 10);
+            // Trimmed by age, not by count: the loop turns over in about 25 ms,
+            // so the old cap of 45 entries held barely a second and the 2.5 s
+            // lookback below could never actually reach that far back.
+            double keepFor = Math.Max(Config.FlareLookbackS, Config.FlareWindowS) + 1.5;
+            while (history.Count > 0 && (frameAt - history[0].At).TotalSeconds > keepFor)
+                history.RemoveAt(0);
 
             bool settled = Detect.InteriorDarkness(gray) < 60 &&
                            Now() - win.OpenedAt > Config.EntryAnimS;
@@ -253,6 +281,31 @@ public sealed class OverlayLoop
                     win.HoverHistory.Add(hover);
                     win.LastHover = hover;
                 }
+            }
+
+            if (Trace.Active)
+            {
+                var (fslot, ftop, fratio) = Detect.Flare(stats);
+                Trace.Add(frame, new TraceSample
+                {
+                    Index = traceIndex++,
+                    T = Now() - win.OpenedAt,
+                    Gate = scores,
+                    Hide = hideScore,
+                    Alive = weak,
+                    CardsUp = cardsUp,
+                    Settled = settled,
+                    Stats = stats,
+                    TooltipSlot = kept.Hover,
+                    TooltipRaw = kept.HoverRaw,
+                    TooltipAge = kept.HoverAt == default
+                        ? 0 : (frameAt - kept.HoverAt).TotalSeconds,
+                    // The ratio for every frame, flagged when it clears the bar.
+                    // The rise test needs the window's history and is settled
+                    // at the close; trace.txt carries that verdict.
+                    Flare = $"{ftop} {fratio:F2}X{(fslot is null ? "" : " HIT")}",
+                    Titles = kept.Cards.ToDictionary(kv => kv.Key, kv => kv.Value.Name ?? ""),
+                });
             }
 
             // Keep the newest frame that still shows a tooltip, for as long as the
@@ -463,52 +516,173 @@ public sealed class OverlayLoop
     /// a selection animation -- there is none -- it is where the cursor is
     /// resting, so the reading closest to the click is the one that matters.
     /// </summary>
-    private static (string? Slot, DateTime At, string Via) FlareSlot(
-        List<(DateTime At, Dictionary<string, double> Means, bool Alive)> history, DateTime closedAt)
+    /// <summary>
+    /// What one card's interior sat at earlier in this window, before anything
+    /// that happens at the close could have moved it.
+    ///
+    /// A median, not a mean: a reroll inside the sampled stretch would drag a
+    /// mean up and quietly raise the bar the flare has to clear.
+    /// </summary>
+    public static double BaselineInner(List<Beat> history, DateTime anchor, string slot)
+    {
+        var values = new List<double>();
+        foreach (var beat in history)
+        {
+            double before = (anchor - beat.At).TotalSeconds;
+            if (before > Config.FlareBaselineFromS || before < Config.FlareBaselineToS)
+                continue;
+            if (beat.CardsUp && beat.Stats.TryGetValue(slot, out var stat))
+                values.Add(stat.Inner);
+        }
+        return values.Count == 0 ? 0.0 : Detect.Median(values.ToArray());
+    }
+
+    /// <summary>
+    /// The last frame the reroll gate could still see cards in.
+    ///
+    /// This, not the close, is what the flare search is measured from. The two
+    /// are not the same moment and the gap between them is not bounded: the
+    /// close waits on the hide button, which one capture kept matching at 1.00
+    /// for a second and a half after the cards had gone because the deck button
+    /// under them stayed on screen through the shop being opened. Anchoring the
+    /// search on the close would let that gap push the flare out of range.
+    /// </summary>
+    private static DateTime CardsLastSeen(List<Beat> history, DateTime fallback)
+    {
+        for (int i = history.Count - 1; i >= 0; i--)
+            if (history[i].CardsUp)
+                return history[i].At;
+        return fallback;
+    }
+
+    /// <summary>
+    /// The newest frame just before the close that is a selection flare.
+    ///
+    /// Both tests have to pass. The ratio says this card is far brighter than
+    /// the other two right now; the rise says it is far brighter than it was
+    /// itself a moment ago. The shop is the case that shows why one is not
+    /// enough on its own -- it clears the rise comfortably at 2.3-2.6x, because
+    /// a panel edge cutting across the card boxes lifts one of them and holds
+    /// it there, and only the ratio catches that for the static thing it is.
+    /// </summary>
+    public static (string? Slot, DateTime At, double Ratio, double Rise) SelectionFlare(
+        List<Beat> history, DateTime closedAt)
+    {
+        DateTime anchor = CardsLastSeen(history, closedAt);
+        for (int i = history.Count - 1; i >= 0; i--)
+        {
+            var beat = history[i];
+            // The flare straddles the moment the cards go: it starts on the
+            // frame after the gate dies and runs for about 80 ms, so the search
+            // reaches both sides of the anchor rather than only backwards.
+            if (Math.Abs((beat.At - anchor).TotalSeconds) > Config.FlareWindowS)
+                continue;
+            var (slot, _, ratio) = Detect.Flare(beat.Stats);
+            if (slot is null)
+                continue;
+            double baseline = BaselineInner(history, anchor, slot);
+            if (baseline <= 0)
+                continue;
+            double rise = beat.Stats[slot].Inner / baseline;
+            if (rise < Config.FlareRise)
+                continue;
+            return (slot, beat.At, ratio, rise);
+        }
+        return (null, default, 0, 0);
+    }
+
+    /// <summary>
+    /// Which card the cursor was resting on when the window went, read off
+    /// brightness. The fallback of last resort, for the player who clicks
+    /// without a tooltip ever being read and without a flare being caught.
+    ///
+    /// Reading this off one full-resolution frame was wrong: that frame is
+    /// whenever the titles last happened to be read. On one window it caught the
+    /// reroll animation instead -- the freshly rerolled card glowed at 1.69x and
+    /// got published, while the augment actually taken was the dimmest of three.
+    /// Only the stretch just before the close is searched, because a reroll
+    /// earlier in the window flares just as brightly.
+    ///
+    /// Within that stretch the *newest* qualifying frame wins, not the
+    /// brightest. Taking the maximum published 閃光 for a window where 歯の妖精
+    /// was taken: the player rerolled the left card and took the middle one, and
+    /// the reroll animation at 1.56x, 0.7 s before the close, outshouted the
+    /// 1.28x the hovered card held right up to the click. Brightness here is not
+    /// a selection animation -- that is <see cref="SelectionFlare"/> -- it is
+    /// where the cursor is resting, so the reading closest to the click is the
+    /// one that matters.
+    ///
+    /// The frame must be one the reroll gate could still see cards in.
+    /// Accepting any frame the window was merely "alive" in is what published
+    /// Marksmage over Transmute: Prismatic: the cards had gone, the hide button
+    /// had not, and 1.23x was the ratio between two patches of map.
+    /// </summary>
+    public static (string? Slot, DateTime At, string Via) HoverGlowSlot(
+        List<Beat> history, DateTime closedAt)
     {
         for (int i = history.Count - 1; i >= 0; i--)
         {
-            var (at, means, alive) = history[i];
-            double ago = (closedAt - at).TotalSeconds;
+            var beat = history[i];
+            double ago = (closedAt - beat.At).TotalSeconds;
             if (ago > Config.FlareLookbackS)
                 break;
-            if (!alive)
+            if (!beat.CardsUp)
                 continue;
-            var order = means.OrderByDescending(kv => kv.Value).ToArray();
-            if (order.Length < 2 || order[1].Value <= 0)
+            var order = beat.Stats.OrderByDescending(kv => kv.Value.Mean).ToArray();
+            if (order.Length < 2 || order[1].Value.Mean <= 0)
                 continue;
-            double ratio = order[0].Value / order[1].Value;
+            double ratio = order[0].Value.Mean / order[1].Value.Mean;
             if (ratio < Config.SelectFlare)
                 continue;
-            return (order[0].Key, at, Strings.Get("Loop.ViaFlare",
+            return (order[0].Key, beat.At, Strings.Get("Loop.ViaFlare",
                 ratio.ToString("F2"), ago.ToString("F1")));
         }
         return (null, default, "");
     }
 
     /// <summary>
-    /// The window shutting IS the pick.
+    /// The window shutting IS the pick, and there are three ways to say which card.
     ///
-    /// The original design watched for a confirmation animation -- the taken card
-    /// flaring while the other two collapsed. That animation does not happen
-    /// here: across three confirmed windows the winner crossed its threshold 39
-    /// times while the losers never dropped below 0.96 of baseline, which is the
-    /// signature of a hover, not a selection. What is reliable is the window
-    /// itself, so the pick is read off the last tooltip seen before it went away.
+    /// The original design watched for a confirmation animation and an early
+    /// reading concluded there was none: across three windows the winner crossed
+    /// its threshold 39 times while the losers never dropped below 0.96 of
+    /// baseline, which is the signature of a hover. That conclusion was wrong,
+    /// and it was wrong because three windows of region averages is not enough
+    /// to see an 83 ms event. A frame-by-frame capture has it plainly -- see
+    /// <see cref="SelectionFlare"/> -- so the flare is now the first thing
+    /// asked, ahead of the tooltip.
+    ///
+    /// Order matters and this is the reasoning for it. The flare is the game
+    /// stating what was taken, at the instant it was taken. The tooltip is the
+    /// game naming what the cursor was over, at whatever moment the last scan
+    /// managed to catch, which can be a second stale and on the wrong card by
+    /// then -- a level 8 window published Hextech Soul off a tooltip 1.0 s old
+    /// while the player had moved on and taken Stackosaurus Rex. Hover
+    /// brightness is neither; it is an inference, and it is last.
     /// </summary>
     private async Task OnWindowClosedAsync(
         AugmentWindowState win, Kept kept, Diagnostics diag, bool anvil, int? level,
-        List<(DateTime At, Dictionary<string, double> Means, bool Alive)> history,
-        object picksLock, Task? probe, Frame? lastAlive)
+        List<Beat> history, object picksLock, Task? probe, Frame? lastAlive)
     {
+        var why = new List<string>();
+        void Note(string line)
+        {
+            why.Add(line);
+            Log.Write("    · " + line);
+        }
+
         if (anvil)
         {
             Log.Write(Strings.Get("Loop.AnvilSkipped"));
+            why.Add("abandoned: item anvil screen, not an augment window");
+            await Trace.FinishAsync(why);
             return;
         }
         if (diag.Settled == 0)
         {
             Log.Write(Strings.Get("Loop.NeverSettled"));
+            why.Add("abandoned: the cards never settled");
+            await Trace.FinishAsync(why);
             return;
         }
 
@@ -527,69 +701,87 @@ public sealed class OverlayLoop
         // absence, so "now" is over a second late and would make every reading
         // look stale by the same amount.
         DateTime closedAt = DateTime.UtcNow;
-        Dictionary<string, double>? closeMeans = null;
+        Dictionary<string, Detect.CardStat>? closeStats = null;
         for (int i = history.Count - 1; i >= 0; i--)
-            if (history[i].Alive) { (closedAt, closeMeans, _) = history[i]; break; }
+            if (history[i].Alive) { closedAt = history[i].At; closeStats = history[i].Stats; break; }
 
         // What the cards looked like at the close, written down whether or not
         // brightness ends up deciding. It is one line and it is the line that
         // says whether a wrong pick was brightness being overruled or brightness
         // being right and ignored.
-        if (closeMeans is not null)
+        if (closeStats is not null)
         {
-            var byMean = closeMeans.OrderByDescending(kv => kv.Value).ToArray();
+            var byMean = closeStats.OrderByDescending(kv => kv.Value.Mean).ToArray();
             Log.Write(Strings.Get("Loop.CloseMeans",
-                string.Join(", ", closeMeans.Select(kv => $"{kv.Key}={kv.Value:F1}")),
+                string.Join(", ", closeStats.Select(kv => $"{kv.Key}={kv.Value.Mean:F1}")),
                 byMean[0].Key,
-                byMean[1].Value > 0 ? (byMean[0].Value / byMean[1].Value).ToString("F2") : "-"));
+                byMean[1].Value.Mean > 0
+                    ? (byMean[0].Value.Mean / byMean[1].Value.Mean).ToString("F2") : "-"));
         }
 
-        // Two signals, both measured against known answers. Card brightness over
-        // the window as a whole is not a third: it was wrong on the windows it
-        // was asked to decide, and a confident wrong augment on stream is worse
-        // than a gap.
-        // Both signals are recorded every time, not just the one that won. A
-        // wrong pick is almost always the two disagreeing, and that cannot be
-        // seen after the fact unless the loser is written down too.
-        var (flareSlot, flareAt, via) = FlareSlot(history, closedAt);
+        // All three signals are worked out every time, not just the one that
+        // wins. A wrong pick is almost always two of them disagreeing, and that
+        // cannot be seen after the fact unless the losers are written down too.
+        var (flareSlot, flareAt, flareRatio, flareRise) = SelectionFlare(history, closedAt);
+        var (glowSlot, glowAt, glowVia) = HoverGlowSlot(history, closedAt);
 
-        // The tooltip is exact OCR of the card under the cursor, which is worth
-        // more than a brightness ratio -- but only while it is current. Hover is
-        // never cleared, so an old one keeps naming a card the player moved off
-        // seconds ago, and that is precisely how ピンボール came to be nominated
-        // for a window in which the cursor ended on 歯の妖精.
+        // The tooltip is exact OCR of the card under the cursor -- but only
+        // while it is current. Hover is never cleared, so an old one keeps
+        // naming a card the player moved off seconds ago, and that is precisely
+        // how ピンボール came to be nominated for a window in which the cursor
+        // ended on 歯の妖精.
         string? hoverSlot = kept.Hover;
         double hoverAge = (closedAt - kept.HoverAt).TotalSeconds;
         if (hoverSlot is not null && hoverAge > Config.HoverTrustS)
         {
             Log.Write(Strings.Get("Loop.HoverStale", hoverSlot, hoverAge.ToString("F1")));
+            Note($"tooltip '{kept.HoverRaw}' on {hoverSlot} discarded, {hoverAge:F1}s old");
             hoverSlot = null;
         }
 
-        // A current tooltip beats brightness, and it is not close. The tooltip is
-        // the game naming the card under the cursor and the OCR of it scored
-        // 1.00; brightness is an inference from a ratio that a reroll animation
-        // can win outright. Both windows that published the wrong augment had
-        // the right answer sitting in a tooltip that brightness overruled:
-        // 歯の妖精 lost to a card rerolled 0.7 s earlier at 1.56x, and 脱出プラン
-        // to one rerolled at 4.25x. Brightness stays as the fallback for the
-        // player who clicks before any tooltip is read.
+        Note(flareSlot is null
+            ? "flare      none"
+            : $"flare      {flareSlot}  inner {flareRatio:F2}x the next card, {flareRise:F2}x its own " +
+              $"baseline, {(closedAt - flareAt).TotalSeconds:F2}s before the close");
+        Note(hoverSlot is null
+            ? "tooltip    none current"
+            : $"tooltip    {hoverSlot}  '{kept.HoverRaw}', {hoverAge:F1}s old");
+        Note(glowSlot is null
+            ? "hover glow none"
+            : $"hover glow {glowSlot}  {glowVia}");
+
         string? slot;
-        if (hoverSlot is not null)
+        string via;
+        if (flareSlot is not null)
         {
-            if (flareSlot is not null && flareSlot != hoverSlot)
-                Log.Write(Strings.Get("Loop.SignalsDisagree", flareSlot, hoverSlot, kept.HoverRaw,
+            if (hoverSlot is not null && hoverSlot != flareSlot)
+                Log.Write(Strings.Get("Loop.FlareOverTooltip", flareSlot, hoverSlot,
+                    kept.HoverRaw, hoverAge.ToString("F1")));
+            slot = flareSlot;
+            via = Strings.Get("Loop.ViaSelectFlare",
+                flareRatio.ToString("F1"), flareRise.ToString("F1"));
+            Note($"taken      {slot} on the flare");
+        }
+        else if (hoverSlot is not null)
+        {
+            if (glowSlot is not null && glowSlot != hoverSlot)
+                Log.Write(Strings.Get("Loop.SignalsDisagree", glowSlot, hoverSlot, kept.HoverRaw,
                     hoverAge.ToString("F1")));
             slot = hoverSlot;
             via = Strings.Get("Loop.ViaTooltip", kept.HoverRaw);
+            Note($"taken      {slot} on the tooltip");
         }
-        else if (flareSlot is not null)
+        else if (glowSlot is not null)
         {
-            slot = flareSlot;
+            slot = glowSlot;
+            via = glowVia;
+            Note($"taken      {slot} on hover brightness (last resort)");
         }
         else
         {
             Log.Write(Strings.Get("Loop.Undecidable"));
+            why.Add("abandoned: no signal named a card");
+            await Trace.FinishAsync(why);
             return;
         }
 
@@ -598,6 +790,8 @@ public sealed class OverlayLoop
             string got = card is not null
                 ? $"'{card.Raw}' {card.Score:F2}" : Strings.Get("Loop.NoReading");
             Log.Write(Strings.Get("Loop.TitleUnconfirmed", slot, got));
+            why.Add($"abandoned: {slot} title never read confidently ({got})");
+            await Trace.FinishAsync(why);
             return;
         }
 
@@ -616,7 +810,11 @@ public sealed class OverlayLoop
             }
         }
         if (aug is null)
+        {
+            why.Add($"abandoned: '{card.Raw}' matched no augment");
+            await Trace.FinishAsync(why);
             return;
+        }
 
         foreach (var (slot_, was, now) in kept.Rerolls)
             Log.Write(Strings.Get("Loop.RerollSeen", slot_, was, now));
@@ -656,5 +854,12 @@ public sealed class OverlayLoop
 
         await DumpDecisionAsync(kept.Frame, slot, level, "read");
         await DumpDecisionAsync(lastAlive, slot, level, "close");
+
+        why.Add($"published   {aug.Name} ({aug.Rarity}) from {slot}, via {via}");
+        why.Add("others      " + string.Join(", ", kept.Cards.Where(kv => kv.Key != slot)
+            .Select(kv => $"{kv.Key}={kv.Value.Name}")));
+        foreach (var (slot_, was, now) in kept.Rerolls)
+            why.Add($"reroll      {slot_} {was} -> {now}");
+        await Trace.FinishAsync(why);
     }
 }
