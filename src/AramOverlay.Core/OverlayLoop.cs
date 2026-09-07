@@ -35,6 +35,14 @@ public sealed class Kept
     public List<(string Raw, string Name, double Score)> TipMisses = new();
     /// <summary>What the panel finder made of the newest scanned frame.</summary>
     public string TipPanel = "";
+
+    // The augment the tooltip named, kept whether or not it matched a card
+    // title. Hover above only records it when it agrees with one of the three
+    // readings, which is the wrong test when the panel is sitting on top of the
+    // very title it would have to agree with.
+    public Augment? TipAug;
+    public string TipRaw = "";
+    public double TipScore;
     /// <summary>The last panel state a debug frame was written for, and how many.</summary>
     public string TipDumped = "";
     public int TipDumps;
@@ -531,6 +539,17 @@ public sealed class OverlayLoop
             if (raw.Length == 0)
                 continue;
             var (aug, score) = _db.Match(raw);
+            if (aug is not null && score >= Config.OcrMinScore)
+            {
+                // Held whatever it turns out to name. The tooltip is a bigger,
+                // unobstructed rendering of a name the card itself may be
+                // covered by, and throwing it away unless it agrees with the
+                // covered reading is how Dropkick was read as 'Drop' and
+                // published as DropBear while the tooltip said Dropkick.
+                kept.TipAug = aug;
+                kept.TipRaw = raw;
+                kept.TipScore = score;
+            }
             string? slot = aug is not null && score >= Config.OcrMinScore
                 ? names.FirstOrDefault(kv => kv.Value == aug.Name).Key
                 : null;
@@ -859,10 +878,49 @@ public sealed class OverlayLoop
             return;
         }
 
-        if (!kept.Cards.TryGetValue(slot, out var card) || card.Score < Config.OcrMinScore)
+        kept.Cards.TryGetValue(slot, out var card);
+        var aug = card?.Aug;
+        string ocrRaw = card?.Raw ?? "";
+        double ocrScore = card?.Score ?? 0.0;
+        int ocrScale = card?.Scale ?? 0;
+
+        // A card whose own title did not read cleanly is usually one the
+        // tooltip is sitting on top of, and the tooltip is a better reading of
+        // the same name. Taking it needs one check, because the tooltip belongs
+        // to wherever the cursor was when the last scan ran and that is 0.2 to
+        // 0.5 s before the click -- long enough to have been over a different
+        // card. The cursor is on the taken card at the moment of the click, but
+        // this reading is not from that moment.
+        //
+        // The check is free: a tooltip covers one card, so the other two are
+        // always legible. If the name it gives is one of those two, the cursor
+        // was still there and the reading is not about this slot. If it is
+        // neither, there is nowhere else for it to have come from.
+        if (ocrScore < Config.OcrConfident && kept.TipAug is not null)
+        {
+            var elsewhere = kept.Cards.FirstOrDefault(kv =>
+                kv.Key != slot && kv.Value.Score >= Config.OcrConfident &&
+                kv.Value.Name == kept.TipAug.Name);
+            if (elsewhere.Key is null)
+            {
+                Note($"title      {slot} read '{ocrRaw}' at {ocrScore:F2}; tooltip says " +
+                     $"'{kept.TipRaw}' and neither other card is that -> taking the tooltip");
+                aug = kept.TipAug;
+                ocrRaw = kept.TipRaw;
+                ocrScore = kept.TipScore;
+                ocrScale = 0;
+            }
+            else
+            {
+                Note($"title      tooltip '{kept.TipRaw}' is {elsewhere.Key}'s card, " +
+                     $"not {slot}'s -> keeping {slot}'s own reading");
+            }
+        }
+
+        if (aug is null || ocrScore < Config.OcrMinScore)
         {
             string got = card is not null
-                ? $"'{card.Raw}' {card.Score:F2}" : Strings.Get("Loop.NoReading");
+                ? $"'{ocrRaw}' {ocrScore:F2}" : Strings.Get("Loop.NoReading");
             Log.Write(Strings.Get("Loop.TitleUnconfirmed", slot, got));
             why.Add($"abandoned: {slot} title never read confidently ({got})");
             await Trace.FinishAsync(why);
@@ -873,7 +931,6 @@ public sealed class OverlayLoop
         // colour has been wrong repeatedly, while an exact name gives the real
         // rarity from the data. The border only settles ties: 처형자 exists as
         // both gold and silver, and nothing but the screen can say which.
-        var aug = card.Aug;
         if (aug is not null)
         {
             var sameName = _db.Augments.Where(a => a.Name == aug.Name).ToArray();
@@ -885,7 +942,7 @@ public sealed class OverlayLoop
         }
         if (aug is null)
         {
-            why.Add($"abandoned: '{card.Raw}' matched no augment");
+            why.Add($"abandoned: '{ocrRaw}' matched no augment");
             await Trace.FinishAsync(why);
             return;
         }
@@ -911,7 +968,7 @@ public sealed class OverlayLoop
             {
                 Name = aug.Name, Rarity = aug.Rarity, IconUrl = aug.IconUrl,
                 Level = level, Slot = slot,
-                Confidence = Math.Round(card.Score, 2), OcrRaw = card.Raw,
+                Confidence = Math.Round(ocrScore, 2), OcrRaw = ocrRaw,
                 Via = via,
                 Tooltip = kept.Hover is null ? "" : $"{kept.Hover}={kept.HoverRaw}",
                 Others = string.Join(", ", kept.Cards.Where(kv => kv.Key != slot)
@@ -921,7 +978,7 @@ public sealed class OverlayLoop
         _server.Save();
 
         Log.Write(Strings.Get("Loop.Picked", aug.Name, aug.Rarity,
-            card.Score.ToString("F2"), card.Raw, card.Scale, slot, via));
+            ocrScore.ToString("F2"), ocrRaw, ocrScale, slot, via));
         Log.Write(Strings.Get("Loop.Others", string.Join(", ",
             kept.Cards.Where(kv => kv.Key != slot)
                 .Select(kv => $"{kv.Key}={kv.Value.Name}"))));

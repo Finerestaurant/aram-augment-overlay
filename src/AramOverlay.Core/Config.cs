@@ -210,6 +210,15 @@ public static class Config
     // topped out at 0.50. Nothing sits between, and on a stream a wrong name is
     // worse than no name.
     public const double OcrMinScore = 0.60;
+    /// <summary>
+    /// A reading good enough to be believed over the tooltip, and good enough
+    /// to rule the tooltip's name out as belonging to some other card.
+    ///
+    /// Confirmed reads land on 1.00; the two that were only partly on screen
+    /// because the tooltip panel was covering them scored 0.67 and 0.61. The
+    /// bar sits above those and below a clean read.
+    /// </summary>
+    public const double OcrConfident = 0.90;
     // Ranks candidates, never filters them: a misread border must not put the
     // right answer out of reach.
     public const double RarityBonus = 0.05;
