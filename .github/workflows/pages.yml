@@ -1,0 +1,71 @@
+name: Pages
+
+# Publishes docs/site to GitHub Pages.
+#
+# The pages ask for their pictures at img/, but the pictures do not live there:
+# they sit in docs/images because the four READMEs use the same files, and a
+# second copy inside the site would be a second copy to keep in step. So the
+# site is assembled at deploy time rather than committed in the shape it is
+# served in.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/site/**'
+      - 'docs/images/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never cancel one that is already running -- a
+# half-published site is worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/img
+          cp -r docs/site/. _site/
+          cp -r docs/images/. _site/img/
+
+      - name: Check every referenced file is there
+        # A missing picture on a static site is a silent 404 nobody sees until
+        # a stranger does. The pages are hand-written, so the references are
+        # checked here rather than trusted.
+        run: |
+          missing=0
+          for page in $(find _site -name '*.html'); do
+            dir=$(dirname "$page")
+            for ref in $(grep -o -E '(src|href)="[^"#:]+"' "$page" | cut -d'"' -f2); do
+              case "$ref" in
+                ''|/*) continue ;;
+              esac
+              target="$dir/$ref"
+              [ -e "$target" ] || { echo "missing: $page -> $ref"; missing=1; }
+            done
+          done
+          [ "$missing" = 0 ] || { echo "referenced files are missing"; exit 1; }
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v5
