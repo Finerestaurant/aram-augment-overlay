@@ -77,4 +77,8 @@ jobs:
             publish/SHA256.txt
           body_path: release-notes.md
           draft: false
-          prerelease: ${{ startsWith(github.event.inputs.tag || github.ref_name, 'v0.') }}
+          # Pre-release is a decision about a tag, not about its major number.
+          # Treating every v0.x as one meant unmarking each release by hand,
+          # which is a step that gets forgotten rather than a safeguard. A
+          # suffix says it instead: v0.4.0-rc1 is a pre-release, v0.4.0 is not.
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
