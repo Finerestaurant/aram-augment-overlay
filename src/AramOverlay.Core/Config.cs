@@ -178,6 +178,31 @@ public static class Config
     // bright enough that it should not be given the chance to answer.
     public const double FlareWindowS = 1.2;
 
+    // How far PAST the anchor the search may reach, and it is not the same
+    // number. Reaching forward at all is not optional: the flare is what kills
+    // the reroll gate, so its own frames score as cards-down and land on the far
+    // side of the anchor by construction (the 60 fps capture has the gate going
+    // 0.83/0.81/0.80 -> -0.12/0.12/0.10 across it). But the whole event is five
+    // frames, about 83 ms, and 1.2 s forward is fourteen times longer than the
+    // thing being looked for. That surplus is where a level 11 window went
+    // wrong: 0.36 s after the cards had gone, the left card's box sat over a lit
+    // champion on open map and the other two over dark terrain, which cleared
+    // both axes -- 3.21x the next box, 3.93x a baseline taken from dark card
+    // interiors -- and outvoted a tooltip and a hover that both named the right
+    // card. Nothing about that frame is a selection; it is three patches of map.
+    // 0.2 s covers the event plus frame jitter and leaves no such surplus.
+    public const double FlareWindowAfterS = 0.05;
+
+    // A loser-collapse test was tried here and taken out again, which is worth
+    // writing down because it looks obviously right. Section 6 measured the
+    // losers falling to 0.51-0.70 of baseline on a real pick, so requiring that
+    // should reject any lone bright thing landing in a card box. Applied to
+    // inner against each slot's own baseline it rejected all five recorded
+    // windows, real picks included: section 6's numbers are whole-card MEANS
+    // against a baseline shared by the three cards, and neither the quantity nor
+    // the denominator survives the substitution. The idea may still be right;
+    // the threshold has to be measured on inner-against-own-baseline first.
+
     // A bright-pixel bar was tried as the second test and dropped, which is
     // worth writing down because it looked convincing first time round. Scored
     // through ffmpeg it separated perfectly -- 0% everywhere, 3-12% on the
@@ -227,6 +252,16 @@ public static class Config
     public const string LiveUrl = "https://127.0.0.1:2999/liveclientdata/allgamedata";
     public const string MayhemGameMode = "KIWI";
 
+    /// <summary>
+    /// How far two derived game-start times may sit apart and still be the same
+    /// game, in seconds.
+    ///
+    /// The value is now minus the Live Client's gameTime, so it only drifts by
+    /// the poll interval and whatever the client rounds. Generous here costs
+    /// nothing: the next game's start differs by the length of the last one.
+    /// </summary>
+    public const double SameGameToleranceS = 60.0;
+
     // --- widget ---
     public static string WidgetHost = "127.0.0.1";
     public static int WidgetPort = 8777;
@@ -244,6 +279,41 @@ public static class Config
     public static bool TraceMode;
     public const int TraceMaxFrames = 1500;
     public const int TraceQuality = 82;
+
+    // --- inspector -------------------------------------------------------
+    // A second local server, separate from the widget on purpose: the widget
+    // URL goes into OBS and ends up on a stream, and nothing here belongs
+    // there. It keeps what it shows in memory rather than on disk, because the
+    // question it answers -- why did this window decide that -- is only ever
+    // asked about the run that is happening now.
+    // Not 8778: the App holds that one as its single-instance lock, so an
+    // inspector there would fail to bind on every run of the real app and only
+    // ever work in a test harness.
+    public static string InspectHost = "127.0.0.1";
+    public static int InspectPort = 8779;
+    /// <summary>
+    /// Windows kept. Each holds its own frames, so this is the memory bound.
+    ///
+    /// Settable rather than constant because offline replay of recorded games
+    /// fills it far faster than play does -- a batch over a channel's uploads
+    /// produces dozens of windows and wants them all on the page at once, with
+    /// a shorter frame range each to pay for it.
+    /// </summary>
+    public static int InspectWindows = 8;
+    /// <summary>
+    /// Frames kept per window.
+    ///
+    /// The strip is the point of the page: a false flare is obvious the moment
+    /// the frames are played back with the thresholds drawn over them, and
+    /// invisible in the numbers alone. This covers the whole retained history
+    /// rather than just the flare search range -- the frames on either side of
+    /// that range are what show a search reaching past the cards.
+    ///
+    /// History is trimmed at <see cref="FlareLookbackS"/> + 1.5 s and the loop
+    /// turns over in about 70 ms, so ~60 frames is all of it. Detection frames
+    /// are ~120 KB, putting a full ring near 60 MB.
+    /// </summary>
+    public const int InspectStrip = 60;
 
     public static int WidgetRows = 4;
     public static int WidgetMaxW = 420;

@@ -23,6 +23,7 @@
        from anything else, so they are the one binary asset in the repo. -->
   <ItemGroup>
     <EmbeddedResource Include="Assets\widget.html" LogicalName="widget.html" />
+    <EmbeddedResource Include="Assets\inspect.html" LogicalName="inspect.html" />
     <EmbeddedResource Include="Assets\tpl_reroll_1.png" LogicalName="tpl_reroll_1.png" />
     <EmbeddedResource Include="Assets\tpl_reroll_2.png" LogicalName="tpl_reroll_2.png" />
     <EmbeddedResource Include="Assets\tpl_reroll_3.png" LogicalName="tpl_reroll_3.png" />

@@ -33,6 +33,17 @@ public sealed class RunState
     [JsonPropertyName("game_mode")] public string GameMode { get; set; } = "";
     [JsonPropertyName("connected")] public bool Connected { get; set; }
     [JsonPropertyName("level")] public int? Level { get; set; }
+
+    /// <summary>
+    /// When this game began, in unix seconds, worked out as now minus the Live
+    /// Client's gameTime.
+    ///
+    /// gameTime alone cannot survive a restart -- it counts up, so the value
+    /// written a minute ago no longer matches the one read back. The difference
+    /// is fixed for the length of a game and different for the next one, which
+    /// is exactly what "is this still the same game?" needs to ask.
+    /// </summary>
+    [JsonPropertyName("game_started_at")] public double GameStartedAt { get; set; }
 }
 
 /// <summary>
@@ -202,6 +213,52 @@ public sealed class WidgetServer : IDisposable
         catch
         {
             // Losing the crash-recovery copy must not take the run down with it.
+        }
+    }
+
+    /// <summary>Read once, so a failed or unmatched read is not retried every poll.</summary>
+    private bool _restoreTried;
+
+    /// <summary>
+    /// Put back the picks of a game already in progress.
+    ///
+    /// <see cref="Save"/> has always written this file and nothing ever read it,
+    /// so the copy it describes as crash recovery recovered nothing: a crash --
+    /// or a restart to install a build, which is how this was noticed -- began
+    /// the game again with an empty list while the augments already taken sat on
+    /// disk. Restoring needs the game to be the same one, and it is the same one
+    /// when it started at the same moment.
+    ///
+    /// Only ever fills an empty list. A restart that happens to land inside the
+    /// tolerance of a game whose picks are already being tracked must not double
+    /// them up.
+    /// </summary>
+    public bool RestoreIfSameGame(double startedAt)
+    {
+        if (_restoreTried)
+            return false;
+        _restoreTried = true;
+        try
+        {
+            string path = Path.Combine(Config.State, "run.json");
+            if (!File.Exists(path))
+                return false;
+            var saved = JsonSerializer.Deserialize<RunState>(File.ReadAllBytes(path), Json);
+            if (saved is null || saved.Picks.Count == 0 || saved.GameStartedAt <= 0)
+                return false;
+            if (Math.Abs(saved.GameStartedAt - startedAt) > Config.SameGameToleranceS)
+                return false;
+            lock (State.Picks)
+            {
+                if (State.Picks.Count > 0)
+                    return false;
+                State.Picks.AddRange(saved.Picks);
+            }
+            return true;
+        }
+        catch
+        {
+            return false;             // a half-written file is not worth a crash
         }
     }
 

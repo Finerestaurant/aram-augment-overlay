@@ -303,6 +303,18 @@ public static class Strings
             "挂件地址: {0}   <- 请填入 OBS 浏览器源（尺寸会自动调整）");
         Add("Core.BrowserRefreshed", "브라우저 소스 새로고침: {0}", "Browser sources refreshed: {0}",
             "ブラウザソースを更新しました: {0}", "已刷新浏览器源: {0}");
+        Add("Loop.PicksRestored", "진행 중이던 게임의 증강 {0}개를 복원했습니다.",
+            "Restored {0} augments from the game already in progress.",
+            "進行中だったゲームの増強 {0} 個を復元しました。",
+            "已恢复进行中对局的 {0} 个增强。");
+        Add("Core.InspectUrl",
+            "판정 검사 페이지: {0}   <- 브라우저로 여세요 (OBS 에는 넣지 마세요)",
+            "Decision inspector: {0}   <- open in a browser (not in OBS)",
+            "判定インスペクタ: {0}   <- ブラウザで開いてください（OBS には入れないでください）",
+            "判定检查页: {0}   <- 请用浏览器打开（不要放入 OBS）");
+        Add("Core.InspectFailed", "판정 검사 페이지를 열지 못했습니다: {0}",
+            "The inspector could not start: {0}",
+            "判定インスペクタを開始できませんでした: {0}", "判定检查页未能启动: {0}");
         Add("Core.StartFailed", "오버레이가 시작되지 못했습니다.", "The overlay could not start.",
             "オーバーレイを開始できませんでした。", "覆盖层未能启动。");
         Add("Core.CrashedWith", "오류로 중단됐습니다: {0}", "Stopped with an error: {0}",

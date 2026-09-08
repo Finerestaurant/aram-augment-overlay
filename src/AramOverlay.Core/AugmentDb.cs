@@ -83,25 +83,54 @@ public sealed class AugmentDb
     /// </summary>
     public (Augment? Aug, double Score) Match(string text, string? rarity = null)
     {
+        var (aug, score, _) = MatchDetailed(text, rarity);
+        return (aug, score);
+    }
+
+    /// <summary>
+    /// As <see cref="Match"/>, and says which other name tied when the answer
+    /// was thrown away for being ambiguous.
+    ///
+    /// A tie is not a near miss, it is two names the reading fits equally well,
+    /// and picking one is picking whichever the data file happened to list
+    /// first. A cut-off 'Drop' scores identically against Dropkick and DropBear;
+    /// the tool published DropBear, and nothing in the score said it was a coin
+    /// toss. Names that repeat in the data are not a tie -- the same augment
+    /// appears twice, and the rarity read off the border separates those.
+    /// </summary>
+    public (Augment? Aug, double Score, string? TiedWith) MatchDetailed(
+        string text, string? rarity = null)
+    {
         if (string.IsNullOrEmpty(text))
-            return (null, 0.0);
+            return (null, 0.0, null);
 
         string q = Hangul.Squash(text);
         string qs = Hangul.StripFinal(q);
 
         Augment? best = null;
         double bestRanked = 0.0, bestScore = 0.0;
+        string? tied = null;
         foreach (var (norm, normStripped, aug) in _norm)
         {
             double score = Math.Max(Difflib.Ratio(q, norm), Difflib.Ratio(qs, normStripped));
             double ranked = score + (rarity is not null && aug.Rarity == rarity ? Config.RarityBonus : 0.0);
-            if (ranked > bestRanked)
+            if (ranked > bestRanked + TieEpsilon)
             {
                 best = aug;
                 bestRanked = ranked;
                 bestScore = score;
+                tied = null;                  // beaten outright; any earlier tie is moot
+            }
+            else if (best is not null && aug.Name != best.Name &&
+                     Math.Abs(ranked - bestRanked) <= TieEpsilon)
+            {
+                tied = aug.Name;
             }
         }
-        return (best, bestScore);
+        return tied is null ? (best, bestScore, null) : (null, bestScore, tied);
     }
+
+    /// <summary>Difflib ratios are exact rationals in practice, so this only has
+    /// to absorb the last bit of the division.</summary>
+    private const double TieEpsilon = 1e-9;
 }
