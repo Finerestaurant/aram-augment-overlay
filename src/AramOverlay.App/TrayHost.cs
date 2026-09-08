@@ -72,21 +72,7 @@ public static class TrayHost
         _icon.ShowBalloon(Strings.Get("Tray.HiddenTitle"), Strings.Get("Tray.HiddenBody"));
     }
 
-    private static void CopyUrl()
-    {
-        string? url = _runner?.Url;
-        if (url is null)
-            return;
-        try
-        {
-            Clipboard.SetText(url);
-            Log.Write(Strings.Get("Log.UrlCopied", url));
-        }
-        catch
-        {
-            // The clipboard can be held by another process.
-        }
-    }
+    private static void CopyUrl() => UrlClipboard.Copy(_runner?.Url, Log.Write);
 
     /// <summary>
     /// Shut down the way the Quit button does: stop the loop, drop the tray

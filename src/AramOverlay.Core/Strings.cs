@@ -257,6 +257,16 @@ public static class Strings
         // ---- log lines the window prints itself ---------------------------
         Add("Log.UrlCopied", "위젯 주소를 복사했습니다: {0}", "Widget address copied: {0}",
             "ウィジェットのアドレスをコピーしました: {0}", "已复制挂件地址: {0}");
+        Add("Log.UrlNotReady",
+            "아직 위젯 주소가 없습니다 — 오버레이가 시작된 뒤에 복사할 수 있습니다.",
+            "There is no widget address yet -- it can be copied once the overlay has started.",
+            "まだウィジェットのアドレスがありません — オーバーレイの開始後にコピーできます。",
+            "尚无挂件地址 — 覆盖层启动后即可复制。");
+        Add("Log.UrlCopyFailed",
+            "주소를 복사하지 못했습니다 ({0}). 다른 프로그램이 클립보드를 잡고 있을 수 있습니다: {1}",
+            "Could not copy the address ({0}). Another program may be holding the clipboard: {1}",
+            "アドレスをコピーできませんでした（{0}）。他のプログラムがクリップボードを保持している可能性があります: {1}",
+            "无法复制地址（{0}）。可能有其他程序正占用剪贴板: {1}");
         Add("Log.ListCleared", "목록을 비웠습니다.", "List cleared.",
             "リストを消去しました。", "已清空列表。");
         Add("Log.Retrying", "다시 시도합니다...", "Retrying...", "再試行します...", "正在重试...");

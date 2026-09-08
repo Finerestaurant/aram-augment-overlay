@@ -82,21 +82,8 @@ public partial class MainWindow : Window
         SettingsView.Visibility = status ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void OnCopyUrl(object sender, RoutedEventArgs e)
-    {
-        string? url = _runner.Url;
-        if (url is null)
-            return;
-        try
-        {
-            Clipboard.SetText(url);
-            AppendLog(Strings.Get("Log.UrlCopied", url));
-        }
-        catch
-        {
-            // The clipboard can be held by another process; not worth a dialog.
-        }
-    }
+    private void OnCopyUrl(object sender, RoutedEventArgs e) =>
+        UrlClipboard.Copy(_runner.Url, AppendLog);
 
     // --------------------------------------------------------------- actions
     private void OnReset(object sender, RoutedEventArgs e)
