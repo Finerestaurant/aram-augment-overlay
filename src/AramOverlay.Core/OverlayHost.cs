@@ -14,7 +14,6 @@ public sealed class OverlayHost : IAsyncDisposable
     private ObsCapture? _obs;
     private ObsCapture? _probeObs;
     private WidgetServer? _server;
-    private InspectorServer? _inspector;
 
     public RunState State { get; } = new();
     public string? Url { get; private set; }
@@ -75,13 +74,6 @@ public sealed class OverlayHost : IAsyncDisposable
         if (refreshed.Count > 0)
             Log.Write(Strings.Get("Core.BrowserRefreshed", string.Join(", ", refreshed)));
 
-        // Its own port, and never handed to the OBS refresh above: this page is
-        // for the person debugging the run, not for the scene.
-        _inspector = new InspectorServer(Assets.Text("inspect.html"));
-        string? inspectUrl = _inspector.Start();
-        if (inspectUrl is not null)
-            Log.Write(Strings.Get("Core.InspectUrl", inspectUrl));
-
         // The tooltip grab costs ~250 ms and the selection is only a few frames
         // long, so it runs off the detection loop on its own connection.
         _probeObs = await ObsCapture.ConnectAsync(password: password);
@@ -105,7 +97,6 @@ public sealed class OverlayHost : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _server?.Dispose();
-        _inspector?.Dispose();
         if (_obs is not null)
             await _obs.DisposeAsync();
         if (_probeObs is not null)

@@ -194,10 +194,7 @@ public sealed class ObsCapture : IAsyncDisposable
             data = data[(comma + 1)..];
         try
         {
-            byte[] encoded = Convert.FromBase64String(data);
-            var frame = await Imaging.DecodeAsync(encoded);
-            frame.Encoded = encoded;
-            return frame;
+            return await Imaging.DecodeAsync(Convert.FromBase64String(data));
         }
         catch
         {

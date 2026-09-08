@@ -58,14 +58,8 @@ public sealed class Kept
 /// second, and every wrong pick traced back to a brightness reading has been a
 /// measurement of whatever the map put there afterwards.
 /// </summary>
-/// <param name="Shot">
-/// The bytes this frame was decoded from, kept so the inspector can show the
-/// frame a verdict came off. Optional: SelfTest replays measurements with no
-/// pictures behind them.
-/// </param>
 public readonly record struct Beat(
-    DateTime At, Dictionary<string, Detect.CardStat> Stats, bool Alive, bool CardsUp,
-    byte[]? Shot = null);
+    DateTime At, Dictionary<string, Detect.CardStat> Stats, bool Alive, bool CardsUp);
 
 /// <summary>Per-window record of why selection did or did not trigger.</summary>
 public sealed class Diagnostics
@@ -294,7 +288,7 @@ public sealed class OverlayLoop
             // looked like.
             bool cardsUp = scores.Min() >= Config.GateStay ||
                            scores.Count(s => s >= Config.GateStayTwo) >= 2;
-            history.Add(new Beat(frameAt, stats, weak, cardsUp, frame.Encoded));
+            history.Add(new Beat(frameAt, stats, weak, cardsUp));
             if (weak)
                 lastAlive = frame;
             // Trimmed by age, not by count: the loop turns over in about 25 ms,
@@ -778,79 +772,6 @@ public sealed class OverlayLoop
     }
 
     /// <summary>
-    /// The frames a verdict came off, measured the way the flare test measures
-    /// them.
-    ///
-    /// The strip is centred on the anchor rather than run backwards from the
-    /// close, because that is the range <see cref="SelectionFlare"/> actually
-    /// searches and the interesting frames are the ones on the far side of it:
-    /// a window that decided on a frame after the cards had gone looks exactly
-    /// like a window that decided on the flare until the two are laid side by
-    /// side. Frames nearest the anchor are kept when there are more than the
-    /// cap allows.
-    /// </summary>
-    private static List<InspectFrame> InspectFrames(
-        List<Beat> history, DateTime closedAt, DateTime flareAt, Frame? readFrame,
-        DateTime readAt, Frame? lastAlive)
-    {
-        DateTime anchor = CardsLastSeen(history, closedAt);
-        var strip = new List<InspectFrame>();
-
-        var inRange = history
-            .Where(b => b.Shot is not null)
-            .OrderBy(b => Math.Abs((b.At - anchor).TotalSeconds))
-            .Take(Config.InspectStrip)
-            .OrderBy(b => b.At)
-            .ToArray();
-
-        int index = 0;
-        foreach (var beat in inRange)
-        {
-            var (_, top, ratio) = Detect.Flare(beat.Stats);
-            double baseline = top.Length > 0 ? BaselineInner(history, anchor, top) : 0.0;
-            double rise = baseline > 0 && beat.Stats.TryGetValue(top, out var stat)
-                ? stat.Inner / baseline : 0.0;
-            strip.Add(new InspectFrame
-            {
-                Id = $"s{index++}",
-                Tag = "strip",
-                T = Math.Round((beat.At - anchor).TotalSeconds, 3),
-                CardsUp = beat.CardsUp,
-                Alive = beat.Alive,
-                Inner = beat.Stats.ToDictionary(kv => kv.Key, kv => Math.Round(kv.Value.Inner, 1)),
-                Mean = beat.Stats.ToDictionary(kv => kv.Key, kv => Math.Round(kv.Value.Mean, 1)),
-                Ratio = Math.Round(ratio, 2),
-                Rise = Math.Round(rise, 2),
-                Top = top,
-                Passes = ratio >= Config.FlareInnerRatio && rise >= Config.FlareRise,
-                Decided = flareAt != default && beat.At == flareAt,
-                InWindow = InFlareWindow(beat.At, anchor),
-                Bytes = beat.Shot!,
-            });
-        }
-
-        // The two full-resolution frames go last: they are the readable ones,
-        // and neither is the deciding moment.
-        if (readFrame?.Encoded is not null)
-            strip.Add(new InspectFrame
-            {
-                Id = "read",
-                Tag = "read",
-                T = Math.Round((readAt - anchor).TotalSeconds, 3),
-                Bytes = readFrame.Encoded,
-            });
-        if (lastAlive?.Encoded is not null)
-            strip.Add(new InspectFrame
-            {
-                Id = "close",
-                Tag = "close",
-                T = Math.Round((closedAt - anchor).TotalSeconds, 3),
-                Bytes = lastAlive.Encoded,
-            });
-        return strip;
-    }
-
-    /// <summary>
     /// The window shutting IS the pick, and there are three ways to say which card.
     ///
     /// The original design watched for a confirmation animation and an early
@@ -881,26 +802,10 @@ public sealed class OverlayLoop
             Log.Write("    · " + line);
         }
 
-        // Abandoned windows are published to the inspector too. A window that
-        // recorded nothing is a failure the log states in one line and cannot
-        // illustrate, and those are the ones worth looking at.
-        void Bail(string reason)
-        {
-            Inspector.Add(new InspectWindow
-            {
-                At = DateTime.Now.ToString("HH:mm:ss"),
-                Level = level,
-                Abandoned = reason,
-                Why = new List<string>(why),
-                Frames = InspectFrames(history, DateTime.UtcNow, default, null, default, lastAlive),
-            });
-        }
-
         if (anvil)
         {
             Log.Write(Strings.Get("Loop.AnvilSkipped"));
             why.Add("abandoned: item anvil screen, not an augment window");
-            Bail("item anvil screen, not an augment window");
             await Trace.FinishAsync(why);
             return;
         }
@@ -908,7 +813,6 @@ public sealed class OverlayLoop
         {
             Log.Write(Strings.Get("Loop.NeverSettled"));
             why.Add("abandoned: the cards never settled");
-            Bail("the cards never settled");
             await Trace.FinishAsync(why);
             return;
         }
@@ -978,39 +882,6 @@ public sealed class OverlayLoop
             ? "hover glow none"
             : $"hover glow {glowSlot}  {glowVia}");
 
-        // Every signal, whether or not it won, plus the frames behind them.
-        // Built once here and filled in by whichever exit is taken below.
-        void Record(string name, string rarity, string? slotName, string viaText, string abandoned)
-        {
-            var named = new[] { flareSlot, hoverSlot, glowSlot }.Where(s => s is not null).ToArray();
-            Inspector.Add(new InspectWindow
-            {
-                At = DateTime.Now.ToString("HH:mm:ss"),
-                Level = level,
-                Name = name,
-                Rarity = rarity,
-                Slot = slotName ?? "",
-                Via = viaText,
-                Abandoned = abandoned,
-                FlareSlot = flareSlot ?? "",
-                Flare = flareSlot is null
-                    ? "none"
-                    : $"{flareSlot}  {flareRatio:F2}x next card, {flareRise:F2}x own baseline, " +
-                      $"{(closedAt - flareAt).TotalSeconds:F2}s before the close",
-                TooltipSlot = hoverSlot ?? "",
-                Tooltip = hoverSlot is null
-                    ? (kept.Hover is null ? "none" : $"{kept.Hover} '{kept.HoverRaw}' discarded, {hoverAge:F1}s old")
-                    : $"{hoverSlot}  '{kept.HoverRaw}', {hoverAge:F1}s old",
-                GlowSlot = glowSlot ?? "",
-                Glow = glowSlot is null ? "none" : $"{glowSlot}  {glowVia}",
-                Disputed = named.Distinct().Count() > 1,
-                Cards = kept.Cards.ToDictionary(kv => kv.Key, kv => kv.Value.Name ?? ""),
-                Rerolls = kept.Rerolls.Select(r => $"{r.Slot}: {r.Was} -> {r.Now}").ToList(),
-                Why = new List<string>(why),
-                Frames = InspectFrames(history, closedAt, flareAt, kept.Frame, kept.At, lastAlive),
-            });
-        }
-
         string? slot;
         string via;
         if (flareSlot is not null)
@@ -1042,7 +913,6 @@ public sealed class OverlayLoop
         {
             Log.Write(Strings.Get("Loop.Undecidable"));
             why.Add("abandoned: no signal named a card");
-            Record("", "", null, "", "no signal named a card");
             await Trace.FinishAsync(why);
             return;
         }
@@ -1092,7 +962,6 @@ public sealed class OverlayLoop
                 ? $"'{ocrRaw}' {ocrScore:F2}" : Strings.Get("Loop.NoReading");
             Log.Write(Strings.Get("Loop.TitleUnconfirmed", slot, got));
             why.Add($"abandoned: {slot} title never read confidently ({got})");
-            Record("", "", slot, via, $"{slot} title never read confidently ({got})");
             await Trace.FinishAsync(why);
             return;
         }
@@ -1113,7 +982,6 @@ public sealed class OverlayLoop
         if (aug is null)
         {
             why.Add($"abandoned: '{ocrRaw}' matched no augment");
-            Record("", "", slot, via, $"'{ocrRaw}' matched no augment");
             await Trace.FinishAsync(why);
             return;
         }
@@ -1162,7 +1030,6 @@ public sealed class OverlayLoop
             .Select(kv => $"{kv.Key}={kv.Value.Name}")));
         foreach (var (slot_, was, now) in kept.Rerolls)
             why.Add($"reroll      {slot_} {was} -> {now}");
-        Record(aug.Name, aug.Rarity, slot, via, "");
         await Trace.FinishAsync(why);
     }
 }

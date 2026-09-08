@@ -304,41 +304,6 @@ public static class Config
     public const int TraceMaxFrames = 1500;
     public const int TraceQuality = 82;
 
-    // --- inspector -------------------------------------------------------
-    // A second local server, separate from the widget on purpose: the widget
-    // URL goes into OBS and ends up on a stream, and nothing here belongs
-    // there. It keeps what it shows in memory rather than on disk, because the
-    // question it answers -- why did this window decide that -- is only ever
-    // asked about the run that is happening now.
-    // Not 8778: the App holds that one as its single-instance lock, so an
-    // inspector there would fail to bind on every run of the real app and only
-    // ever work in a test harness.
-    public static string InspectHost = "127.0.0.1";
-    public static int InspectPort = 8779;
-    /// <summary>
-    /// Windows kept. Each holds its own frames, so this is the memory bound.
-    ///
-    /// Settable rather than constant because offline replay of recorded games
-    /// fills it far faster than play does -- a batch over a channel's uploads
-    /// produces dozens of windows and wants them all on the page at once, with
-    /// a shorter frame range each to pay for it.
-    /// </summary>
-    public static int InspectWindows = 8;
-    /// <summary>
-    /// Frames kept per window.
-    ///
-    /// The strip is the point of the page: a false flare is obvious the moment
-    /// the frames are played back with the thresholds drawn over them, and
-    /// invisible in the numbers alone. This covers the whole retained history
-    /// rather than just the flare search range -- the frames on either side of
-    /// that range are what show a search reaching past the cards.
-    ///
-    /// History is trimmed at <see cref="FlareLookbackS"/> + 1.5 s and the loop
-    /// turns over in about 70 ms, so ~60 frames is all of it. Detection frames
-    /// are ~120 KB, putting a full ring near 60 MB.
-    /// </summary>
-    public const int InspectStrip = 60;
-
     public static int WidgetRows = 4;
     public static int WidgetMaxW = 420;
 

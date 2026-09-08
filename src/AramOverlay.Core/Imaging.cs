@@ -17,15 +17,6 @@ public sealed class Frame
     public int Height { get; }
     public byte[] Bgra { get; }
 
-    /// <summary>
-    /// The bytes this frame was decoded from, when it came off the wire.
-    ///
-    /// Kept so a frame can be handed to the inspector without being encoded
-    /// again: OBS already sent a JPEG and re-encoding the decoded pixels would
-    /// cost more than the loop has to spare. Null for frames built in memory.
-    /// </summary>
-    public byte[]? Encoded { get; set; }
-
     public Frame(int width, int height, byte[] bgra)
     {
         Width = width;
