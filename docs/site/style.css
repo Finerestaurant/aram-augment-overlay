@@ -140,20 +140,16 @@ a { color: inherit; }
 
 .two { display: grid; gap: 32px; grid-template-columns: 1fr 1fr; align-items: center; }
 
-/* 프로그램 창과 OBS 화면을 나란히. 아직 없는 쪽은 빈 자리로 둔다. */
-.pair { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; align-items: start; }
+/* 그림이 하나면 한 칸, 둘이면 나란히. 고정 2열로 두면 한 장짜리가 반쪽만
+   차지한 채 옆이 비어 보인다. */
+.pair { display: grid; gap: 18px; align-items: start;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .pair figure { margin: 0; }
 .pair img {
   width: 100%; display: block;
   border: 1px solid var(--line); border-radius: 10px;
 }
 .pair figcaption { margin-top: 9px; color: var(--muted); font-size: 13px; }
-.ph {
-  display: grid; place-items: center; aspect-ratio: 16 / 9;
-  border: 1px dashed var(--line); border-radius: 10px;
-  background: repeating-linear-gradient(45deg, #14161c 0 12px, #12141a 12px 24px);
-}
-.ph span { color: #4b515f; font-size: 13px; letter-spacing: .04em; }
 @media (max-width: 620px) { .pair { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
 
