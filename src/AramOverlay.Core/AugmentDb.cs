@@ -29,12 +29,18 @@ public sealed class AugmentDb
     };
 
     private readonly (string Norm, string NormStripped, Augment Aug)[] _norm;
+    private readonly HashSet<string> _mayhem;
 
     public IReadOnlyList<Augment> Augments { get; }
 
-    private AugmentDb(List<Augment> augments)
+    /// <summary>The augmentNameIds Mayhem actually draws from, or empty if the
+    /// list could not be read -- in which case nothing is ranked by it.</summary>
+    public IReadOnlyCollection<string> MayhemPool => _mayhem;
+
+    private AugmentDb(List<Augment> augments, HashSet<string> mayhem)
     {
         Augments = augments;
+        _mayhem = mayhem;
         _norm = augments.Select(a =>
         {
             string squashed = Hangul.Squash(a.Name);
@@ -67,7 +73,50 @@ public sealed class AugmentDb
                 IconUrl: IconUrl(row.TryGetProperty("augmentSmallIconPath", out var ip)
                                  ? ip.GetString() ?? "" : "")));
         }
-        return new AugmentDb(augments);
+        return new AugmentDb(augments, await MayhemPoolAsync(refresh, maxAgeDays));
+    }
+
+    /// <summary>
+    /// The augmentNameIds Mayhem draws from, off CommunityDragon's own mode
+    /// lists.
+    ///
+    /// The entries are asset paths and the last segment is the augmentNameId,
+    /// which is what the augment rows are keyed by. One cache for every
+    /// language: there is nothing here to translate.
+    ///
+    /// A pool that cannot be read comes back empty and the bonus simply never
+    /// applies, which is the behaviour this replaces. Ranking must not be the
+    /// reason the tool fails to start.
+    /// </summary>
+    private static async Task<HashSet<string>> MayhemPoolAsync(bool refresh, int maxAgeDays)
+    {
+        var pool = new HashSet<string>(StringComparer.Ordinal);
+        try
+        {
+            string cache = Path.Combine(Config.Data, "augment_lists.json");
+            string json = await CDragon.FetchAsync(Config.CDragonListsUrl, cache, refresh, maxAgeDays);
+            using var doc = JsonDocument.Parse(json);
+            foreach (var entry in doc.RootElement.EnumerateArray())
+            {
+                string mode = entry.TryGetProperty("modeName", out var m) ? m.GetString() ?? "" : "";
+                if (!Config.MayhemModes.Contains(mode) ||
+                    !entry.TryGetProperty("augmentList", out var list))
+                    continue;
+                foreach (var item in list.EnumerateArray())
+                {
+                    string path = item.GetString() ?? "";
+                    if (path.Length == 0)
+                        continue;
+                    int slash = path.LastIndexOf('/');
+                    pool.Add(slash >= 0 ? path[(slash + 1)..] : path);
+                }
+            }
+        }
+        catch
+        {
+            pool.Clear();
+        }
+        return pool;
     }
 
     private static string IconUrl(string path) =>
@@ -113,7 +162,9 @@ public sealed class AugmentDb
         foreach (var (norm, normStripped, aug) in _norm)
         {
             double score = Math.Max(Difflib.Ratio(q, norm), Difflib.Ratio(qs, normStripped));
-            double ranked = score + (rarity is not null && aug.Rarity == rarity ? Config.RarityBonus : 0.0);
+            double ranked = score
+                + (rarity is not null && aug.Rarity == rarity ? Config.RarityBonus : 0.0)
+                + (_mayhem.Contains(aug.NameId) ? Config.MayhemBonus : 0.0);
             if (ranked > bestRanked + TieEpsilon)
             {
                 best = aug;

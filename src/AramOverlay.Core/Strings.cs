@@ -303,6 +303,10 @@ public static class Strings
             "挂件地址: {0}   <- 请填入 OBS 浏览器源（尺寸会自动调整）");
         Add("Core.BrowserRefreshed", "브라우저 소스 새로고침: {0}", "Browser sources refreshed: {0}",
             "ブラウザソースを更新しました: {0}", "已刷新浏览器源: {0}");
+        Add("Core.MayhemPool", "  그중 아수라장 풀 {0}종 (가산점, 후보를 걸러내지는 않습니다)",
+            "  {0} of them are in the Mayhem pool (ranked up, never filtered out)",
+            "  うち アスラ場 プール {0} 種（加点のみで、候補は除外しません）",
+            "  其中 {0} 个属于大乱斗池（仅加分，不排除候选）");
         Add("Loop.PicksRestored", "진행 중이던 게임의 증강 {0}개를 복원했습니다.",
             "Restored {0} augments from the game already in progress.",
             "進行中だったゲームの増強 {0} 個を復元しました。",

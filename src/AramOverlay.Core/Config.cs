@@ -248,6 +248,30 @@ public static class Config
     // right answer out of reach.
     public const double RarityBonus = 0.05;
 
+    /// <summary>
+    /// The modes whose augment lists make up the Mayhem pool.
+    ///
+    /// KIWI is 222 augments and KIWI_JADE 188, overlapping in 163, so the union
+    /// is 247 of the 657 rows the data file carries. Every one of the 247
+    /// matches an augmentNameId in cherry-augments.json.
+    /// </summary>
+    public static readonly string[] MayhemModes = { "KIWI", "KIWI_JADE" };
+
+    /// <summary>
+    /// What being in that pool is worth to a candidate's rank.
+    ///
+    /// A bonus and not a filter, for the reason the rarity bonus is one: the
+    /// pool is a claim about a patch, and cutting the other 410 rows out means a
+    /// stale list can put the right answer somewhere the matcher cannot reach.
+    /// As a nudge it does its best work exactly where the tie test would
+    /// otherwise give up -- a truncated title that fits an Arena-only name as
+    /// well as a Mayhem one is no longer a coin toss.
+    ///
+    /// Same size as the rarity bonus. Both only decide near-ties, which is all
+    /// either of them is entitled to decide.
+    /// </summary>
+    public const double MayhemBonus = 0.05;
+
     // --- Live Client Data API ---
     public const string LiveUrl = "https://127.0.0.1:2999/liveclientdata/allgamedata";
     public const string MayhemGameMode = "KIWI";
@@ -332,6 +356,15 @@ public static class Config
         $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{CDragonLocale}/v1/cherry-augments.json";
     public static string CDragonItemsUrl =>
         $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{CDragonLocale}/v1/items.json";
+    /// <summary>
+    /// Which augments each game mode actually draws from.
+    ///
+    /// Not localised on purpose: the lists hold asset paths whose last segment
+    /// is an augmentNameId, so there is nothing in them to translate and one
+    /// cache serves every language.
+    /// </summary>
+    public const string CDragonListsUrl =
+        "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/augment-lists.json";
     // The "/default" is not optional: without it every icon 404s, which the
     // widget swallows silently because a broken <img> just hides itself.
     public const string CDragonAssetBase =

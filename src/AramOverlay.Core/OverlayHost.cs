@@ -24,6 +24,8 @@ public sealed class OverlayHost : IAsyncDisposable
         Log.Write(Strings.Get("Core.LoadingAugments"));
         var db = await AugmentDb.LoadAsync();
         Log.Write(Strings.Get("Core.AugmentCount", db.Augments.Count));
+        if (db.MayhemPool.Count > 0)
+            Log.Write(Strings.Get("Core.MayhemPool", db.MayhemPool.Count));
         var items = await ItemNames.LoadAsync();
 
         string password = Config.ObsPassword;
