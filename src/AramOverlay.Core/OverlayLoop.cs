@@ -159,7 +159,7 @@ public sealed class OverlayLoop
                 _state.Connected = false;
                 _state.Level = null;
                 win = new AugmentWindowState();
-                Trace.End();
+                Observe.EndWindow();
                 await Task.Delay(3000, token);
                 continue;
             }
@@ -246,7 +246,7 @@ public sealed class OverlayLoop
                     anvil = false;
                     seenRaw = null;
                     traceIndex = 0;
-                    Trace.Begin(level);
+                    Observe.BeginWindow(level);
                     Log.Write(Strings.Get("Loop.WindowOpen", level,
                         string.Join(", ", scores.Select(s => s.ToString("F2")))));
                 }
@@ -316,10 +316,10 @@ public sealed class OverlayLoop
                 }
             }
 
-            if (Trace.Active)
+            if (Observe.WantsFrames)
             {
                 var (fslot, ftop, fratio) = Detect.Flare(stats);
-                Trace.Add(frame, new TraceSample
+                Observe.Frame(frame, new TraceSample
                 {
                     Index = traceIndex++,
                     T = Now() - win.OpenedAt,
@@ -806,14 +806,14 @@ public sealed class OverlayLoop
         {
             Log.Write(Strings.Get("Loop.AnvilSkipped"));
             why.Add("abandoned: item anvil screen, not an augment window");
-            await Trace.FinishAsync(why);
+            await Observe.FinishAsync(why);
             return;
         }
         if (diag.Settled == 0)
         {
             Log.Write(Strings.Get("Loop.NeverSettled"));
             why.Add("abandoned: the cards never settled");
-            await Trace.FinishAsync(why);
+            await Observe.FinishAsync(why);
             return;
         }
 
@@ -913,7 +913,7 @@ public sealed class OverlayLoop
         {
             Log.Write(Strings.Get("Loop.Undecidable"));
             why.Add("abandoned: no signal named a card");
-            await Trace.FinishAsync(why);
+            await Observe.FinishAsync(why);
             return;
         }
 
@@ -962,7 +962,7 @@ public sealed class OverlayLoop
                 ? $"'{ocrRaw}' {ocrScore:F2}" : Strings.Get("Loop.NoReading");
             Log.Write(Strings.Get("Loop.TitleUnconfirmed", slot, got));
             why.Add($"abandoned: {slot} title never read confidently ({got})");
-            await Trace.FinishAsync(why);
+            await Observe.FinishAsync(why);
             return;
         }
 
@@ -982,7 +982,7 @@ public sealed class OverlayLoop
         if (aug is null)
         {
             why.Add($"abandoned: '{ocrRaw}' matched no augment");
-            await Trace.FinishAsync(why);
+            await Observe.FinishAsync(why);
             return;
         }
 
@@ -1030,6 +1030,6 @@ public sealed class OverlayLoop
             .Select(kv => $"{kv.Key}={kv.Value.Name}")));
         foreach (var (slot_, was, now) in kept.Rerolls)
             why.Add($"reroll      {slot_} {was} -> {now}");
-        await Trace.FinishAsync(why);
+        await Observe.FinishAsync(why);
     }
 }

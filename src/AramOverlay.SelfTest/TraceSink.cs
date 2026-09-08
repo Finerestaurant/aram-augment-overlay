@@ -1,8 +1,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using AramOverlay.Core;
 
-namespace AramOverlay.Core;
+namespace AramOverlay.SelfTest;
 
 /// <summary>
 /// A 5x7 bitmap font, because the trace has to label itself.
@@ -77,24 +78,6 @@ internal static class Glyphs
     public static int Width(string text, int scale) => text.Length * Advance * scale;
 }
 
-/// <summary>One frame's worth of everything the loop measured.</summary>
-public sealed class TraceSample
-{
-    public int Index;
-    public double T;
-    public double[] Gate = { 0, 0, 0 };
-    public double Hide;
-    public bool Alive;
-    public bool CardsUp;
-    public bool Settled;
-    public Dictionary<string, Detect.CardStat> Stats = new();
-    public string? TooltipSlot;
-    public string TooltipRaw = "";
-    public double TooltipAge;
-    public string Flare = "";
-    public Dictionary<string, string> Titles = new();
-}
-
 /// <summary>
 /// Every frame of a window, written out with its own numbers drawn on it.
 ///
@@ -118,10 +101,15 @@ public static class Trace
     public static string? Dir { get; private set; }
     public static bool Active => Dir is not null;
 
+    /// <summary>How many frames one window may sample before it stops.</summary>
+    private const int MaxFrames = 1500;
+    /// <summary>JPEG quality for the annotated frames.</summary>
+    private const int Quality = 82;
+
     public static void Begin(int? level)
     {
-        if (!Config.TraceMode)
-            return;
+        // Attaching the sink is the switch. There is no setting to leave on by
+        // accident because there is no setting: this code is not in the exe.
         End();
         Dir = Path.Combine(Config.State, "trace",
                            $"{DateTime.Now:yyyyMMdd-HHmmss}_lv{level}");
@@ -146,7 +134,7 @@ public static class Trace
             return;
         lock (Lock)
         {
-            if (Samples.Count >= Config.TraceMaxFrames)
+            if (Samples.Count >= MaxFrames)
                 return;
             Samples.Add(sample);
             string path = Path.Combine(Dir, $"f{_written:D5}.jpg");
@@ -243,7 +231,7 @@ public static class Trace
                 try
                 {
                     Annotate(item.Frame, item.Sample);
-                    await Imaging.SaveJpegAsync(item.Frame, item.Path, Config.TraceQuality);
+                    await Imaging.SaveJpegAsync(item.Frame, item.Path, Quality);
                 }
                 catch
                 {
@@ -344,4 +332,21 @@ public static class Trace
 
     private static string Clip(string text, int max) =>
         text.Length <= max ? text : text.Substring(0, max);
+}
+
+/// <summary>
+/// Hangs <see cref="Trace"/> off the loop's observation hook.
+///
+/// The trace was written as a static because it was a mode the app could be
+/// put into; it is a tool that gets attached now, and the thin instance is all
+/// that difference amounts to.
+/// </summary>
+public sealed class TraceSink : ILoopObserver
+{
+    public bool WantsFrames => true;
+
+    public void BeginWindow(int? level) => Trace.Begin(level);
+    public void Frame(Frame frame, TraceSample sample) => Trace.Add(frame, sample);
+    public Task FinishAsync(IReadOnlyList<string> verdict) => Trace.FinishAsync(verdict);
+    public void EndWindow() => Trace.End();
 }

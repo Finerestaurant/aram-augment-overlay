@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AramOverlay.Core;
+using AramOverlay.SelfTest;
 
 // Holds the port to the Python implementation it replaces. Run from the repo
 // root, or pass the repo root as the first argument.
@@ -56,6 +57,18 @@ if (args.Contains("--replay"))
 if (args.Contains("--loop"))
 {
     Config.Root = root;
+    // The only way to trace a live game now. It used to be trace_mode in
+    // config.json, which meant a user could switch on 25 MB a window from a
+    // settings file and the code to do it shipped in their exe; it is a flag on
+    // the developer tool instead.
+    //
+    //     dotnet run --project src/AramOverlay.SelfTest -- --loop --trace
+    if (args.Contains("--trace"))
+    {
+        Observe.Sink = new TraceSink();
+        Config.DebugMode = true;
+        Console.WriteLine("트레이스 켜짐 -> " + Path.Combine(root, "state", "trace"));
+    }
     Log.StartFile();
     using var stop = new CancellationTokenSource();
     Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
@@ -162,7 +175,9 @@ static async Task<int> Replay(string folder, double fps)
     }
 
     Config.Root = folder;
-    Config.TraceMode = true;
+    // A replay is always traced -- leaving a trace beside the frames is the
+    // whole reason to replay them.
+    Observe.Sink = new TraceSink();
     Config.DebugMode = true;
     var gate = await Assets.GateAsync();
     var hide = await Assets.HideButtonAsync();

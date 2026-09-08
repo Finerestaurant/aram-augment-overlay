@@ -28,15 +28,6 @@ public sealed class Settings
     /// answer, and the log is for working out why an answer is missing.</summary>
     public bool DebugMode { get; set; }
 
-    /// <summary>
-    /// Writes every frame of every window out, annotated, beside a manifest of
-    /// what was measured and in what order it was decided. No switch in the
-    /// window: it costs about 25 MB a window and exists to answer "why did it
-    /// say that", which is a question asked from a config file or the command
-    /// line, not from a settings tab.
-    /// </summary>
-    public bool TraceMode { get; set; }
-
     public string Locale { get; set; } = DefaultLocale();
     public int ScreenWidth { get; set; } = 1920;
     public int ScreenHeight { get; set; } = 1080;
@@ -187,7 +178,6 @@ public sealed class Settings
                 return settings;
             settings.UiLanguage = json["ui_language"]?.GetValue<string>() ?? settings.UiLanguage;
             settings.DebugMode = json["debug_mode"]?.GetValue<bool>() ?? settings.DebugMode;
-            settings.TraceMode = json["trace_mode"]?.GetValue<bool>() ?? settings.TraceMode;
             settings.Locale = json["locale"]?.GetValue<string>() ?? settings.Locale;
             // ocr_language used to be a separate setting. It is read no more:
             // choosing a recogniser that did not match the client language read
@@ -227,7 +217,6 @@ public sealed class Settings
         {
             ["ui_language"] = UiLanguage,
             ["debug_mode"] = DebugMode,
-            ["trace_mode"] = TraceMode,
             ["locale"] = Locale,
             ["screen_width"] = ScreenWidth,
             ["screen_height"] = ScreenHeight,
@@ -276,12 +265,6 @@ public sealed class Settings
         }
 
         Config.DebugMode = DebugMode;
-        // The trace draws its own conclusions on every frame, so the decision
-        // dumps it supersedes are turned on with it rather than left to a
-        // separate switch nobody would think to also set.
-        Config.TraceMode = TraceMode;
-        if (TraceMode)
-            Config.DebugMode = true;
         Config.ObsPort = ObsPort;
         Config.ObsPassword = ObsPassword;
         Config.ObsSource = ObsSource;

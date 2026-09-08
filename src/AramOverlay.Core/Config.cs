@@ -289,20 +289,8 @@ public static class Config
     // --- widget ---
     public static string WidgetHost = "127.0.0.1";
     public static int WidgetPort = 8777;
-    /// <summary>Set from settings. Turns on the frame dumps below.</summary>
+    /// <summary>Set from settings. Turns on the decision frame dumps.</summary>
     public static bool DebugMode;
-
-    /// <summary>
-    /// Every frame of every window, written out with its numbers drawn on it.
-    ///
-    /// This is the only way to check a verdict against what was on screen at the
-    /// time: the log records the reading that won, and a wrong pick is almost
-    /// always about a frame nobody kept. Costs a JPEG encode per frame and about
-    /// 25 MB per window, so it is off unless asked for.
-    /// </summary>
-    public static bool TraceMode;
-    public const int TraceMaxFrames = 1500;
-    public const int TraceQuality = 82;
 
     public static int WidgetRows = 4;
     public static int WidgetMaxW = 420;
