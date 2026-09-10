@@ -60,6 +60,15 @@ if (args.Contains("--grab"))
 if (args.Contains("--obs-req"))
     return await ObsRequest(args);
 
+// A folder of game frames at their own sizes -- fullscreen captures at every
+// resolution the client offers -- run the way the loop would run them: shrunk
+// to the standard height keeping their shape, mapped by height and centre.
+// Beside each, what the old stretched-to-16:9 frame would have scored.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --aspect <folder>
+if (args.Contains("--aspect"))
+    return await AspectReport(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".");
+
 // Replay a folder of frames as though it were one augment window: run the same
 // gate, the same measurements and the same verdict the loop would, and leave the
 // same annotated trace behind. A recording of a pick can then be checked against
@@ -101,6 +110,7 @@ failures += await AugmentPool(root);
 failures += await OcrParity(root);
 failures += await DetectParity(root);
 failures += await ScaleInvariance(root);
+failures += await AspectParity(root);
 
 Console.WriteLine(failures == 0 ? "\n전부 통과" : $"\n{failures}개 실패");
 return failures == 0 ? 0 : 1;
@@ -976,6 +986,181 @@ static async Task<int> GrabSizes(string outDir, string[] argv)
         var frame = await obs.GrabAsync(w, h, Config.OcrQuality);
         await Report($"{w}x{h}", frame, clock.ElapsedMilliseconds);
     }
+    return 0;
+}
+
+// One augment window captured at five fullscreen sizes of four shapes -- 16:9,
+// 16:10, 5:4 and 4:3 -- with the same three prismatic cards on every one. The
+// detection frame keeps the source's shape and the geometry maps by height and
+// centre; here that has to open the gate, read all three rarities and all three
+// titles at every size. The 1680x1050 capture has the tooltip open over the
+// left and middle cards, which is what a real hover looks like: there the
+// right card and the flipped tooltip are what must be found.
+static async Task<int> AspectParity(string root)
+{
+    string dir = Path.Combine(root, "tests", "fixtures", "aspect");
+    if (!Directory.Exists(dir))
+    {
+        Console.WriteLine($"FAIL  비율 픽스처가 없습니다: {dir}");
+        return 1;
+    }
+    TemplateGate gate;
+    try { gate = await Assets.GateAsync(); }
+    catch (Exception exc)
+    {
+        Console.WriteLine($"SKIP  비율 대조 — 이 환경에서 이미지 디코딩 불가 ({exc.GetType().Name})");
+        return 0;
+    }
+    var ocr = TooltipOcr.TryCreate();
+    AugmentDb? db = null;
+    if (ocr is not null)
+    {
+        Config.Root = root;
+        try { db = await AugmentDb.LoadAsync(); } catch { db = null; }
+    }
+    string[] slots = { "L", "M", "R" };
+    string[] want = { "과충전", "궁극기 봇", "지옥불 난사 발동" };
+
+    int checked_ = 0, bad = 0, ocrChecked = 0;
+    var problems = new List<string>();
+    foreach (string file in Directory.EnumerateFiles(dir, "*.jpg").OrderBy(f => f, StringComparer.Ordinal))
+    {
+        string name = Path.GetFileName(file);
+        bool tooltipOpen = name.Contains("1680x1050");
+        var frame = await Imaging.DecodeAsync(await File.ReadAllBytesAsync(file));
+        var det = Config.DetSizeFor(frame.Width, frame.Height);
+        var gray = Cv.ToGray(Imaging.ResizeArea(frame, det.W, det.H));
+        checked_++;
+
+        var scores = gate.Scores(gray);
+        for (int i = 0; i < 3; i++)
+        {
+            if (tooltipOpen && i < 2)
+                continue;                      // under the tooltip panel
+            if (scores[i] < Config.GateOpen)
+            {
+                problems.Add($"      {name} 게이트[{slots[i]}] {scores[i]:F2} < {Config.GateOpen}");
+                bad++;
+            }
+        }
+        foreach (string slot in slots)
+        {
+            string got = Detect.RarityOf(frame, slot);
+            if (got != "prismatic")
+            {
+                problems.Add($"      {name} 등급[{slot}] {got}");
+                bad++;
+            }
+        }
+        var tip = Detect.FindTooltip(gray);
+        if (tooltipOpen && tip is not { Flipped: true })
+        {
+            problems.Add($"      {name} 툴팁 {(tip is null ? "없음" : "아래로 판정")}, 뒤집힘이어야 함");
+            bad++;
+        }
+        if (!tooltipOpen && tip is not null)
+        {
+            problems.Add($"      {name} 툴팁이 없는데 찾았다고 함");
+            bad++;
+        }
+        if (ocr is null || db is null)
+            continue;
+        for (int i = 0; i < 3; i++)
+        {
+            if (tooltipOpen && i < 2)
+                continue;
+            ocrChecked++;
+            var got = await ReadEscalating(ocr, db, frame, Config.CardTitles[slots[i]]);
+            if (got.Name != want[i])
+            {
+                problems.Add($"      {name} OCR[{slots[i]}] '{got.Raw}' -> {got.Name} vs {want[i]}");
+                bad++;
+            }
+        }
+    }
+
+    string ocrNote = ocr is null || db is null ? "OCR 생략" : $"OCR {ocrChecked}건 포함";
+    if (bad == 0)
+    {
+        Console.WriteLine($"PASS  비율 대조 {checked_}프레임 (16:9·16:10·5:4·4:3, {ocrNote})");
+        return 0;
+    }
+    Console.WriteLine($"FAIL  비율 대조 {bad}건 / {checked_}프레임 ({ocrNote})");
+    problems.ForEach(Console.WriteLine);
+    return 1;
+}
+
+static async Task<int> AspectReport(string folder)
+{
+    if (!Directory.Exists(folder))
+    {
+        Console.WriteLine($"폴더가 없습니다: {folder}");
+        return 1;
+    }
+    var files = Directory.EnumerateFiles(folder)
+        .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(f => f, StringComparer.Ordinal)
+        .ToArray();
+    var gate = await Assets.GateAsync();
+    var hide = await Assets.HideButtonAsync();
+    var ocr = TooltipOcr.TryCreate();
+    AugmentDb? db = null;
+    if (ocr is not null)
+    {
+        Config.Root = FindRepoRoot();
+        try { db = await AugmentDb.LoadAsync(); } catch { db = null; }
+    }
+    string[] slots = { "L", "M", "R" };
+    string outDir = Path.Combine(folder, "marked");
+    Directory.CreateDirectory(outDir);
+
+    Console.WriteLine($"{"파일",-22} {"크기",-10} {"비율",-6} {"감지프레임",-9}  {"게이트(모양 유지)",-18} {"게이트(늘림)",-18} {"숨김",4}  {"등급 L/M/R",-22} {"툴팁",-8} OCR L / M / R");
+    foreach (string file in files)
+    {
+        var frame = await Imaging.DecodeAsync(await File.ReadAllBytesAsync(file));
+        var det = Config.DetSizeFor(frame.Width, frame.Height);
+        var kept = Imaging.ResizeArea(frame, det.W, det.H);
+        var stretched = Imaging.ResizeArea(frame, Config.DetW, Config.DetH);
+        var gray = Cv.ToGray(kept);
+        var g1 = gate.Scores(gray);
+        var g2 = gate.Scores(Cv.ToGray(stretched));
+        double hd = hide.Score(gray);
+        var rarity = string.Join("/", slots.Select(s => Detect.RarityOf(frame, s) switch
+        {
+            "prismatic" => "프리즘", "gold" => "골드", "silver" => "실버", _ => "?",
+        }));
+        var tip = Detect.FindTooltip(gray);
+        string ocrText = "";
+        if (ocr is not null && db is not null)
+        {
+            var names = new List<string>();
+            foreach (string slot in slots)
+                names.Add((await ReadEscalating(ocr, db, frame, Config.CardTitles[slot])).Name ?? "-");
+            ocrText = string.Join(" / ", names);
+        }
+        double ratio = (double)frame.Width / frame.Height;
+        string shape = Math.Abs(ratio - 16.0 / 9) < 0.01 ? "16:9" : Math.Abs(ratio - 1.6) < 0.01 ? "16:10"
+            : Math.Abs(ratio - 1.25) < 0.01 ? "5:4" : Math.Abs(ratio - 4.0 / 3) < 0.01 ? "4:3" : ratio.ToString("F3");
+        Console.WriteLine($"{Path.GetFileName(file),-22} {frame.Width + "x" + frame.Height,-10} {shape,-6} {det.W + "x" + det.H,-9}  " +
+                          $"{string.Join("/", g1.Select(s => s.ToString("F2"))),-18} {string.Join("/", g2.Select(s => s.ToString("F2"))),-18} {hd,4:F2}  " +
+                          $"{rarity,-22} {(tip is { } t ? (t.Flipped ? "뒤집힘" : "아래") : "없음"),-8} {ocrText}");
+
+        // The boxes the loop would read, drawn on the native frame.
+        foreach (var (slot, box) in Config.Cards)
+        {
+            frame.DrawBox(box, 90, 200, 90, 2);
+            frame.DrawBox(Config.CardTitles[slot], 60, 240, 255, 2);
+            frame.DrawBox(Config.CardBorders[slot], 200, 160, 60, 1);
+        }
+        frame.DrawBox(Config.HideBox, 200, 80, 200, 2);
+        var geo = Detect.Geometry.Of(frame.Width, frame.Height);
+        foreach (var (bx, by) in Config.RerollBoxes)
+            frame.DrawRaw(geo.X(bx), geo.Y(by), geo.X(bx + Config.RerollSize.W), geo.Y(by + Config.RerollSize.H), 220, 220, 80, 2);
+        Detect.Mark(frame, tip);
+        await Imaging.SavePngAsync(frame, Path.Combine(outDir, "mark_" + Path.GetFileNameWithoutExtension(file) + ".png"));
+    }
+    Console.WriteLine($"\n표시한 화면: {outDir}");
     return 0;
 }
 

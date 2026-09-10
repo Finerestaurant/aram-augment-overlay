@@ -29,10 +29,12 @@ public sealed class Frame
     /// <summary>The box, rescaled from 1920x1080 space onto this frame and clamped.</summary>
     public Box Fit(Box box)
     {
-        double sx = (double)Width / Config.BaseW, sy = (double)Height / Config.BaseH;
-        var b = box.Scaled(sx, sy);
-        return new Box(Math.Clamp(b.X0, 0, Width), Math.Clamp(b.Y0, 0, Height),
-                       Math.Clamp(b.X1, 0, Width), Math.Clamp(b.Y1, 0, Height));
+        // Same geometry as detection -- scaled by height, centred -- but
+        // rounded, as this always was.
+        var geo = Detect.Geometry.Of(Width, Height);
+        var b = box.Scaled(geo.S, geo.S);
+        return new Box(Math.Clamp(b.X0 + geo.OffX, 0, Width), Math.Clamp(b.Y0, 0, Height),
+                       Math.Clamp(b.X1 + geo.OffX, 0, Width), Math.Clamp(b.Y1, 0, Height));
     }
 
     public Frame Crop(Box box)

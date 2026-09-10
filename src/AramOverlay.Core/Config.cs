@@ -64,6 +64,18 @@ public static class Config
     public const int DetQuality = 80;
     public const int OcrQuality = 92;
 
+    /// <summary>
+    /// The detection frame to ask OBS for, given the source's own size.
+    ///
+    /// OBS scales to whatever size is asked for and does not keep the shape
+    /// (a 1680x1050 source asked for at 960x540 comes back stretched), while
+    /// the client lays the augment screen out by height and centres it. So the
+    /// frame keeps the source's shape at the standard height, and the geometry
+    /// (Detect.Geometry) does the rest. 16:9 sources land on exactly 960x540.
+    /// </summary>
+    public static (int W, int H) DetSizeFor(int sourceW, int sourceH) =>
+        (Math.Max(8, (int)Math.Round((double)DetH * sourceW / sourceH)), DetH);
+
     // An unhooked game capture is pure black (every sample under this); three
     // such frames in a row, a second apart, is the source not being on the game
     // rather than a dark moment in it.

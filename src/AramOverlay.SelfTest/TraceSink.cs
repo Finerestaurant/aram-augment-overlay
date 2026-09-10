@@ -248,7 +248,7 @@ public static class Trace
     /// <summary>Draw the boxes the loop reads and the numbers it read out of them.</summary>
     private static void Annotate(Frame frame, TraceSample s)
     {
-        double sx = (double)frame.Width / Config.BaseW, sy = (double)frame.Height / Config.BaseH;
+        var geo = Detect.Geometry.Of(frame.Width, frame.Height);
         int scale = frame.Width >= 1600 ? 3 : 2;
 
         // Card boxes: green when the reroll gate says cards are up, grey when not.
@@ -264,9 +264,9 @@ public static class Trace
         frame.DrawBox(Config.HoverTooltip, 60, 170, 255, 2);
         frame.DrawBox(Config.HideBox, 200, 80, 200, 2);
         foreach (var (bx, by) in Config.RerollBoxes)
-            frame.DrawRaw((int)(bx * sx), (int)(by * sy),
-                          (int)((bx + Config.RerollSize.W) * sx),
-                          (int)((by + Config.RerollSize.H) * sy), 220, 220, 80, 1);
+            frame.DrawRaw(geo.X(bx), geo.Y(by),
+                          geo.X(bx + Config.RerollSize.W),
+                          geo.Y(by + Config.RerollSize.H), 220, 220, 80, 1);
 
         var lines = new List<string>
         {

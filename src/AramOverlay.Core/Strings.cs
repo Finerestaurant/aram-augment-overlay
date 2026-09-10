@@ -320,10 +320,10 @@ public static class Strings
             "16:9 — カード位置は自動で合わせ、文字はこのサイズで読み取ります。",
             "16:9 — 卡片位置自动匹配，文字按此尺寸读取。");
         Add("Hint.NotRatio169",
-            "16:9가 아닙니다. 카드 위치가 어긋날 수 있습니다.",
-            "Not 16:9. The cards may not line up.",
-            "16:9 ではありません。カード位置がずれることがあります。",
-            "不是 16:9。卡片位置可能对不上。");
+            "16:9가 아니어도 카드 위치는 화면 높이에 맞춰 따라갑니다.",
+            "Not 16:9; card positions still follow the screen height.",
+            "16:9 でなくてもカード位置は画面の高さに合わせて追従します。",
+            "即使不是 16:9，卡片位置也会按屏幕高度跟随。");
         Add("Pick.Level", "{0}레벨", "Level {0}", "レベル {0}", "{0} 级");
         Add("Hint.Saved", "저장했습니다. 다시 시작합니다...", "Saved. Restarting...",
             "保存しました。再起動します...", "已保存，正在重启...");
@@ -399,6 +399,13 @@ public static class Strings
             "来源 {0} 只发送黑屏，正在重新指向游戏窗口。");
         Add("Loop.CaptureBack", "게임 화면이 들어옵니다.", "Game picture is coming in.",
             "ゲーム画面が届いています。", "已收到游戏画面。");
+        Add("Loop.SourceSize", "게임 화면 {0}×{1} — 감지 프레임 {2}×{3}",
+            "Game picture is {0}×{1}; detecting on {2}×{3}",
+            "ゲーム画面 {0}×{1} — 検出フレーム {2}×{3}", "游戏画面 {0}×{1} — 检测帧 {2}×{3}");
+        Add("Status.WatchingDetailSize", "레벨 {0} · OBS 소스 '{1}' · 게임 화면 {2}×{3}",
+            "Level {0} · connected to OBS as “{1}” · game at {2}×{3}",
+            "レベル {0} · OBS の「{1}」に接続済み · ゲーム画面 {2}×{3}",
+            "{0} 级 · 已连接 OBS 的“{1}” · 游戏画面 {2}×{3}");
         Add("Status.CaptureBlank", "OBS에 게임 화면이 없습니다", "OBS has no game picture",
             "OBS にゲーム画面がありません", "OBS 中没有游戏画面");
         Add("Status.CaptureBlankDetail",

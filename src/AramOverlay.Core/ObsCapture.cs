@@ -70,6 +70,37 @@ public sealed class ObsCapture : IAsyncDisposable
     private const string GameExe = "League of Legends.exe";
     private const string LegacyGameWindow = "::" + GameExe;
 
+    /// <summary>
+    /// The source's own size in pixels, read off its scene item rather than a
+    /// picture -- a few bytes instead of a screenshot. Null when the source is
+    /// not an item of the current program scene, in which case the loop falls
+    /// back to the 16:9 assumption.
+    /// </summary>
+    public async Task<(int W, int H)?> SourceSizeAsync()
+    {
+        try
+        {
+            var scene = await _client.RequestAsync("GetCurrentProgramScene");
+            string name = scene?["sceneName"]?.GetValue<string>()
+                          ?? scene?["currentProgramSceneName"]?.GetValue<string>() ?? "";
+            var id = await _client.RequestAsync("GetSceneItemId",
+                new JsonObject { ["sceneName"] = name, ["sourceName"] = Source });
+            int itemId = (int)(id?["sceneItemId"]?.GetValue<double>() ?? -1);
+            if (itemId < 0)
+                return null;
+            var t = await _client.RequestAsync("GetSceneItemTransform",
+                new JsonObject { ["sceneName"] = name, ["sceneItemId"] = itemId });
+            var tr = t?["sceneItemTransform"];
+            int w = (int)Math.Round(tr?["sourceWidth"]?.GetValue<double>() ?? 0);
+            int h = (int)Math.Round(tr?["sourceHeight"]?.GetValue<double>() ?? 0);
+            return w > 0 && h > 0 ? (w, h) : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>Create the Game Capture source if it is missing. True if created.</summary>
     public async Task<bool> EnsureGameCaptureAsync()
     {

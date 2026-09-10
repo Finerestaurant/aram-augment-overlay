@@ -410,7 +410,9 @@ public partial class MainWindow : Window
         }
         else
         {
-            ResolutionHint.Foreground = (Brush)FindResource("Warn");
+            // No longer a warning: the geometry follows the height and centres
+            // itself, measured on every fullscreen size the client offers.
+            ResolutionHint.Foreground = (Brush)FindResource("Dim");
             ResolutionHint.Text = Strings.Get("Hint.NotRatio169");
         }
     }
@@ -733,7 +735,10 @@ public partial class MainWindow : Window
             else if (state.Connected && state.GameMode == Config.MayhemGameMode)
                 SetStatus("Ok", Strings.Get("Status.Watching"),
                     state.Level is int lv
-                        ? Strings.Get("Status.WatchingDetail", lv, _running.ObsSource)
+                        ? state.SourceWidth > 0
+                            ? Strings.Get("Status.WatchingDetailSize", lv, _running.ObsSource,
+                                          state.SourceWidth, state.SourceHeight)
+                            : Strings.Get("Status.WatchingDetail", lv, _running.ObsSource)
                         : Strings.Get("Status.WatchingDetailNoLevel", _running.ObsSource));
             else if (state.Connected)
                 SetStatus("Warn", Strings.Get("Status.ObsConnected"),

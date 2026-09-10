@@ -99,6 +99,13 @@ public sealed class OverlayLoop
     private readonly WidgetServer _server;
     private readonly RunState _state;
 
+    // What the game renders at, as OBS reports the source. Decides the shape
+    // of the detection frame and the size of the OCR grab; re-read every few
+    // seconds because it changes when the player changes resolution mid-game.
+    private (int W, int H)? _sourceSize;
+    private DateTime _sourceSizeAt = DateTime.MinValue;
+    private const double SourceSizeEveryS = 5.0;
+
     public OverlayLoop(AugmentDb db, ItemNames items, TooltipOcr ocr, TemplateGate gate,
                        HideButton hide, ObsCapture obs, ObsCapture probeObs, WidgetServer server)
     {
@@ -163,6 +170,10 @@ public sealed class OverlayLoop
                 _state.Connected = false;
                 _state.Level = null;
                 _state.CaptureBlank = false;
+                _state.SourceWidth = 0;
+                _state.SourceHeight = 0;
+                _sourceSize = null;
+                _sourceSizeAt = DateTime.MinValue;
                 blank = 0;
                 repairTried = false;
                 win = new AugmentWindowState();
@@ -220,7 +231,26 @@ public sealed class OverlayLoop
                 continue;
             }
 
-            var frame = await _obs.GrabAsync();
+            if ((DateTime.UtcNow - _sourceSizeAt).TotalSeconds > SourceSizeEveryS)
+            {
+                _sourceSizeAt = DateTime.UtcNow;
+                var size = await _obs.SourceSizeAsync();
+                if (size != _sourceSize)
+                {
+                    _sourceSize = size;
+                    _state.SourceWidth = size?.W ?? 0;
+                    _state.SourceHeight = size?.H ?? 0;
+                    if (size is { } s)
+                    {
+                        var d = Config.DetSizeFor(s.W, s.H);
+                        Log.Write(Strings.Get("Loop.SourceSize", s.W, s.H, d.W, d.H));
+                    }
+                }
+            }
+            // The frame keeps the source's shape; OBS would otherwise stretch
+            // a 16:10 or 4:3 screen onto 16:9 and put every box off the cards.
+            var detSize = _sourceSize is { } src ? Config.DetSizeFor(src.W, src.H) : (Config.DetW, Config.DetH);
+            var frame = await _obs.GrabAsync(detSize.Item1, detSize.Item2);
             if (frame is null)
             {
                 await Task.Delay(1000, token);
@@ -554,7 +584,11 @@ public sealed class OverlayLoop
         Frame? shot;
         try
         {
-            shot = await _probeObs.GrabAsync(Config.OcrW, Config.OcrH, Config.OcrQuality);
+            // The source's own pixels when OBS has told us its size; the
+            // configured size is the fallback for when it has not.
+            shot = _sourceSize is not null
+                ? await _probeObs.GrabNativeAsync(Config.OcrQuality)
+                : await _probeObs.GrabAsync(Config.OcrW, Config.OcrH, Config.OcrQuality);
         }
         catch
         {

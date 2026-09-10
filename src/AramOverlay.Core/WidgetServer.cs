@@ -38,6 +38,10 @@ public sealed class RunState
     /// the game window, and nothing can be detected until it is.</summary>
     [JsonPropertyName("capture_blank")] public bool CaptureBlank { get; set; }
 
+    /// <summary>What the game is rendering at, as OBS reports the source. Zero until known.</summary>
+    [JsonPropertyName("source_width")] public int SourceWidth { get; set; }
+    [JsonPropertyName("source_height")] public int SourceHeight { get; set; }
+
     /// <summary>
     /// When this game began, in unix seconds, worked out as now minus the Live
     /// Client's gameTime.

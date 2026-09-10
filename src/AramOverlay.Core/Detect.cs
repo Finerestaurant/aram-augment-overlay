@@ -12,15 +12,43 @@ namespace AramOverlay.Core;
 public static class Detect
 {
     /// <summary>
+    /// Where 1920x1080-space coordinates land on a frame of this size.
+    ///
+    /// The client scales the augment screen uniformly by height and centres it
+    /// horizontally -- measured on the same window captured at all fifteen
+    /// fullscreen sizes this monitor offers, 1680x1050 and 1024x768 included:
+    /// the three cards span 0.98 of the height at every one of them and sit
+    /// around the frame's own centre line. So there is one scale, taken from
+    /// the height, and a horizontal offset that is zero on 16:9 and a whole
+    /// number of pixels otherwise. Whole, so that a 16:9 frame maps exactly as
+    /// it always has, truncation and all; the parity fixtures are bit-exact.
+    /// </summary>
+    public readonly record struct Geometry(double S, int OffX)
+    {
+        public static Geometry Of(int w, int h)
+        {
+            double s = (double)h / Config.BaseH;
+            return new Geometry(s, (int)Math.Round(w / 2.0 - Config.BaseW / 2.0 * s));
+        }
+
+        /// <summary>Frame x for a 1080p-space x, truncating like the Python port did.</summary>
+        public int X(double xb) => (int)(xb * S) + OffX;
+        public int Y(double yb) => (int)(yb * S);
+        /// <summary>A frame length for a 1080p-space one.</summary>
+        public int L(double len) => (int)(len * S);
+        public double BackX(double x) => (x - OffX) / S;
+        public double BackY(double y) => y / S;
+    }
+
+    /// <summary>
     /// A box in 1920x1080 space mapped onto this frame. Truncating rather than
     /// rounding, because that is what the Python side does and a half-pixel
     /// shift on the rarity strip changes which pixels get averaged.
     /// </summary>
     public static Box Scale(Box box, int w, int h)
     {
-        double sx = (double)w / Config.BaseW, sy = (double)h / Config.BaseH;
-        return new Box((int)(box.X0 * sx), (int)(box.Y0 * sy),
-                       (int)(box.X1 * sx), (int)(box.Y1 * sy));
+        var g = Geometry.Of(w, h);
+        return new Box(g.X(box.X0), g.Y(box.Y0), g.X(box.X1), g.Y(box.Y1));
     }
 
     public static double Mean(GrayImage gray, Box box)
@@ -247,13 +275,13 @@ public static class Detect
     /// when the widest pair wins. Their positions are known exactly, so they
     /// are simply skipped rather than argued with.
     /// </summary>
-    private static bool IsRerollEdge(int x, double sx)
+    private static bool IsRerollEdge(int x, Geometry g)
     {
-        int slack = (int)(5 * sx);
+        int slack = g.L(5);
         foreach (var (bx, _) in Config.RerollBoxes)
         {
-            if (Math.Abs(x - (int)(bx * sx)) <= slack ||
-                Math.Abs(x - (int)((bx + Config.RerollSize.W) * sx)) <= slack)
+            if (Math.Abs(x - g.X(bx)) <= slack ||
+                Math.Abs(x - g.X(bx + Config.RerollSize.W)) <= slack)
                 return true;
         }
         return false;
@@ -284,11 +312,11 @@ public static class Detect
     /// flipped the verdict. The buttons' vertical sides are only 41 tall and
     /// live above the anchor, so scanning columns is free of them.
     /// </summary>
-    private static (int X0, int X1)? Sides(GrayImage g, int y0, int y1, double sx, bool skipReroll)
+    private static (int X0, int X1)? Sides(GrayImage g, int y0, int y1, Geometry geo, bool skipReroll)
     {
-        int cx = (int)(Config.TooltipCentre * sx);
-        int lo = (int)(60 * sx), hi = (int)(Config.TooltipMaxHalfWidth * sx);
-        int tol = (int)(30 * sx);
+        int cx = geo.X(Config.TooltipCentre);
+        int lo = geo.L(60), hi = geo.L(Config.TooltipMaxHalfWidth);
+        int tol = geo.L(30);
 
         // Every column that could be a side, then the widest symmetric pair --
         // not the first one found walking out from the centre. The tooltip's
@@ -300,10 +328,10 @@ public static class Detect
         var right = new List<int>();
         for (int d = lo; d <= hi; d++)
         {
-            if (!(skipReroll && IsRerollEdge(cx - d, sx)) &&
+            if (!(skipReroll && IsRerollEdge(cx - d, geo)) &&
                 SideSupport(g, cx - d, y0, y1) >= Config.TooltipSideSupport)
                 left.Add(d);
-            if (!(skipReroll && IsRerollEdge(cx + d, sx)) &&
+            if (!(skipReroll && IsRerollEdge(cx + d, geo)) &&
                 SideSupport(g, cx + d, y0, y1) >= Config.TooltipSideSupport)
                 right.Add(d);
         }
@@ -338,10 +366,10 @@ public static class Detect
     /// </summary>
     public static TooltipPanel? FindTooltip(GrayImage g)
     {
-        double sx = (double)g.Width / Config.BaseW, sy = (double)g.Height / Config.BaseH;
+        var geo = Geometry.Of(g.Width, g.Height);
         int anchor = -1;
-        int a = (int)(Config.TooltipAnchor * sy), tol = (int)(Config.TooltipAnchorTol * sy);
-        int xFrom = (int)(500 * sx), xTo = (int)(1420 * sx);
+        int a = geo.Y(Config.TooltipAnchor), tol = geo.L(Config.TooltipAnchorTol);
+        int xFrom = geo.X(500), xTo = geo.X(1420);
         int bestRun = 0;
         for (int y = a - tol; y <= a + tol; y++)
         {
@@ -350,7 +378,7 @@ public static class Detect
             {
                 if (MagAt(g, x, y) <= Config.TooltipEdgeH)
                     continue;
-                if (start < 0 || x - prev > (int)(6 * sx))
+                if (start < 0 || x - prev > geo.L(6))
                 {
                     if (start >= 0 && prev - start > r1 - r0) { r0 = start; r1 = prev; }
                     start = x;
@@ -359,8 +387,8 @@ public static class Detect
             }
             if (start >= 0 && prev - start > r1 - r0) { r0 = start; r1 = prev; }
             int width = r1 - r0;
-            double mid = (r0 + r1) / 2.0 / sx;
-            if (width >= (int)(Config.TooltipMinWidth * sx) &&
+            double mid = geo.BackX((r0 + r1) / 2.0);
+            if (width >= geo.L(Config.TooltipMinWidth) &&
                 Math.Abs(mid - Config.TooltipCentre) <= Config.TooltipCentreTol &&
                 width > bestRun)
             {
@@ -371,33 +399,33 @@ public static class Detect
         if (anchor < 0)
             return null;
 
-        int span = (int)(Config.TooltipTitleHeight * sy), pad = (int)(4 * sy);
+        int span = geo.L(Config.TooltipTitleHeight), pad = geo.L(4);
         // The reroll buttons live at y 743..784, entirely above the anchor, so
         // they can only pollute the upward scan. Skipping their columns in the
         // downward one costs a real panel: frame_05's right edge is 1302 and a
         // button's left edge is 1304.
-        var below = Sides(g, anchor + pad, anchor + span, sx, skipReroll: false);
+        var below = Sides(g, anchor + pad, anchor + span, geo, skipReroll: false);
         if (below is { } b)
             return new TooltipPanel(anchor, b.X0, b.X1, false,
-                TitleBox(anchor, b.X0, b.X1, sx, sy));
+                TitleBox(anchor, b.X0, b.X1, geo));
 
-        var above = Sides(g, anchor - span, anchor - pad, sx, skipReroll: true);
+        var above = Sides(g, anchor - span, anchor - pad, geo, skipReroll: true);
         if (above is not { } u)
             return null;
 
         // Flipped: the anchor is the bottom, so the top is the next border up
         // with the same width. Failing that, fall back to the tallest panel
         // that can fit, which is what the anchor rule implies anyway.
-        int top = anchor - (int)(297 * sy);
-        for (int y = anchor - (int)(60 * sy); y >= (int)(200 * sy); y--)
+        int top = anchor - geo.L(297);
+        for (int y = anchor - geo.L(60); y >= geo.L(200); y--)
         {
-            if (SideSupport(g, u.X0, y, y + (int)(20 * sy)) < Config.TooltipSideSupport)
+            if (SideSupport(g, u.X0, y, y + geo.L(20)) < Config.TooltipSideSupport)
             {
                 top = y;
                 break;
             }
         }
-        return new TooltipPanel(top, u.X0, u.X1, true, TitleBox(top, u.X0, u.X1, sx, sy));
+        return new TooltipPanel(top, u.X0, u.X1, true, TitleBox(top, u.X0, u.X1, geo));
     }
 
     /// <summary>
@@ -411,26 +439,27 @@ public static class Detect
         // The panel's numbers are frame pixels; the anchor is a 1080p-space
         // constant, so it is mapped onto the frame the same way FindTooltip
         // did before it looked there.
-        double sx = (double)frame.Width / Config.BaseW, sy = (double)frame.Height / Config.BaseH;
-        int anchor = (int)(Config.TooltipAnchor * sy);
+        var geo = Geometry.Of(frame.Width, frame.Height);
+        int anchor = geo.Y(Config.TooltipAnchor);
         frame.DrawBox(Config.HoverTooltip, 130, 130, 130, 2);
-        frame.DrawRaw((int)(400 * sx), anchor, (int)(1520 * sx), anchor + 2, 60, 170, 255, 1);
+        frame.DrawRaw(geo.X(400), anchor, geo.X(1520), anchor + 2, 60, 170, 255, 1);
         if (panel is not { } p)
             return;
         // The panel always grows downwards from its own top -- flipping moves
         // where the top is, it does not turn the panel upside down. Drawing it
         // the other way put the outline 260px above a panel that was sitting
         // right there under it.
-        int bottom = p.Flipped ? anchor : p.Top + (int)(260 * sy);
-        frame.DrawRaw(p.X0, p.Top, p.X1, Math.Max(p.Top + (int)(20 * sy), bottom), 90, 200, 90, 2);
+        int bottom = p.Flipped ? anchor : p.Top + geo.L(260);
+        frame.DrawRaw(p.X0, p.Top, p.X1, Math.Max(p.Top + geo.L(20), bottom), 90, 200, 90, 2);
         frame.DrawBox(p.Title, 60, 240, 255, 4);
     }
 
-    private static Box TitleBox(int top, int x0, int x1, double sx, double sy) => new(
-        (int)((x0 + (int)(Config.TooltipIconWidth * sx)) / sx),
-        (int)((top + (int)(4 * sy)) / sy),
-        (int)(x1 / sx),
-        (int)((top + (int)(Config.TooltipTitleHeight * sy)) / sy));
+    /// <summary>The title row in 1080p space, so the OCR frame -- a different size -- can map it back.</summary>
+    private static Box TitleBox(int top, int x0, int x1, Geometry geo) => new(
+        (int)geo.BackX(x0 + geo.L(Config.TooltipIconWidth)),
+        (int)geo.BackY(top + geo.L(4)),
+        (int)geo.BackX(x1),
+        (int)geo.BackY(top + geo.L(Config.TooltipTitleHeight)));
 
     public static double Median(double[] values)
     {
@@ -472,9 +501,9 @@ public sealed class TemplateGate
     /// </summary>
     public double[] Scores(GrayImage gray)
     {
-        double sx = (double)gray.Width / Config.BaseW, sy = (double)gray.Height / Config.BaseH;
-        int tw = Math.Max(4, Round(Config.RerollSize.W * sx));
-        int th = Math.Max(4, Round(Config.RerollSize.H * sy));
+        var geo = Detect.Geometry.Of(gray.Width, gray.Height);
+        int tw = Math.Max(4, Round(Config.RerollSize.W * geo.S));
+        int th = Math.Max(4, Round(Config.RerollSize.H * geo.S));
 
         if (!_prepped.TryGetValue((tw, th), out var prepped))
         {
@@ -488,7 +517,7 @@ public sealed class TemplateGate
         for (int i = 0; i < Config.RerollBoxes.Length; i++)
         {
             var (bx, by) = Config.RerollBoxes[i];
-            int x0 = Round(bx * sx), y0 = Round(by * sy);
+            int x0 = Round(bx * geo.S) + geo.OffX, y0 = Round(by * geo.S);
             if (x0 < 0 || y0 < 0 || x0 + tw > gray.Width || y0 + th > gray.Height)
             {
                 scores[i] = 0.0;
@@ -521,11 +550,11 @@ public sealed class HideButton
 
     public double Score(GrayImage gray)
     {
-        double sx = (double)gray.Width / Config.BaseW, sy = (double)gray.Height / Config.BaseH;
+        var geo = Detect.Geometry.Of(gray.Width, gray.Height);
         var box = Config.HideBox;
-        int x0 = TemplateGate.Round(box.X0 * sx), y0 = TemplateGate.Round(box.Y0 * sy);
-        int tw = Math.Max(4, TemplateGate.Round(box.Width * sx));
-        int th = Math.Max(4, TemplateGate.Round(box.Height * sy));
+        int x0 = TemplateGate.Round(box.X0 * geo.S) + geo.OffX, y0 = TemplateGate.Round(box.Y0 * geo.S);
+        int tw = Math.Max(4, TemplateGate.Round(box.Width * geo.S));
+        int th = Math.Max(4, TemplateGate.Round(box.Height * geo.S));
 
         if (!_prepped.TryGetValue((tw, th), out var template))
         {
