@@ -335,17 +335,18 @@ public static class Strings
             "One of the number fields is not a number.",
             "数値欄に数値でない値があります。", "数字栏中有非数字的值。");
         // The geometry follows the frame on its own; the setting only decides
-        // how large a frame the text is read from. Said as what happens, not
-        // as how it is done.
-        Add("Hint.Ratio169", "16:9 — 카드 위치는 자동으로 맞춰지고, 글자는 이 크기로 읽습니다.",
-            "16:9 — card positions follow automatically; text is read at this size.",
-            "16:9 — カード位置は自動で合わせ、文字はこのサイズで読み取ります。",
-            "16:9 — 卡片位置自动匹配，文字按此尺寸读取。");
-        Add("Hint.NotRatio169",
-            "16:9가 아니어도 카드 위치는 화면 높이에 맞춰 따라갑니다.",
-            "Not 16:9; card positions still follow the screen height.",
-            "16:9 でなくてもカード位置は画面の高さに合わせて追従します。",
-            "即使不是 16:9，卡片位置也会按屏幕高度跟随。");
+        // how large a frame the text is read from. What the hint has to carry is
+        // not the aspect ratio -- that arithmetic is measured and covered -- but
+        // whether this size has ever actually been played.
+        Add("Hint.ResTested", "검증된 해상도입니다. 글자를 이 크기로 읽습니다.",
+            "The tested resolution. Text is read at this size.",
+            "検証済みの解像度です。文字はこのサイズで読み取ります。",
+            "已验证的分辨率。文字按此尺寸读取。");
+        Add("Hint.ResUntested",
+            "아직 시험해 보지 않은 해상도입니다. 카드 위치는 화면 높이에 맞춰 따라갑니다.",
+            "This resolution has not been tried yet. Card positions follow the screen height.",
+            "まだ試していない解像度です。カード位置は画面の高さに合わせて追従します。",
+            "尚未试过的分辨率。卡片位置会按屏幕高度跟随。");
         Add("Pick.Level", "{0}레벨", "Level {0}", "レベル {0}", "{0} 级");
         Add("Hint.Saved", "저장했습니다. 다시 시작합니다...", "Saved. Restarting...",
             "保存しました。再起動します...", "已保存，正在重启...");

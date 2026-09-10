@@ -74,7 +74,7 @@ Grab the single `ARAM-Augment-Overlay.exe` from the [releases page][releases].
 
 | Requirement | |
 |---|---|
-| OS | Windows 10 / 11, any fullscreen resolution at 100% scaling (1920×1080 is the one verified in live games) |
+| OS | Windows 10 / 11 · 1920×1080 · 100% scaling. Other resolutions are mapped for but untested |
 | OBS Studio | 28 or newer |
 | Game setting | **Borderless fullscreen** recommended |
 | OCR | The Windows OCR language pack for your client language — the app can install it for you |
@@ -125,7 +125,7 @@ is why a restart is needed.
 | Setting | What it does |
 |---|---|
 | Game language | The language your League client is in. Augment names are fetched in it and the screen is read with it. If the matching OCR pack is missing, the app can install it. It starts from what the League install says it is set to, and only falls back to the Windows display language |
-| Game resolution | Fallback size for reading text when OBS cannot report the game's own size. Card positions follow the frame on their own at any resolution |
+| Game resolution | Fallback size for reading text when OBS cannot report the game's own size. 1920×1080 is the only tested value; card positions follow the frame on their own at any size |
 | OBS | websocket port · game capture source name · password (blank reads it from the OBS config) |
 | Widget theme | HUD tray (grows sideways) · one strip (smallest) · game palette (vertical). Changes on air at once, with no browser-source refresh |
 | Overlay | widget port · rows shown · maximum width |
@@ -195,11 +195,14 @@ data behind them are written up in [`docs/FINDINGS.md`](docs/FINDINGS.md) (Korea
 
 ## Limits
 
-- Coordinates were measured at 1920×1080. The client lays the augment screen out by height and
-  centres it, and the tool maps its boxes the same way, so any resolution works: verified on the
-  same window captured at all fifteen fullscreen sizes one monitor offers (16:9, 16:10, 5:4 and
-  4:3, from 1024×768 to 1680×1050) plus 1440p and 4K resamples. Live games have only been played
-  at 1920×1080; 21:9 and wider screens have not been captured yet.
+- **Only 1920×1080 has been tested.** It is the resolution the coordinates were measured at, the
+  only one a live game has ever been played at, and the only one the resolution setting offers.
+  The mapping is written to work at any size and the arithmetic is checked: the client lays the
+  augment screen out by height and centres it, and the same window was captured at all fifteen
+  fullscreen sizes one monitor offers (16:9, 16:10, 5:4 and 4:3, from 1024×768 to 1680×1050) and
+  read correctly at every one, with 1440p and 4K resamples on top, both held by the test suite.
+  None of that is a game played at those sizes. 21:9 and wider has never been captured at all,
+  and the HUD scale slider has not been tried.
 - Names are read by OCR. A shaky read is corrected against the augment list, but it can still be
   wrong on rare occasions. A read that cannot be confirmed is not recorded at all.
 - The rarity and selection thresholds come from measurements on real games and gameplay footage.

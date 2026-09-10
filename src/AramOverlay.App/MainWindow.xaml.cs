@@ -226,8 +226,12 @@ public partial class MainWindow : Window
         int localeIndex = Array.FindIndex(Settings.Locales, l => l.Code == _settings.Locale);
         LocaleBox.SelectedIndex = localeIndex < 0 ? 0 : localeIndex;
 
-        PresetBox.ItemsSource = new[]
-            { "1920 × 1080", "2560 × 1440", "3840 × 2160", "1600 × 900", "1280 × 720" };
+        // One preset, because one resolution has been played. The geometry
+        // follows the screen height at any size and the arithmetic is covered by
+        // two suite entries, but nothing except 1920x1080 has ever driven a live
+        // game -- offering a list of sizes would promise testing that has not
+        // happened. The fields stay editable for anyone who wants to try.
+        PresetBox.ItemsSource = new[] { "1920 × 1080" };
 
         WidthBox.Text = _settings.ScreenWidth.ToString();
         HeightBox.Text = _settings.ScreenHeight.ToString();
@@ -605,18 +609,14 @@ public partial class MainWindow : Window
             ResolutionHint.Text = Strings.Get("Hint.NumbersOnly");
             return;
         }
-        if (Settings.IsSupportedShape(w, h))
-        {
-            ResolutionHint.Foreground = (Brush)FindResource("Dim");
-            ResolutionHint.Text = Strings.Get("Hint.Ratio169");
-        }
-        else
-        {
-            // No longer a warning: the geometry follows the height and centres
-            // itself, measured on every fullscreen size the client offers.
-            ResolutionHint.Foreground = (Brush)FindResource("Dim");
-            ResolutionHint.Text = Strings.Get("Hint.NotRatio169");
-        }
+        // The line the shape used to decide is gone. Aspect ratio is not what
+        // is uncertain here -- the client lays the augment screen out by height
+        // and the arithmetic was measured on fifteen fullscreen sizes -- what is
+        // uncertain is that no size but 1920x1080 has ever been played. So the
+        // hint says which of the two the reader is in, and nothing else.
+        bool tested = w == Config.BaseW && h == Config.BaseH;
+        ResolutionHint.Foreground = (Brush)FindResource(tested ? "Dim" : "Warn");
+        ResolutionHint.Text = Strings.Get(tested ? "Hint.ResTested" : "Hint.ResUntested");
     }
 
     /// <summary>

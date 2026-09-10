@@ -242,9 +242,12 @@ public sealed class Settings
         }));
     }
 
-    /// <summary>16:9 within a pixel of rounding. Anything else needs the boxes redrawn.</summary>
-    public static bool IsSupportedShape(int width, int height) =>
-        height > 0 && Math.Abs((double)width / height - 16.0 / 9.0) < 0.01;
+    // A 16:9 check used to live here, on the belief that anything else needed
+    // the boxes redrawn. It does not: the client lays the augment screen out by
+    // height and centres it, so one scale and one offset carry every shape
+    // (Detect.Geometry). Nothing asks the question any more, and leaving a
+    // predicate called "IsSupportedShape" behind would answer a question the
+    // tool no longer has.
 
     public void Apply()
     {
