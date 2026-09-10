@@ -48,11 +48,11 @@
 
 <table>
 <tr>
-<td width="40%"><img src="docs/images/widget.png" alt="单独看挂件"></td>
+<td width="40%"><img src="docs/images/widget.d.png" alt="单独看挂件"></td>
 <td><img src="docs/images/overlay.gif" alt="强化符文不断累积"></td>
 </tr>
 <tr>
-<td align="center"><sub>白银 · 黄金 · 棱彩用颜色区分</sub></td>
+<td align="center"><sub>白银 · 黄金 · 棱彩用颜色区分</sub><br><sub>三种主题，直播中即时切换</sub></td>
 <td align="center"><sub>获得后几秒内加入列表</sub></td>
 </tr>
 </table>
@@ -124,6 +124,12 @@
 | OBS | websocket 端口 · 游戏采集源名称 · 密码（留空则从 OBS 配置自动读取） |
 | 挂件主题 | HUD 托盘（横向） · 单行条（最小） · 游戏配色（纵向）。修改立即生效，无需刷新浏览器源 |
 | 覆盖层 | 挂件端口 · 显示行数 · 最大宽度 |
+
+<img src="docs/images/widget.b.png" alt="HUD 托盘" width="392"><br><sub>HUD 托盘</sub>
+
+<img src="docs/images/widget.c.png" alt="单行条" width="680"><br><sub>单行条</sub>
+
+<img src="docs/images/widget.d.png" alt="游戏配色" width="284"><br><sub>游戏配色</sub>
 
 也支持命令行参数。`--stop` 会让正在运行的覆盖层正常退出（同时清理托盘图标），`--widget-port`
 之类的参数优先于已保存的设置。

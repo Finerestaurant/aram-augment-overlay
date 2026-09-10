@@ -48,11 +48,11 @@ It focuses on:
 
 <table>
 <tr>
-<td width="40%"><img src="docs/images/widget.png" alt="The widget on its own"></td>
+<td width="40%"><img src="docs/images/widget.d.png" alt="The widget on its own"></td>
 <td><img src="docs/images/overlay.gif" alt="Augments stacking up"></td>
 </tr>
 <tr>
-<td align="center"><sub>Silver · gold · prismatic told apart by colour</sub></td>
+<td align="center"><sub>Silver · gold · prismatic told apart by colour</sub><br><sub>Three themes, switched while live</sub></td>
 <td align="center"><sub>Each pick joins the list within seconds</sub></td>
 </tr>
 </table>
@@ -129,6 +129,12 @@ is why a restart is needed.
 | OBS | websocket port · game capture source name · password (blank reads it from the OBS config) |
 | Widget theme | HUD tray (grows sideways) · one strip (smallest) · game palette (vertical). Changes on air at once, with no browser-source refresh |
 | Overlay | widget port · rows shown · maximum width |
+
+<img src="docs/images/widget.b.png" alt="HUD tray" width="392"><br><sub>HUD tray</sub>
+
+<img src="docs/images/widget.c.png" alt="One strip" width="680"><br><sub>One strip</sub>
+
+<img src="docs/images/widget.d.png" alt="Game palette" width="284"><br><sub>Game palette</sub>
 
 Command-line flags work too. `--stop` shuts a running overlay down cleanly (tray icon included),
 and flags such as `--widget-port` override the saved settings.

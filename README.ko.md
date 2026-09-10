@@ -48,11 +48,11 @@
 
 <table>
 <tr>
-<td width="40%"><img src="docs/images/widget.png" alt="위젯을 따로 본 모습"></td>
+<td width="40%"><img src="docs/images/widget.d.png" alt="위젯을 따로 본 모습"></td>
 <td><img src="docs/images/overlay.gif" alt="증강이 쌓이는 모습"></td>
 </tr>
 <tr>
-<td align="center"><sub>실버 · 골드 · 프리즘을 색으로 구분</sub></td>
+<td align="center"><sub>실버 · 골드 · 프리즘을 색으로 구분</sub><br><sub>테마 3종, 방송 중에 바로 전환</sub></td>
 <td align="center"><sub>증강을 고르면 몇 초 안에 쌓입니다</sub></td>
 </tr>
 </table>
@@ -122,6 +122,12 @@ OBS를 다시 실행한 뒤 상태 탭의 **다시 시도**를 누릅니다. 연
 | OBS | websocket 포트 · 게임 캡처 소스 이름 · 비밀번호 (비우면 OBS 설정에서 자동) |
 | 위젯 테마 | HUD 트레이(가로) · 한 줄(최소) · 게임 팔레트(세로). 바꾸면 브라우저 소스 새로고침 없이 바로 반영됩니다 |
 | 오버레이 | 위젯 포트 · 표시 행 수 · 최대 폭 |
+
+<img src="docs/images/widget.b.png" alt="HUD 트레이" width="392"><br><sub>HUD 트레이</sub>
+
+<img src="docs/images/widget.c.png" alt="한 줄" width="680"><br><sub>한 줄</sub>
+
+<img src="docs/images/widget.d.png" alt="게임 팔레트" width="284"><br><sub>게임 팔레트</sub>
 
 명령줄 인자도 받습니다. `--stop` 은 실행 중인 오버레이를 정상 종료하고(트레이 아이콘까지 정리),
 `--widget-port` 등은 설정보다 우선합니다.

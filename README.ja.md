@@ -48,11 +48,11 @@
 
 <table>
 <tr>
-<td width="40%"><img src="docs/images/widget.png" alt="ウィジェット単体"></td>
+<td width="40%"><img src="docs/images/widget.d.png" alt="ウィジェット単体"></td>
 <td><img src="docs/images/overlay.gif" alt="積み上がっていくオーグメント"></td>
 </tr>
 <tr>
-<td align="center"><sub>シルバー · ゴールド · プリズムを色分け</sub></td>
+<td align="center"><sub>シルバー · ゴールド · プリズムを色分け</sub><br><sub>テーマ 3 種、配信中に切り替え可能</sub></td>
 <td align="center"><sub>選ぶと数秒でリストに加わります</sub></td>
 </tr>
 </table>
@@ -127,6 +127,12 @@ OBS を起動し直し、**状態**タブの **再試行** を押します。接
 | OBS | websocket ポート · ゲームキャプチャソース名 · パスワード（空欄なら OBS の設定から自動取得） |
 | ウィジェットのテーマ | HUD トレイ(横) · 1 行(最小) · ゲームパレット(縦)。変更は即座に反映され、ブラウザソースの更新は不要です |
 | オーバーレイ | ウィジェットのポート · 表示行数 · 最大幅 |
+
+<img src="docs/images/widget.b.png" alt="HUD トレイ" width="392"><br><sub>HUD トレイ</sub>
+
+<img src="docs/images/widget.c.png" alt="1 行" width="680"><br><sub>1 行</sub>
+
+<img src="docs/images/widget.d.png" alt="ゲームパレット" width="284"><br><sub>ゲームパレット</sub>
 
 コマンドライン引数も使えます。`--stop` は実行中のオーバーレイを正常終了させ（トレイアイコンも
 片付けます）、`--widget-port` などは設定より優先されます。
