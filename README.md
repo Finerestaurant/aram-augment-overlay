@@ -62,7 +62,7 @@ It focuses on:
 
 The window speaks Korean, English, Japanese or Chinese — it follows your Windows language and can be
 changed under Settings → Interface. The detection thresholds, though, were measured against the
-Korean client; see [Limits](#limits).
+Korean and English clients; see [Limits](#limits).
 
 ## Download
 
@@ -208,9 +208,9 @@ data behind them are written up in [`docs/FINDINGS.md`](docs/FINDINGS.md) (Korea
 - The rarity and selection thresholds come from measurements on real games and gameplay footage.
   The silver sample is still small, so silver may be less reliable.
 - Works only in ARAM Mayhem (`gameMode: KIWI`).
-- **The thresholds were all measured against the Korean client.** Other client languages can be
-  selected in the settings and English reads cleanly in testing, but no language other than Korean
-  has been verified over a run of games.
+- **The thresholds were measured against the Korean and English clients, and both have been
+  played through.** Japanese and Chinese can be selected in the settings and use the same
+  measurements, but neither has been verified over a run of games.
 
 ## Development
 
