@@ -205,10 +205,43 @@ public static class Config
     // flare itself cannot be in it.
     public const double FlareBaselineFromS = 1.5;
     public const double FlareBaselineToS = 0.5;
-    // The flare is the last thing that happens before the window goes, so there
-    // is no reason to look far back -- and a reroll earlier in the window is
-    // bright enough that it should not be given the chance to answer.
-    public const double FlareWindowS = 1.2;
+    // How far BEFORE the anchor -- the last frame the reroll gate could still
+    // see cards -- a frame may sit and still be read as the selection.
+    //
+    // The anchor is what makes this small. Taking a card wipes the UI, so the
+    // flare straddles the anchor by construction: its first frame or two may
+    // still score as cards-up, everything after is cards-down. A candidate with
+    // the cards still up well after it is therefore not a selection at all --
+    // whatever lit that card, the screen carried on.
+    //
+    // This was 1.2 s, which is fourteen times the length of the event, and the
+    // surplus is where a reroll answers. Two windows on 2026-09-10, both with
+    // all three cards rerolled:
+    //
+    //   17:48 lv11  flare R 4.50x/4.81x, 0.82 s before the close; tooltip and
+    //               hover both said M, and M (신비한 주먹) was what was taken.
+    //               R was the card the player had just rerolled.
+    //   19:16 lv15  flare M 3.58x/5.02x, 0.82 s before the close; tooltip and
+    //               hover both said R, and R (지옥의 전도체) was taken.
+    //
+    // In both, hover brightness -- which only reads frames the gate still saw
+    // cards in -- came from 0.22 s and 0.42 s AFTER the winning flare frame. The
+    // cards were up for a fifth of a second after the thing that supposedly
+    // ended the screen. Every one of the fourteen windows the flare got right
+    // that evening has the newest cards-up frame at or before its flare frame.
+    //
+    // 0.15 s covers a flare caught on its own first frame at any frame rate the
+    // loop runs at (25-70 ms), and nothing near the 0.22 s that was measured on
+    // the shortest false positive.
+    public const double FlareWindowS = 0.15;
+
+    /// <summary>
+    /// How far back the search still LOOKS, deciding nothing, so that a
+    /// candidate the anchor rule threw out lands in the log with its numbers.
+    /// The old reach, kept for exactly that: without it a wrong pick and a
+    /// window where nothing flared at all write the same line.
+    /// </summary>
+    public const double FlareWideWindowS = 1.2;
 
     // How far PAST the anchor the search may reach, and it is not the same
     // number. Reaching forward at all is not optional: the flare is what kills
@@ -312,11 +345,24 @@ public static class Config
     /// How far two derived game-start times may sit apart and still be the same
     /// game, in seconds.
     ///
-    /// The value is now minus the Live Client's gameTime, so it only drifts by
-    /// the poll interval and whatever the client rounds. Generous here costs
-    /// nothing: the next game's start differs by the length of the last one.
+    /// The value is now minus the Live Client's gameTime. That was written down
+    /// as drifting by "the poll interval and whatever the client rounds", which
+    /// is wrong: measured inside one game on 2026-09-10, the derived start moved
+    /// 61 s later over about fourteen minutes. gameTime does not advance with
+    /// the wall clock. At 60 s the restore then refused a game it was still in
+    /// the middle of -- a restart to install a build dropped three augments off
+    /// a stream mid-game, which is the failure this whole file exists to
+    /// prevent.
+    ///
+    /// Generous costs nothing and tight costs picks: the NEXT game's derived
+    /// start differs by the length of the last one plus the queue, which is ten
+    /// minutes at the very least, so five is clear of both.
+    ///
+    /// The drift is a rate mismatch, so it grows with the length of the game;
+    /// a game long enough to outrun even this wants the saved gameTime compared
+    /// against the live one instead of two derived starts.
     /// </summary>
-    public const double SameGameToleranceS = 60.0;
+    public const double SameGameToleranceS = 300.0;
 
     // --- widget ---
     public static string WidgetHost = "127.0.0.1";

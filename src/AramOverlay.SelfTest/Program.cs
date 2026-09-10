@@ -111,6 +111,7 @@ failures += await OcrParity(root);
 failures += await DetectParity(root);
 failures += await ScaleInvariance(root);
 failures += await AspectParity(root);
+failures += FlareTiming();
 
 Console.WriteLine(failures == 0 ? "\n전부 통과" : $"\n{failures}개 실패");
 return failures == 0 ? 0 : 1;
@@ -251,21 +252,20 @@ static async Task<int> Replay(string folder, double fps)
     for (int i = history.Count - 1; i >= 0; i--)
         if (history[i].Alive) { closedAt = history[i].At; break; }
 
-    var (flareSlot, flareAt, flareRatio, flareRise) = OverlayLoop.SelectionFlare(history, closedAt);
+    var (flare, flareRejected) = OverlayLoop.SelectionFlare(history, closedAt);
     var (glowSlot, _, glowVia) = OverlayLoop.HoverGlowSlot(history, closedAt);
 
     var why = new List<string>
     {
         $"frames      {files.Length} at {fps} fps",
         $"close taken at frame {(int)Math.Round((closedAt - start).TotalSeconds * fps)}",
-        flareSlot is null
-            ? "flare       none"
-            : $"flare       {flareSlot}  inner {flareRatio:F2}x the next card, " +
-              $"{flareRise:F2}x its own baseline, " +
-              $"{(closedAt - flareAt).TotalSeconds:F2}s before the close",
+        flare.Found ? "flare       " + flare.Describe(closedAt) : "flare       none",
+        flareRejected.Found
+            ? "flare xx    " + flareRejected.Describe(closedAt) + "  -> not a selection"
+            : "flare xx    nothing thrown out",
         glowSlot is null ? "hover glow  none" : $"hover glow  {glowSlot}  {glowVia}",
         "tooltip     not available in a replay (no OCR probe ran)",
-        flareSlot is not null ? $"would take  {flareSlot} on the flare"
+        flare.Found ? $"would take  {flare.Slot} on the flare"
             : glowSlot is not null ? $"would take  {glowSlot} on hover brightness"
             : "would take  nothing",
     };
@@ -1197,6 +1197,82 @@ static async Task<int> ObsRequest(string[] argv)
         Console.WriteLine($"실패: {exc.Message}");
         return 1;
     }
+}
+
+// Taking a card wipes the screen, so nothing that leaves the cards standing can
+// be the selection. Three windows on 2026-09-10 published the wrong augment off
+// a reroll's flash -- see Config.FlareWindowS -- and the shape of that mistake
+// is what this pins: a card lighting up while the cards go on standing.
+//
+// Written as histories rather than frames because the fault is in the timing,
+// not in any pixel: a reroll's flash and a selection's are the same brightness
+// on one frame, and what separates them is what the gate says afterwards.
+static int FlareTiming()
+{
+    var start = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    const double Fps = 40.0;              // what the loop actually runs at here
+    const int Frames = 120;               // three seconds
+    const int LastCardsUp = 100;          // the anchor
+
+    static Beat Frame(DateTime at, double l, double m, double r, bool cardsUp) => new(
+        at,
+        new Dictionary<string, Detect.CardStat>
+        {
+            ["L"] = new(l, l, 0), ["M"] = new(m, m, 0), ["R"] = new(r, r, 0),
+        },
+        true, cardsUp);
+
+    // Cards sitting at 20, one of them blazing at 100 over the given frames.
+    List<Beat> Window(int flashFrom, int flashTo)
+    {
+        var beats = new List<Beat>();
+        for (int i = 0; i < Frames; i++)
+        {
+            bool lit = i >= flashFrom && i <= flashTo;
+            beats.Add(Frame(start.AddSeconds(i / Fps), 20, 20, lit ? 100 : 20,
+                            i <= LastCardsUp));
+        }
+        return beats;
+    }
+    DateTime CloseOf(List<Beat> h) => h[^1].At;
+
+    int bad = 0;
+    void Check(string what, bool ok, string got)
+    {
+        if (ok)
+            return;
+        Console.WriteLine($"      {what}: {got}");
+        bad++;
+    }
+
+    // A reroll: R flashes 0.3 s before the cards go, and the screen carries on.
+    var reroll = Window(86, 89);
+    var (rerollTaken, rerollThrown) = OverlayLoop.SelectionFlare(reroll, CloseOf(reroll));
+    Check("리롤 섬광을 선택으로 읽음", !rerollTaken.Found, $"{rerollTaken.Slot} 로 판정");
+    Check("버려진 후보를 기록하지 않음", rerollThrown.Slot == "R", $"{rerollThrown.Slot}");
+    Check("버려진 후보의 카드 유지 시간이 0", rerollThrown.CardsUpAfterS > 0.2,
+          $"{rerollThrown.CardsUpAfterS:F2}s");
+
+    // A selection: R flashes across the last frame the gate saw cards.
+    var pick = Window(98, 101);
+    var (pickTaken, pickThrown) = OverlayLoop.SelectionFlare(pick, CloseOf(pick));
+    Check("실제 선택 섬광을 놓침", pickTaken.Slot == "R", $"{pickTaken.Slot ?? "없음"}");
+    Check("실제 선택인데 카드가 남아 있다고 함", pickTaken.CardsUpAfterS < 0.05,
+          $"{pickTaken.CardsUpAfterS:F2}s");
+    Check("실제 선택인데 후보를 버림", !pickThrown.Found, $"{pickThrown.Slot}");
+    Check("실제 선택의 상승비가 낮음", pickTaken.Rise >= Config.FlareRise,
+          $"{pickTaken.Rise:F2}x");
+
+    // Nothing lights up at all.
+    var quiet = Window(-1, -1);
+    var (quietTaken, quietThrown) = OverlayLoop.SelectionFlare(quiet, CloseOf(quiet));
+    Check("조용한 창에서 섬광을 만들어냄", !quietTaken.Found && !quietThrown.Found,
+          $"{quietTaken.Slot}/{quietThrown.Slot}");
+
+    Console.WriteLine(bad == 0
+        ? "PASS  선택 섬광 타이밍 (리롤 섬광 기각, 실제 선택 통과)"
+        : $"FAIL  선택 섬광 타이밍 {bad}건");
+    return bad == 0 ? 0 : 1;
 }
 
 static int HangulShaping()

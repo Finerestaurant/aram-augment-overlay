@@ -58,8 +58,15 @@ public sealed class Kept
 /// second, and every wrong pick traced back to a brightness reading has been a
 /// measurement of whatever the map put there afterwards.
 /// </summary>
+/// <remarks>
+/// <paramref name="Hide"/> is the hide button's template score on this frame.
+/// It is carried so the flare can be asked the one question that separates the
+/// selection animation from three patches of map: was the augment screen even
+/// there. Recorded and logged, not yet judged on.
+/// </remarks>
 public readonly record struct Beat(
-    DateTime At, Dictionary<string, Detect.CardStat> Stats, bool Alive, bool CardsUp);
+    DateTime At, Dictionary<string, Detect.CardStat> Stats, bool Alive, bool CardsUp,
+    double Hide = 0);
 
 /// <summary>Per-window record of why selection did or did not trigger.</summary>
 public sealed class Diagnostics
@@ -138,6 +145,7 @@ public sealed class OverlayLoop
         // picture at all -- the only dump was of whenever the titles last read,
         // which on a wrong pick is not the frame anyone wants to look at.
         Frame? lastAlive = null;
+        var recent = new List<(DateTime At, Frame Frame)>();
         int? seenRaw = null;
         double? currentGameId = null;
         DateTime lastProbe = DateTime.MinValue;
@@ -315,6 +323,7 @@ public sealed class OverlayLoop
                     diag = new Diagnostics();
                     history.Clear();
                     lastAlive = null;
+                    recent.Clear();
                     anvil = false;
                     seenRaw = null;
                     traceIndex = 0;
@@ -331,7 +340,7 @@ public sealed class OverlayLoop
                     Log.Write(Strings.Get("Loop.WindowClosed"));
                     Log.Write($"    {Summary(diag, win)}");
                     await OnWindowClosedAsync(win, kept, diag, anvil, level, history,
-                                             picksLock, probe, lastAlive);
+                                             picksLock, probe, lastAlive, recent);
                     win = new AugmentWindowState();
                     kept = new Kept();
                     await Task.Delay(300, token);
@@ -360,9 +369,22 @@ public sealed class OverlayLoop
             // looked like.
             bool cardsUp = scores.Min() >= Config.GateStay ||
                            scores.Count(s => s >= Config.GateStayTwo) >= 2;
-            history.Add(new Beat(frameAt, stats, weak, cardsUp));
+            history.Add(new Beat(frameAt, stats, weak, cardsUp, hideScore));
             if (weak)
                 lastAlive = frame;
+
+            // With the log on, keep a thin strip of recent frames so the one the
+            // flare was decided from can be written out beside the verdict. The
+            // close frame alone does not answer "what was on screen when that
+            // card lit up", and that is the question three wrong picks on
+            // 2026-09-10 all turned on. Roughly ten a second, which is enough to
+            // land inside an 83 ms event, and about 25 MB held at any time.
+            if (Config.DebugMode &&
+                (recent.Count == 0 || (frameAt - recent[^1].At).TotalMilliseconds >= 100))
+                recent.Add((frameAt, frame));
+            while (recent.Count > 0 &&
+                   (frameAt - recent[0].At).TotalSeconds > Config.FlareWideWindowS + 0.5)
+                recent.RemoveAt(0);
             // Trimmed by age, not by count: the loop turns over in about 25 ms,
             // so the old cap of 45 entries held barely a second and the 2.5 s
             // lookback below could never actually reach that far back.
@@ -479,6 +501,32 @@ public sealed class OverlayLoop
     /// both: the readable one is not the deciding moment, and the deciding
     /// moment is not readable.
     /// </summary>
+    /// <summary>
+    /// The kept frame closest in time to a flare verdict, marked with the card
+    /// that verdict named. Nothing is kept unless the log is on, and the strip
+    /// only reaches back as far as the search does, so a verdict older than
+    /// that writes nothing rather than the wrong picture.
+    /// </summary>
+    private static async Task DumpNearestAsync(
+        List<(DateTime At, Frame Frame)> recent, FlareFound flare, int? level, string tag)
+    {
+        if (!Config.DebugMode || !flare.Found || recent.Count == 0)
+            return;
+        Frame? best = null;
+        double bestGap = double.MaxValue;
+        foreach (var (at, frame) in recent)
+        {
+            double gap = Math.Abs((at - flare.At).TotalSeconds);
+            if (gap >= bestGap)
+                continue;
+            bestGap = gap;
+            best = frame;
+        }
+        if (best is null || bestGap > 0.25)
+            return;
+        await DumpDecisionAsync(best, flare.Slot!, level, tag);
+    }
+
     private static async Task DumpDecisionAsync(Frame? frame, string slot, int? level, string tag)
     {
         if (!Config.DebugMode || frame is null)
@@ -746,10 +794,60 @@ public sealed class OverlayLoop
         return off <= Config.FlareWindowAfterS && off >= -Config.FlareWindowS;
     }
 
-    public static (string? Slot, DateTime At, double Ratio, double Rise) SelectionFlare(
+    /// <summary>
+    /// The same reach the search used before the anchor rule was added. Nothing
+    /// is decided from it; a candidate found only out here is written into the
+    /// log so that a wrong pick can be told apart from a signal that never
+    /// existed. See <see cref="Config.FlareWindowS"/>.
+    /// </summary>
+    private static bool InWideFlareWindow(DateTime at, DateTime anchor)
+    {
+        double off = (at - anchor).TotalSeconds;
+        return off <= Config.FlareWindowAfterS && off >= -Config.FlareWideWindowS;
+    }
+
+    /// <summary>
+    /// What the flare search found, and the numbers needed to judge it later.
+    ///
+    /// <paramref name="CardsUpAfterS"/> is how long the reroll gate went on
+    /// seeing cards after the winning frame; a selection wipes the screen, so
+    /// on a real one this is zero. <paramref name="LoserRise"/> is what the two
+    /// other cards were doing against their own earlier selves at that moment:
+    /// a real pick drags them down (FINDINGS section 6 measured 0.51-0.70 of
+    /// baseline), a reroll lights one card and leaves the others alone. That
+    /// second number is recorded and not yet judged on -- section 6's figures
+    /// are whole-card means against a shared baseline and do not transfer to
+    /// this quantity, so the threshold has to be measured on these logs first.
+    /// </summary>
+    public readonly record struct FlareFound(
+        string? Slot, DateTime At, double Ratio, double Rise,
+        double CardsUpAfterS, double[] LoserRise, double Hide)
+    {
+        public bool Found => Slot is not null;
+
+        /// <summary>One line for the log: the numbers, in the order they matter.</summary>
+        public string Describe(DateTime closedAt) =>
+            $"{Slot}  peak inner {Ratio:F2}x the next card, {Rise:F2}x its own baseline; " +
+            $"frame {(closedAt - At).TotalSeconds:F2}s before the close, cards up for " +
+            $"{CardsUpAfterS:F2}s after it; losers at " +
+            $"{string.Join("/", LoserRise.Select(r => r.ToString("F2")))}x their own; " +
+            $"hide {Hide:F2}";
+    }
+
+    private static readonly double[] NoLosers = Array.Empty<double>();
+
+    /// <summary>
+    /// The flare, and -- when the anchor rule threw one out -- what it threw out.
+    /// </summary>
+    public static (FlareFound Taken, FlareFound Rejected) SelectionFlare(
         List<Beat> history, DateTime closedAt)
     {
         DateTime anchor = CardsLastSeen(history, closedAt);
+        // Nothing found: a slot of null with the arrays real, so a caller that
+        // logs before checking Found does not fall over.
+        var none = new FlareFound(null, default, 0, 0, 0, NoLosers, 0);
+        FlareFound taken = none, rejected = none;
+
         for (int i = history.Count - 1; i >= 0; i--)
         {
             var beat = history[i];
@@ -758,8 +856,9 @@ public sealed class OverlayLoop
             // reaches both sides of the anchor rather than only backwards -- but
             // not equally far. Past the anchor there is only the length of the
             // event to cover; see Config.FlareWindowAfterS for what the surplus
-            // let through.
-            if (!InFlareWindow(beat.At, anchor))
+            // let through, and Config.FlareWindowS for what the reach backwards
+            // let through before it was cut to the length of the event.
+            if (!InWideFlareWindow(beat.At, anchor))
                 continue;
             var (slot, _, ratio) = Detect.Flare(beat.Stats);
             if (slot is null)
@@ -771,6 +870,9 @@ public sealed class OverlayLoop
             if (rise < Config.FlareRise)
                 continue;
 
+            bool inTime = InFlareWindow(beat.At, anchor);
+            if (!inTime && rejected.Found)
+                continue;                       // the newest near-miss is enough
 
             // The newest qualifying frame is what decides the slot, because a
             // reroll earlier in the window must not get to answer. But it is a
@@ -785,7 +887,7 @@ public sealed class OverlayLoop
             double peakRatio = ratio, peakRise = rise;
             foreach (var other in history)
             {
-                if (!InFlareWindow(other.At, anchor))
+                if (!InWideFlareWindow(other.At, anchor))
                     continue;
                 var (otherSlot, _, otherRatio) = Detect.Flare(other.Stats);
                 if (otherSlot != slot || otherRatio <= peakRatio)
@@ -793,9 +895,24 @@ public sealed class OverlayLoop
                 peakRatio = otherRatio;
                 peakRise = other.Stats[slot].Inner / baseline;
             }
-            return (slot, beat.At, peakRatio, peakRise);
+
+            // What the other two cards were doing against their own earlier
+            // selves on this frame. Written down, not judged on; see FlareFound.
+            var loserRise = new List<double>();
+            foreach (var (otherSlot, stat) in beat.Stats)
+            {
+                if (otherSlot == slot)
+                    continue;
+                double own = BaselineInner(history, anchor, otherSlot);
+                loserRise.Add(own > 0 ? stat.Inner / own : 0);
+            }
+            var found = new FlareFound(slot, beat.At, peakRatio, peakRise,
+                Math.Max(0, (anchor - beat.At).TotalSeconds), loserRise.ToArray(), beat.Hide);
+            if (inTime)
+                return (found, rejected);
+            rejected = found;
         }
-        return (null, default, 0, 0);
+        return (taken, rejected);
     }
 
     /// <summary>
@@ -869,7 +986,8 @@ public sealed class OverlayLoop
     /// </summary>
     private async Task OnWindowClosedAsync(
         AugmentWindowState win, Kept kept, Diagnostics diag, bool anvil, int? level,
-        List<Beat> history, object picksLock, Task? probe, Frame? lastAlive)
+        List<Beat> history, object picksLock, Task? probe, Frame? lastAlive,
+        List<(DateTime At, Frame Frame)> recent)
     {
         var why = new List<string>();
         void Note(string line)
@@ -929,7 +1047,8 @@ public sealed class OverlayLoop
         // All three signals are worked out every time, not just the one that
         // wins. A wrong pick is almost always two of them disagreeing, and that
         // cannot be seen after the fact unless the losers are written down too.
-        var (flareSlot, flareAt, flareRatio, flareRise) = SelectionFlare(history, closedAt);
+        var (flare, flareRejected) = SelectionFlare(history, closedAt);
+        string? flareSlot = flare.Slot;
         var (glowSlot, glowAt, glowVia) = HoverGlowSlot(history, closedAt);
 
         // The tooltip is exact OCR of the card under the cursor -- but only
@@ -946,10 +1065,12 @@ public sealed class OverlayLoop
             hoverSlot = null;
         }
 
-        Note(flareSlot is null
-            ? "flare      none"
-            : $"flare      {flareSlot}  peak inner {flareRatio:F2}x the next card, {flareRise:F2}x its " +
-              $"own baseline; decided off the frame {(closedAt - flareAt).TotalSeconds:F2}s before the close");
+        Note(flare.Found ? "flare      " + flare.Describe(closedAt) : "flare      none");
+        // A candidate the anchor rule threw out is the single most useful line
+        // in this log: it says a card lit up and the screen carried on, which
+        // is a reroll, and it names the card so a wrong pick can be traced.
+        if (flareRejected.Found)
+            Note("flare xx   " + flareRejected.Describe(closedAt) + "  -> not a selection");
         Note(hoverSlot is null
             ? "tooltip    none current"
             : $"tooltip    {hoverSlot}  '{kept.HoverRaw}', {hoverAge:F1}s old");
@@ -967,7 +1088,7 @@ public sealed class OverlayLoop
                     kept.HoverRaw, hoverAge.ToString("F1")));
             slot = flareSlot;
             via = Strings.Get("Loop.ViaSelectFlare",
-                flareRatio.ToString("F1"), flareRise.ToString("F1"));
+                flare.Ratio.ToString("F1"), flare.Rise.ToString("F1"));
             Note($"taken      {slot} on the flare");
         }
         else if (hoverSlot is not null)
@@ -1100,6 +1221,12 @@ public sealed class OverlayLoop
 
         await DumpDecisionAsync(kept.Frame, slot, level, "read");
         await DumpDecisionAsync(lastAlive, slot, level, "close");
+        // The frame the flare was decided from, and the one the anchor rule
+        // threw out. Without these a wrong pick can be argued about but not
+        // looked at: the close frame is up to a second later and shows only
+        // where the map had got to by then.
+        await DumpNearestAsync(recent, flare, level, "flare");
+        await DumpNearestAsync(recent, flareRejected, level, "flarexx");
 
         why.Add($"published   {aug.Name} ({aug.Rarity}) from {slot}, via {via}");
         why.Add("others      " + string.Join(", ", kept.Cards.Where(kv => kv.Key != slot)
