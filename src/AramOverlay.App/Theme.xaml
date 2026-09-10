@@ -36,6 +36,71 @@
     <SolidColorBrush x:Key="PrismSoft" Color="#29C98FD6" />
     <SolidColorBrush x:Key="Veil" Color="#B3121217" />
 
+    <!-- The widget's own palette, measured off capture frames rather than the
+         window's. The two are deliberately different: the window is a dark
+         Windows app, the widget is the game's own card art. Previews of the
+         widget have to be drawn in the widget's colours or they preview
+         something that does not exist. -->
+    <SolidColorBrush x:Key="WSilver" Color="#98A4AE" />
+    <SolidColorBrush x:Key="WGold" Color="#E3CDA7" />
+    <LinearGradientBrush x:Key="WPrism" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#F7D774" Offset="0" />
+        <GradientStop Color="#8BE9CF" Offset="0.38" />
+        <GradientStop Color="#C99AF5" Offset="0.66" />
+        <GradientStop Color="#F7A8D8" Offset="1" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="WCardBg" Color="#D6080C14" />
+    <SolidColorBrush x:Key="WTrayBg" Color="#C7080D11" />
+    <SolidColorBrush x:Key="WStripBg" Color="#B8080D11" />
+    <SolidColorBrush x:Key="WInk" Color="#F2F5F8" />
+    <SolidColorBrush x:Key="WGlyphBg" Color="#0B1216" />
+
+    <!-- A theme is a look, so it is chosen by looking. Each tile draws the
+         widget at roughly a third scale in the widget's own colours; the name
+         under it is a label, not an explanation. -->
+    <Style x:Key="ThemeTile" TargetType="RadioButton">
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Shell" Background="{StaticResource Sunken}"
+                            BorderBrush="{StaticResource Line}" BorderThickness="1"
+                            CornerRadius="6" Padding="7" SnapsToDevicePixels="True">
+                        <StackPanel>
+                            <Border Background="#0A0E13" CornerRadius="4" Height="88" Padding="7">
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  HorizontalAlignment="Center" />
+                            </Border>
+                            <TextBlock x:Name="Label" Text="{TemplateBinding Tag}"
+                                       Margin="0,7,0,0" FontSize="12"
+                                       Foreground="{StaticResource Dim}"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Shell" Property="BorderBrush"
+                                    Value="{StaticResource Faint}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Shell" Property="BorderBrush"
+                                    Value="{StaticResource Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Shell" Property="BorderBrush"
+                                    Value="{StaticResource Accent}" />
+                            <Setter TargetName="Shell" Property="Background"
+                                    Value="{StaticResource PanelHover}" />
+                            <Setter TargetName="Label" Property="Foreground"
+                                    Value="{StaticResource Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <LinearGradientBrush x:Key="AccentFill" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="#7F6DF2" Offset="0" />
         <GradientStop Color="#9B7BF5" Offset="1" />

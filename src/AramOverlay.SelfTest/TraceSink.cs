@@ -95,6 +95,7 @@ public static class Trace
     private static Channel<Item>? _queue;
     private static Task? _writer;
     private static readonly List<TraceSample> Samples = new();
+    private static readonly List<string> Notes = new();
     private static readonly object Lock = new();
     private static int _written, _dropped;
 
@@ -117,6 +118,7 @@ public static class Trace
         lock (Lock)
         {
             Samples.Clear();
+            Notes.Clear();
             _written = 0;
             _dropped = 0;
         }
@@ -145,6 +147,13 @@ public static class Trace
         }
     }
 
+    /// <summary>A moment on the window's clock, printed with the verdict.</summary>
+    public static void Note(string line)
+    {
+        lock (Lock)
+            Notes.Add(line);
+    }
+
     /// <summary>Close the trace out, writing the manifest and the verdict beside the frames.</summary>
     public static async Task FinishAsync(IReadOnlyList<string> verdict)
     {
@@ -156,10 +165,12 @@ public static class Trace
             await Task.WhenAny(_writer, Task.Delay(TimeSpan.FromSeconds(20)));
 
         TraceSample[] samples;
+        string[] notes;
         int written, dropped;
         lock (Lock)
         {
             samples = Samples.ToArray();
+            notes = Notes.ToArray();
             written = _written;
             dropped = _dropped;
         }
@@ -172,6 +183,13 @@ public static class Trace
         text.AppendLine("--- verdict, in the order it was decided ---");
         foreach (string line in verdict)
             text.AppendLine(line);
+        if (notes.Length > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("--- moments, on the window's own clock ---");
+            foreach (string line in notes.OrderBy(l => l))
+                text.AppendLine(line);
+        }
         text.AppendLine();
         text.AppendLine("--- per frame ---");
         text.AppendLine("  idx      t  gate1 gate2 gate3  hide  alive cards  " +
@@ -349,4 +367,12 @@ public sealed class TraceSink : ILoopObserver
     public void Frame(Frame frame, TraceSample sample) => Trace.Add(frame, sample);
     public Task FinishAsync(IReadOnlyList<string> verdict) => Trace.FinishAsync(verdict);
     public void EndWindow() => Trace.End();
+
+    /// <summary>
+    /// The trace writes its verdict as prose at the close and has no timeline to
+    /// place a moment on, so a mark becomes one more line in it -- with its time,
+    /// which is the part that makes it worth writing down at all.
+    /// </summary>
+    public void Mark(double t, string kind, string text) =>
+        Trace.Note($"{t,7:F2}s  {kind,-8} {text}");
 }

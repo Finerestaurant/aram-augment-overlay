@@ -233,6 +233,13 @@ public static class Config
     // 0.15 s covers a flare caught on its own first frame at any frame rate the
     // loop runs at (25-70 ms), and nothing near the 0.22 s that was measured on
     // the shortest false positive.
+    //
+    // Since the cards-down rule came in this reach decides almost nothing. The
+    // anchor is the last frame the gate saw cards, a selection wipes them for
+    // good, and the flare's own frames are cards-down -- so a real flare is
+    // always AFTER the anchor. What is left back here is gate flicker: a frame
+    // that scored cards-down before the cards actually went. Keeping the reach
+    // short means such a frame cannot answer either.
     public const double FlareWindowS = 0.15;
 
     /// <summary>
@@ -243,20 +250,36 @@ public static class Config
     /// </summary>
     public const double FlareWideWindowS = 1.2;
 
-    // How far PAST the anchor the search may reach, and it is not the same
-    // number. Reaching forward at all is not optional: the flare is what kills
-    // the reroll gate, so its own frames score as cards-down and land on the far
-    // side of the anchor by construction (the 60 fps capture has the gate going
-    // 0.83/0.81/0.80 -> -0.12/0.12/0.10 across it). But the whole event is five
-    // frames, about 83 ms, and 1.2 s forward is fourteen times longer than the
-    // thing being looked for. That surplus is where a level 11 window went
-    // wrong: 0.36 s after the cards had gone, the left card's box sat over a lit
-    // champion on open map and the other two over dark terrain, which cleared
-    // both axes -- 3.21x the next box, 3.93x a baseline taken from dark card
-    // interiors -- and outvoted a tooltip and a hover that both named the right
-    // card. Nothing about that frame is a selection; it is three patches of map.
-    // 0.2 s covers the event plus frame jitter and leaves no such surplus.
-    public const double FlareWindowAfterS = 0.05;
+    // How far PAST the anchor the search may reach, and since the cards-down
+    // rule came in this is the only reach that decides anything.
+    //
+    // Reaching forward was never optional: the flare is what kills the reroll
+    // gate, so its own frames score as cards-down and land on the far side of
+    // the anchor by construction (the 60 fps capture has the gate going
+    // 0.83/0.81/0.80 -> -0.12/0.12/0.10 across it). It used to be 1.2 s, which
+    // is fourteen times the length of an 83 ms event, and that surplus is where
+    // a level 11 window went wrong: 0.36 s after the cards had gone, the left
+    // card's box sat over a lit champion on open map and the other two over dark
+    // terrain, clearing both axes -- 3.21x the next box, 3.93x a baseline taken
+    // from dark card interiors -- and outvoting a tooltip and a hover that both
+    // named the right card. Nothing about that frame is a selection; it is three
+    // patches of map. So it was cut to 0.05 s.
+    //
+    // 0.05 s was too tight once the backwards reach stopped doing the work.
+    // Measured on the window recorded at 21:25 on 2026-09-10, where a reroll
+    // flip sat on the anchor and the real selection came after it:
+    //
+    //   +0.025 s  M  ratio 4.30  rise 2.25   rise short
+    //   +0.048 s  M  ratio 3.40  rise 2.92   rise short
+    //   +0.068 s  M  ratio 3.47  rise 4.11   both pass  <- first frame that does
+    //   +0.137 s  M  ratio 3.22  rise 5.51   still climbing
+    //
+    // The flare needs about 70 ms to clear the rise test, because the rise is
+    // measured against a baseline the card has only just left. 0.15 s covers
+    // that with room and stays well under the 0.36 s where the map answered --
+    // and the map frame is cards-down too, so the cards-down rule does not
+    // protect against it. This number does.
+    public const double FlareWindowAfterS = 0.15;
 
     // A loser-collapse test was tried here and taken out again, which is worth
     // writing down because it looks obviously right. Section 6 measured the
@@ -289,6 +312,14 @@ public static class Config
     // resting on a card produces a reading well inside this; anything older is a
     // card the player has since moved off.
     public const double HoverTrustS = 1.5;
+
+    /// <summary>
+    /// How often the tooltip scan may run. A full-resolution screenshot costs
+    /// about 250 ms on its own request, so this paces how hard OBS is hit rather
+    /// than the detection loop. It is also how stale the panel box beside a
+    /// detection frame can be, which is why anything drawing that box needs it.
+    /// </summary>
+    public const double TooltipProbeS = 0.35;
 
     // The augment screen can be tucked away with a button under the cards; the
     // window is over only when this goes too.
@@ -370,8 +401,45 @@ public static class Config
     /// <summary>Set from settings. Turns on the decision frame dumps.</summary>
     public static bool DebugMode;
 
+    // --- inspector --------------------------------------------------------
+    /// <summary>
+    /// Set from settings. Records every frame of every augment window, with the
+    /// measurements each verdict was taken from, and serves them back on the
+    /// widget's own port.
+    ///
+    /// Off by default and deliberately so: a window costs 15-25 MB. It exists
+    /// because three wrong picks in one evening could be argued about from the
+    /// log and not looked at -- the close dump is up to a second late and the
+    /// frame that decided was already gone.
+    /// </summary>
+    public static bool InspectorOn;
+
+    /// <summary>How many recorded windows to keep before the oldest is deleted.</summary>
+    public static int InspectorKeep = 8;
+
+    /// <summary>
+    /// A hard stop on one recording, in frames. A window normally runs 120-510
+    /// frames; a gate stuck open must not fill the disk while nobody is looking.
+    /// </summary>
+    public const int InspectorMaxFrames = 1600;
+
     public static int WidgetRows = 4;
     public static int WidgetMaxW = 420;
+
+    /// <summary>
+    /// Which of the widget's three looks the stream shows: "b" the HUD tray,
+    /// "c" the single strip, "d" the game palette on today's layout.
+    ///
+    /// Served with the state rather than baked into the page, so choosing one
+    /// takes effect within a poll instead of needing the browser source
+    /// reloaded. The three are not variations on one idea -- b grows sideways,
+    /// c takes almost no room and cannot show a level, d reads at a glance --
+    /// so which is right is the layout's question, not ours.
+    /// </summary>
+    public static string WidgetTheme = "d";
+
+    /// <summary>The themes the widget page knows how to draw.</summary>
+    public static readonly string[] WidgetThemes = { "b", "c", "d" };
 
     /// <summary>
     /// The folder CommunityDragon keeps this language in.
@@ -383,8 +451,12 @@ public static class Config
     /// </summary>
     public static string CDragonLocale => Locale == "en_us" ? "default" : Locale;
 
-    public static string CDragonUrl =>
-        $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{CDragonLocale}/v1/cherry-augments.json";
+    public static string CDragonUrl => AugmentsUrlFor(Locale);
+
+    /// <summary>The augment list for a named locale, not necessarily the game's.</summary>
+    public static string AugmentsUrlFor(string locale) =>
+        "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/" +
+        (locale == "en_us" ? "default" : locale) + "/v1/cherry-augments.json";
     public static string CDragonItemsUrl =>
         $"https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/{CDragonLocale}/v1/items.json";
     /// <summary>
@@ -407,4 +479,7 @@ public static class Config
 
     public static string Data => Path.Combine(Root, "data");
     public static string State => Path.Combine(Root, "state");
+
+    /// <summary>Where recorded windows live, one folder per window.</summary>
+    public static string Inspect => Path.Combine(State, "inspect");
 }

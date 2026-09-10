@@ -167,12 +167,8 @@
                                                            Foreground="{StaticResource Text}"
                                                            FontSize="13.5" FontWeight="SemiBold"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                    <TextBlock Text="{Binding Rarity}" FontSize="11.5"
-                                                               Foreground="{Binding RarityBrush}" />
-                                                    <TextBlock Text="{Binding Detail}" FontSize="11.5"
-                                                               Foreground="{StaticResource Faint}" />
-                                                </StackPanel>
+                                                <TextBlock Text="{Binding Rarity}" FontSize="11.5" Margin="0,2,0,0"
+                                                           Foreground="{Binding RarityBrush}" />
                                             </StackPanel>
                                             <Border Grid.Column="3" Background="{StaticResource Row}"
                                                     CornerRadius="4" Padding="7,2" Margin="12,0,0,0"
@@ -324,6 +320,154 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <Border Style="{StaticResource CardRowFirst}">
+                            <StackPanel>
+                                <TextBlock Text="{app:Loc Settings.WidgetTheme}" Style="{StaticResource RowTitle}"
+                                           Margin="0,0,0,10" />
+                                <!-- Real augments, fetched from the same list the widget draws
+                                     from, masked and tinted the same way. A preview filled with
+                                     coloured squares previews nothing that will ever be on screen.
+                                     Names come from the game language, because that is the language
+                                     the widget prints them in. -->
+                                <UniformGrid Columns="3">
+                                    <!-- b · HUD tray: square glyphs in a rarity frame, name under
+                                         each, growing sideways. -->
+                                    <RadioButton x:Name="ThemeTrayButton" GroupName="WidgetTheme"
+                                                 Style="{StaticResource ThemeTile}"
+                                                 Tag="{app:Loc Theme.HudTray}" Checked="OnWidgetThemeChosen">
+                                        <Border Background="{StaticResource WTrayBg}" CornerRadius="3"
+                                                BorderBrush="#47E3CDA7" BorderThickness="1" Padding="6,5">
+                                            <StackPanel Orientation="Horizontal">
+                                                <StackPanel Width="50" Margin="0,0,5,0">
+                                                    <Border Width="28" Height="28" CornerRadius="2" HorizontalAlignment="Center"
+                                                            Background="{StaticResource WGlyphBg}"
+                                                            BorderBrush="{StaticResource WGold}" BorderThickness="1">
+                                                        <Border Margin="4" Background="{StaticResource WGold}">
+                                                            <Border.OpacityMask>
+                                                                <ImageBrush x:Name="TrayGlyphGold" Stretch="Uniform" />
+                                                            </Border.OpacityMask>
+                                                        </Border>
+                                                    </Border>
+                                                    <TextBlock x:Name="TrayNameGold" Text="{app:Loc Rarity.gold}"
+                                                               FontSize="8" Foreground="#EDE7D8" TextAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Width="50" Margin="0,0,5,0">
+                                                    <Border Width="28" Height="28" CornerRadius="2" HorizontalAlignment="Center"
+                                                            Background="{StaticResource WGlyphBg}"
+                                                            BorderBrush="{StaticResource WSilver}" BorderThickness="1">
+                                                        <Border Margin="4" Background="{StaticResource WSilver}">
+                                                            <Border.OpacityMask>
+                                                                <ImageBrush x:Name="TrayGlyphSilver" Stretch="Uniform" />
+                                                            </Border.OpacityMask>
+                                                        </Border>
+                                                    </Border>
+                                                    <TextBlock x:Name="TrayNameSilver" Text="{app:Loc Rarity.silver}"
+                                                               FontSize="8" Foreground="#EDE7D8" TextAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Width="50">
+                                                    <Border Width="28" Height="28" CornerRadius="2" HorizontalAlignment="Center"
+                                                            Background="{StaticResource WGlyphBg}"
+                                                            BorderBrush="{StaticResource WPrism}" BorderThickness="1">
+                                                        <Border Margin="4" Background="{StaticResource WPrism}">
+                                                            <Border.OpacityMask>
+                                                                <ImageBrush x:Name="TrayGlyphPrism" Stretch="Uniform" />
+                                                            </Border.OpacityMask>
+                                                        </Border>
+                                                    </Border>
+                                                    <TextBlock x:Name="TrayNamePrism" Text="{app:Loc Rarity.prismatic}"
+                                                               FontSize="8" Foreground="#EDE7D8" TextAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </RadioButton>
+
+                                    <!-- c · one strip: a single glass pill, rarity as a dot, no level. -->
+                                    <RadioButton x:Name="ThemeStripButton" GroupName="WidgetTheme"
+                                                 Style="{StaticResource ThemeTile}"
+                                                 Tag="{app:Loc Theme.Strip}" Checked="OnWidgetThemeChosen">
+                                        <Border Background="{StaticResource WStripBg}" CornerRadius="11" Height="22"
+                                                BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="5,0"
+                                                VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Width="13" Height="13" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                        Background="{StaticResource WGold}">
+                                                    <Border.OpacityMask>
+                                                        <ImageBrush x:Name="StripGlyphGold" Stretch="Uniform" />
+                                                    </Border.OpacityMask>
+                                                </Border>
+                                                <TextBlock x:Name="StripNameGold" Text="{app:Loc Rarity.gold}"
+                                                           FontSize="9" Foreground="#F1EEE6" VerticalAlignment="Center" />
+                                                <Ellipse Width="4" Height="4" Fill="{StaticResource WGold}"
+                                                         VerticalAlignment="Center" Margin="5,0,7,0" />
+                                                <Border Width="13" Height="13" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                        Background="{StaticResource WPrism}">
+                                                    <Border.OpacityMask>
+                                                        <ImageBrush x:Name="StripGlyphPrism" Stretch="Uniform" />
+                                                    </Border.OpacityMask>
+                                                </Border>
+                                                <TextBlock x:Name="StripNamePrism" Text="{app:Loc Rarity.prismatic}"
+                                                           FontSize="9" Foreground="#F1EEE6" VerticalAlignment="Center" />
+                                                <Ellipse Width="4" Height="4" Fill="{StaticResource WPrism}"
+                                                         VerticalAlignment="Center" Margin="5,0,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </RadioButton>
+
+                                    <!-- d · game palette: today's rows, with the measured colours. -->
+                                    <RadioButton x:Name="ThemePaletteButton" GroupName="WidgetTheme"
+                                                 Style="{StaticResource ThemeTile}"
+                                                 Tag="{app:Loc Theme.Palette}" Checked="OnWidgetThemeChosen">
+                                        <StackPanel VerticalAlignment="Center">
+                                            <Border Background="{StaticResource WCardBg}" CornerRadius="3"
+                                                    Padding="4,3" Margin="0,0,5,0">
+                                                <DockPanel>
+                                                    <Rectangle DockPanel.Dock="Left" Width="3" Margin="0,0,5,0"
+                                                               Fill="{StaticResource WGold}" RadiusX="1.5" RadiusY="1.5" />
+                                                    <Border DockPanel.Dock="Left" Width="19" Height="19" Margin="0,0,6,0"
+                                                            Background="{StaticResource WGold}">
+                                                        <Border.OpacityMask>
+                                                            <ImageBrush x:Name="PaletteGlyphGold" Stretch="Uniform" />
+                                                        </Border.OpacityMask>
+                                                    </Border>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock x:Name="PaletteNameGold" Text="{app:Loc Rarity.gold}"
+                                                                   FontSize="10" FontWeight="SemiBold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{StaticResource WInk}" />
+                                                        <TextBlock Text="{app:Loc Theme.SampleLevelA}" FontSize="7.5"
+                                                                   Foreground="{StaticResource WGold}" />
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                            <Border Background="{StaticResource WCardBg}" CornerRadius="3"
+                                                    Padding="4,3" Margin="0,5,5,0">
+                                                <DockPanel>
+                                                    <Rectangle DockPanel.Dock="Left" Width="3" Margin="0,0,5,0"
+                                                               Fill="{StaticResource WPrism}" RadiusX="1.5" RadiusY="1.5" />
+                                                    <Border DockPanel.Dock="Left" Width="19" Height="19" Margin="0,0,6,0"
+                                                            Background="{StaticResource WPrism}">
+                                                        <Border.OpacityMask>
+                                                            <ImageBrush x:Name="PaletteGlyphPrism" Stretch="Uniform" />
+                                                        </Border.OpacityMask>
+                                                    </Border>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock x:Name="PaletteNamePrism" Text="{app:Loc Rarity.prismatic}"
+                                                                   FontSize="10" FontWeight="SemiBold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{StaticResource WInk}" />
+                                                        <TextBlock Text="{app:Loc Theme.SampleLevelB}" FontSize="7.5"
+                                                                   Foreground="#C99AF5" />
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </RadioButton>
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
                             <DockPanel>
                                 <TextBox x:Name="WidgetPortBox" DockPanel.Dock="Right" Style="{StaticResource NumField}"
                                          TextChanged="OnSettingChanged" />
@@ -352,16 +496,34 @@
 
                 <TextBlock Text="{app:Loc Settings.Advanced}" Style="{StaticResource GroupTitle}" />
                 <Border Style="{StaticResource Card}" Margin="0">
-                    <Border Style="{StaticResource CardRowFirst}">
-                        <DockPanel>
-                            <CheckBox x:Name="DebugModeSwitch" DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                      VerticalAlignment="Top" Margin="0,4,0,0" Click="OnDebugModeToggled" />
-                            <StackPanel Margin="0,0,14,0">
-                                <TextBlock Text="{app:Loc Settings.DebugMode}" Style="{StaticResource RowTitle}" />
-                                <TextBlock Text="{app:Loc Hint.DebugMode}" Style="{StaticResource RowDesc}" />
-                            </StackPanel>
-                        </DockPanel>
-                    </Border>
+                    <StackPanel>
+                        <Border Style="{StaticResource CardRowFirst}">
+                            <DockPanel>
+                                <CheckBox x:Name="DebugModeSwitch" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          VerticalAlignment="Top" Margin="0,4,0,0" Click="OnDebugModeToggled" />
+                                <StackPanel Margin="0,0,14,0">
+                                    <TextBlock Text="{app:Loc Settings.DebugMode}" Style="{StaticResource RowTitle}" />
+                                    <TextBlock Text="{app:Loc Hint.DebugMode}" Style="{StaticResource RowDesc}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                            VerticalAlignment="Top" Margin="0,2,0,0">
+                                    <Button x:Name="OpenInspectorButton" Style="{StaticResource GhostButton}"
+                                            Content="{app:Loc Settings.OpenInspector}" Margin="0,0,10,0"
+                                            Click="OnOpenInspector" />
+                                    <CheckBox x:Name="InspectorSwitch" Style="{StaticResource Switch}"
+                                              VerticalAlignment="Top" Margin="0,2,0,0" Click="OnInspectorToggled" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,14,0">
+                                    <TextBlock Text="{app:Loc Settings.Inspector}" Style="{StaticResource RowTitle}" />
+                                    <TextBlock x:Name="InspectorHint" Style="{StaticResource RowDesc}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
                 </Border>
             </StackPanel>
         </ScrollViewer>

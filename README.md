@@ -114,7 +114,7 @@ The status tab shows the connection and what has been taken so far; the settings
 
 | Status | Settings |
 |---|---|
-| ![Status tab](docs/images/app-status.png) | ![Settings tab](docs/images/app-settings.png) |
+| ![Status tab](docs/images/app-status.en.png) | ![Settings tab](docs/images/app-settings.en.png) |
 
 ## Settings tab
 
@@ -127,6 +127,7 @@ is why a restart is needed.
 | Game language | The language your League client is in. Augment names are fetched in it and the screen is read with it. If the matching OCR pack is missing, the app can install it. It starts from what the League install says it is set to, and only falls back to the Windows display language |
 | Game resolution | Fallback size for reading text when OBS cannot report the game's own size. Card positions follow the frame on their own at any resolution |
 | OBS | websocket port · game capture source name · password (blank reads it from the OBS config) |
+| Widget theme | HUD tray (grows sideways) · one strip (smallest) · game palette (vertical). Changes on air at once, with no browser-source refresh |
 | Overlay | widget port · rows shown · maximum width |
 
 Command-line flags work too. `--stop` shuts a running overlay down cleanly (tray icon included),
@@ -157,6 +158,18 @@ is offered after OBS was closed abnormally.
 - If the status line says **OBS has no game picture**, the game capture source is not on the game
   window. The tool re-points it once by itself; if that does not take, pick
   “League of Legends (TM) Client” in the source's window list
+
+**The wrong augment was published**
+
+Turn on **Record how each pick was decided** (Settings › Advanced) and play. Every augment window
+is then kept from the moment it opens until it closes, and `http://127.0.0.1:8777/inspect` plays it
+back frame by frame with every box the detector reads from drawn on the picture and every number it
+judged against beside it — gate scores, card brightness, the two flare tests against their cutoffs,
+the tooltip panel, and a timeline with the rerolls and the frame each verdict came off. Arrow keys
+step one frame; hold shift for ten.
+
+It is off by default because a window costs 15–25 MB. The last eight are kept, in
+`state/inspect`, and the oldest is deleted as new ones arrive.
 
 ## How it works
 

@@ -48,12 +48,22 @@ public sealed class AugmentDb
         }).ToArray();
     }
 
-    public static async Task<AugmentDb> LoadAsync(bool refresh = false, int maxAgeDays = 7)
+    /// <summary>
+    /// The augment list, in the game's language or in one asked for.
+    ///
+    /// <paramref name="locale"/> exists for the settings window, which shows
+    /// sample augments in the language the window is speaking rather than the
+    /// one the client is in. Everything else leaves it null and gets the game's.
+    /// </summary>
+    public static async Task<AugmentDb> LoadAsync(bool refresh = false, int maxAgeDays = 7,
+                                                  string? locale = null)
     {
+        locale ??= Config.Locale;
         // One cache per language, or switching languages reads back the previous
         // language's names for a week.
-        string cache = Path.Combine(Config.Data, $"augments_{Config.Locale}.json");
-        string json = await CDragon.FetchAsync(Config.CDragonUrl, cache, refresh, maxAgeDays);
+        string cache = Path.Combine(Config.Data, $"augments_{locale}.json");
+        string json = await CDragon.FetchAsync(Config.AugmentsUrlFor(locale), cache,
+                                               refresh, maxAgeDays);
 
         var augments = new List<Augment>();
         using var doc = JsonDocument.Parse(json);

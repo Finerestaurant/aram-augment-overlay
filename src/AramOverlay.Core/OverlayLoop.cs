@@ -20,7 +20,13 @@ public sealed class CardReading
 public sealed class Kept
 {
     public Dictionary<string, CardReading> Cards = new();
-    public List<(string Slot, string? Was, string? Now)> Rerolls = new();
+    /// <summary>
+    /// Every card whose title changed while the window was open, with when it
+    /// changed. The time is what puts a reroll next to a flare on a timeline,
+    /// which is the whole question behind three wrong picks: was that flash a
+    /// card being taken, or the card that had just been rerolled arriving?
+    /// </summary>
+    public List<(string Slot, string? Was, string? Now, DateTime At)> Rerolls = new();
     public Frame? Frame;
     public Frame? Last;
     public DateTime At;
@@ -35,6 +41,20 @@ public sealed class Kept
     public List<(string Raw, string Name, double Score)> TipMisses = new();
     /// <summary>What the panel finder made of the newest scanned frame.</summary>
     public string TipPanel = "";
+
+    /// <summary>The same finding as numbers, for anything that has to draw it.</summary>
+    public Detect.TooltipPanel? TipPanelBox;
+
+    /// <summary>
+    /// When the frame it was found on was grabbed.
+    ///
+    /// The panel is found on the OCR grab, which is a different frame from the
+    /// one detection is looking at and arrives about three times a second. So
+    /// this box never belongs to the frame beside it, and anything drawing it
+    /// has to say how old it is -- the inspector drew it as though it were
+    /// current and put a tooltip on a frame that plainly had none.
+    /// </summary>
+    public DateTime TipPanelAt;
 
     // The augment the tooltip named, kept whether or not it matched a card
     // title. Hover above only records it when it agrees with one of the three
@@ -92,9 +112,8 @@ public sealed class Diagnostics
 /// </summary>
 public sealed class OverlayLoop
 {
-    // A full-resolution screenshot costs ~250 ms and runs on its own request, so
-    // this pacing bounds how hard OBS is hit, not the detection loop.
-    private static readonly TimeSpan TooltipProbe = TimeSpan.FromSeconds(0.35);
+    private static readonly TimeSpan TooltipProbe =
+        TimeSpan.FromSeconds(Config.TooltipProbeS);
 
     private readonly AugmentDb _db;
     private readonly ItemNames _items;
@@ -432,6 +451,15 @@ public sealed class OverlayLoop
                     // at the close; trace.txt carries that verdict.
                     Flare = $"{ftop} {fratio:F2}X{(fslot is null ? "" : " HIT")}",
                     Titles = kept.Cards.ToDictionary(kv => kv.Key, kv => kv.Value.Name ?? ""),
+                    // The rise test's denominator and the hover test's own
+                    // quantity. trace.txt never needed either because it writes
+                    // the verdict that already used them; the inspector runs
+                    // both tests again, frame by frame, and cannot without.
+                    Baseline = win.Baseline,
+                    HoverSpread = means.Count == 0 ? 0 : means.Values.Max() - means.Values.Min(),
+                    TipPanel = kept.TipPanelBox,
+                    TipPanelAge = kept.TipPanelAt == default
+                        ? 0 : (frameAt - kept.TipPanelAt).TotalSeconds,
                 });
             }
 
@@ -591,6 +619,48 @@ public sealed class OverlayLoop
 
     private static double Now() => DateTime.UtcNow.Ticks / (double)TimeSpan.TicksPerSecond;
 
+    /// <summary>
+    /// Put the window's moments on the same clock the recorded frames use, so a
+    /// picture can be lined up against them.
+    ///
+    /// Nothing here is derivable from the per-frame numbers. A reroll is a title
+    /// changing between two OCR scans; which candidate the flare search took --
+    /// and which one the anchor rule threw out -- is the search's answer rather
+    /// than the data's; and the anchor itself is the last frame the reroll gate
+    /// still saw cards, which is not the close and not the flare.
+    /// </summary>
+    private static void MarkWindow(
+        AugmentWindowState win, Kept kept, List<Beat> history,
+        FlareFound flare, FlareFound rejected, DateTime closedAt,
+        string slot, string name, string via)
+    {
+        if (!Observe.Active)
+            return;
+        double At(DateTime dt) => dt.Ticks / (double)TimeSpan.TicksPerSecond - win.OpenedAt;
+
+        foreach (var (rslot, was, now, at) in kept.Rerolls)
+            Observe.Mark(At(at), "reroll", $"{rslot}  {was} -> {now}");
+
+        for (int i = history.Count - 1; i >= 0; i--)
+            if (history[i].CardsUp)
+            {
+                Observe.Mark(At(history[i].At), "anchor",
+                    "last frame the reroll gate still saw cards");
+                break;
+            }
+
+        if (rejected.Found)
+            Observe.Mark(At(rejected.At), "flarexx",
+                rejected.Describe(closedAt) + "  -> not a selection");
+        if (flare.Found)
+            Observe.Mark(At(flare.At), "flare", flare.Describe(closedAt));
+        if (kept.Hover is not null && kept.HoverAt != default)
+            Observe.Mark(At(kept.HoverAt), "tooltip", $"{kept.Hover}  '{kept.HoverRaw}'");
+
+        Observe.Mark(At(closedAt), "close", "last frame the window was alive");
+        Observe.Mark(At(closedAt), "verdict", $"{name}  from {slot}, via {via}");
+    }
+
     private static string Summary(Diagnostics d, AugmentWindowState win) =>
         Strings.Get("Loop.Summary", d.Frames, d.Settled, d.GateMin.ToString("F2"),
             d.HideMax.ToString("F2"), d.Peak.ToString("F2"), win.Baseline.ToString("F1"));
@@ -655,7 +725,7 @@ public sealed class OverlayLoop
                 continue;
             readNow++;
             if (kept.Cards.TryGetValue(slot, out var was) && was.Name != got.Name)
-                kept.Rerolls.Add((slot, was.Name, got.Name));
+                kept.Rerolls.Add((slot, was.Name, got.Name, DateTime.UtcNow));
             kept.Cards[slot] = got;
             kept.Frame = shot;
             kept.At = DateTime.UtcNow;
@@ -679,6 +749,8 @@ public sealed class OverlayLoop
         // was sitting on top of, and published DropBear over Dropkick.
         var panel = Detect.FindTooltip(Cv.ToGray(shot));
         var tipBox = panel?.Title ?? Config.HoverTooltip;
+        kept.TipPanelBox = panel;
+        kept.TipPanelAt = shotAt;
         kept.TipPanel = panel is { } p
             ? $"{(p.Flipped ? "flipped" : "below")} top={p.Top} x={p.X0}~{p.X1}"
             : "not found, using the fixed box";
@@ -821,17 +893,20 @@ public sealed class OverlayLoop
     /// </summary>
     public readonly record struct FlareFound(
         string? Slot, DateTime At, double Ratio, double Rise,
-        double CardsUpAfterS, double[] LoserRise, double Hide)
+        double CardsUpAfterS, double[] LoserRise, double Hide,
+        bool CardsUp = false, string Why = "")
     {
         public bool Found => Slot is not null;
 
         /// <summary>One line for the log: the numbers, in the order they matter.</summary>
         public string Describe(DateTime closedAt) =>
             $"{Slot}  peak inner {Ratio:F2}x the next card, {Rise:F2}x its own baseline; " +
-            $"frame {(closedAt - At).TotalSeconds:F2}s before the close, cards up for " +
+            $"frame {(closedAt - At).TotalSeconds:F2}s before the close, " +
+            $"cards {(CardsUp ? "STILL UP" : "down")} on it and up for " +
             $"{CardsUpAfterS:F2}s after it; losers at " +
             $"{string.Join("/", LoserRise.Select(r => r.ToString("F2")))}x their own; " +
-            $"hide {Hide:F2}";
+            $"hide {Hide:F2}" +
+            (Why.Length > 0 ? $"  -> {Why}" : "");
     }
 
     private static readonly double[] NoLosers = Array.Empty<double>();
@@ -870,9 +945,33 @@ public sealed class OverlayLoop
             if (rise < Config.FlareRise)
                 continue;
 
+            // Taking a card wipes the screen, so the flare's own frames are
+            // cards-down by construction -- FINDINGS section 12 measured the
+            // gate going 0.83/0.81/0.80 -> -0.12/0.12/0.10 across the very
+            // frame the flare starts on. A card blazing while the cards go on
+            // standing is therefore not a selection at all; it is a reroll
+            // flipping over, and a flip shows the golden back of a card at
+            // exactly flare brightness. Measured on the window recorded at
+            // 21:25 on 2026-09-10: the left card flipped for five frames at
+            // 4.03x the next card and 5.93x its own baseline with the gate
+            // fully alive at 0.74/0.71/0.72, the player clicked the middle one,
+            // and the flip was published.
+            //
+            // This also subsumes the rule it replaces. "Cards up after it" was
+            // only ever an indirect way of asking this question, and it could
+            // not tell the two windows of that evening apart: both reported
+            // 0.00 s, and only one of them had its cards standing on the frame
+            // that decided.
             bool inTime = InFlareWindow(beat.At, anchor);
-            if (!inTime && rejected.Found)
-                continue;                       // the newest near-miss is enough
+            string? why = beat.CardsUp ? "the cards were still standing on it"
+                        : !inTime ? "outside the window" : null;
+            // One of each is kept: the newest candidate that qualifies, and the
+            // newest that does not. The search used to stop the moment it had
+            // an answer, which meant a window where a flip and a selection both
+            // lit up wrote down only the winner -- and the flip is the thing
+            // worth seeing, because it is what the old code would have taken.
+            if (why is null ? taken.Found : rejected.Found)
+                continue;
 
             // The newest qualifying frame is what decides the slot, because a
             // reroll earlier in the window must not get to answer. But it is a
@@ -907,10 +1006,14 @@ public sealed class OverlayLoop
                 loserRise.Add(own > 0 ? stat.Inner / own : 0);
             }
             var found = new FlareFound(slot, beat.At, peakRatio, peakRise,
-                Math.Max(0, (anchor - beat.At).TotalSeconds), loserRise.ToArray(), beat.Hide);
-            if (inTime)
-                return (found, rejected);
-            rejected = found;
+                Math.Max(0, (anchor - beat.At).TotalSeconds), loserRise.ToArray(), beat.Hide,
+                beat.CardsUp, why ?? "");
+            if (why is null)
+                taken = found;
+            else
+                rejected = found;
+            if (taken.Found && rejected.Found)
+                break;
         }
         return (taken, rejected);
     }
@@ -1070,7 +1173,7 @@ public sealed class OverlayLoop
         // in this log: it says a card lit up and the screen carried on, which
         // is a reroll, and it names the card so a wrong pick can be traced.
         if (flareRejected.Found)
-            Note("flare xx   " + flareRejected.Describe(closedAt) + "  -> not a selection");
+            Note("flare xx   " + flareRejected.Describe(closedAt));
         Note(hoverSlot is null
             ? "tooltip    none current"
             : $"tooltip    {hoverSlot}  '{kept.HoverRaw}', {hoverAge:F1}s old");
@@ -1183,7 +1286,7 @@ public sealed class OverlayLoop
             return;
         }
 
-        foreach (var (slot_, was, now) in kept.Rerolls)
+        foreach (var (slot_, was, now, _) in kept.Rerolls)
             Log.Write(Strings.Get("Loop.RerollSeen", slot_, was, now));
         if (kept.TipMisses.Count > 0)
             Log.Write(Strings.Get("Loop.TooltipMisses",
@@ -1231,8 +1334,13 @@ public sealed class OverlayLoop
         why.Add($"published   {aug.Name} ({aug.Rarity}) from {slot}, via {via}");
         why.Add("others      " + string.Join(", ", kept.Cards.Where(kv => kv.Key != slot)
             .Select(kv => $"{kv.Key}={kv.Value.Name}")));
-        foreach (var (slot_, was, now) in kept.Rerolls)
+        foreach (var (slot_, was, now, _) in kept.Rerolls)
             why.Add($"reroll      {slot_} {was} -> {now}");
+
+        // The same window on a timeline. Everything above is prose about the
+        // whole window; these carry a time, which is what a picture of one
+        // frame has to be lined up against.
+        MarkWindow(win, kept, history, flare, flareRejected, closedAt, slot, aug.Name, via);
         await Observe.FinishAsync(why);
     }
 }

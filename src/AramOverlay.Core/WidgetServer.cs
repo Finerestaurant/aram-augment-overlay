@@ -43,6 +43,14 @@ public sealed class RunState
     [JsonPropertyName("source_height")] public int SourceHeight { get; set; }
 
     /// <summary>
+    /// Which look the widget draws. It rides with the state rather than with
+    /// the page so that choosing one in the settings shows up on air within a
+    /// poll -- a browser source that has to be reloaded to change its look is a
+    /// setting nobody will touch while live.
+    /// </summary>
+    [JsonPropertyName("theme")] public string Theme { get; set; } = "d";
+
+    /// <summary>
     /// When this game began, in unix seconds, worked out as now minus the Live
     /// Client's gameTime.
     ///
@@ -130,6 +138,8 @@ public sealed class WidgetServer : IDisposable
                     Send(ctx, StateJson(), "application/json; charset=utf-8");
                 else if (path is "/" or "/index.html" or "/widget.html")
                     Send(ctx, Encoding.UTF8.GetBytes(Page()), "text/html; charset=utf-8");
+                else if (path.StartsWith("/inspect"))
+                    Inspect(ctx, path);
                 else
                     ctx.Response.StatusCode = 404;
             }
@@ -171,12 +181,74 @@ public sealed class WidgetServer : IDisposable
         }
     }
 
+    /// <summary>The inspector's page, loaded once and only if anyone asks for it.</summary>
+    private string? _inspectPage;
+
+    /// <summary>
+    /// The recorded windows, and the page that draws them.
+    ///
+    /// Served off the widget's own port rather than a second listener: it is the
+    /// port the user already has, already on the loopback interface, and the
+    /// address is already on the app's footer bar.
+    ///
+    ///   /inspect                 the page
+    ///   /inspect/sessions.json   what has been recorded
+    ///   /inspect/s/&lt;id&gt;.json     one window's frames, events and verdict
+    ///   /inspect/f/&lt;id&gt;/&lt;n&gt;.jpg  one recorded frame, as OBS sent it
+    /// </summary>
+    private void Inspect(HttpListenerContext ctx, string path)
+    {
+        if (path is "/inspect" or "/inspect/" or "/inspect/index.html")
+        {
+            _inspectPage ??= Assets.Text("inspect.html");
+            Send(ctx, Encoding.UTF8.GetBytes(_inspectPage), "text/html; charset=utf-8");
+            return;
+        }
+        if (path == "/inspect/sessions.json")
+        {
+            Send(ctx, InspectorSink.ListJson(), "application/json; charset=utf-8");
+            return;
+        }
+        if (path.StartsWith("/inspect/s/") && path.EndsWith(".json"))
+        {
+            string id = path["/inspect/s/".Length..^".json".Length];
+            if (InspectorSink.SessionJson(id) is { } body)
+                Send(ctx, body, "application/json; charset=utf-8");
+            else
+                ctx.Response.StatusCode = 404;
+            return;
+        }
+        if (path.StartsWith("/inspect/f/"))
+        {
+            var parts = path["/inspect/f/".Length..].Split('/');
+            if (parts.Length == 2 && InspectorSink.FrameJpeg(parts[0], parts[1]) is { } jpeg)
+            {
+                // A recorded frame never changes, so the browser may keep it --
+                // scrubbing back and forth over a window is the normal way to
+                // use this page and it would otherwise refetch every frame.
+                ctx.Response.Headers["Cache-Control"] = "max-age=86400";
+                ctx.Response.ContentType = "image/jpeg";
+                ctx.Response.ContentLength64 = jpeg.Length;
+                ctx.Response.OutputStream.Write(jpeg, 0, jpeg.Length);
+            }
+            else
+            {
+                ctx.Response.StatusCode = 404;
+            }
+            return;
+        }
+        ctx.Response.StatusCode = 404;
+    }
+
     private string Page()
     {
         string cfg = JsonSerializer.Serialize(new
         {
             rows = Config.WidgetRows,
             maxWidth = Config.WidgetMaxW,
+            // Also in the page config so the first paint is already the right
+            // look, rather than a frame of the default before the first poll.
+            theme = Config.WidgetTheme,
             // In the client's language, not the interface's: these words print
             // beside augment names that came from CommunityDragon in that
             // language, and a rarity in a second language reads as a bug on
@@ -200,7 +272,13 @@ public sealed class WidgetServer : IDisposable
     private byte[] StateJson()
     {
         lock (State)
+        {
+            // Read at serialisation time, not stored on the state: the theme is
+            // a setting the window can change at any moment and nothing has to
+            // remember to push it across.
+            State.Theme = Config.WidgetTheme;
             return Encoding.UTF8.GetBytes(JsonSerializer.Serialize(State, Json));
+        }
     }
 
     private static void Send(HttpListenerContext ctx, byte[] body, string contentType)

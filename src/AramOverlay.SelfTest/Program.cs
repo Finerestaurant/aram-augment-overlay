@@ -69,6 +69,32 @@ if (args.Contains("--obs-req"))
 if (args.Contains("--aspect"))
     return await AspectReport(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".");
 
+// Build a recording out of fixture frames, put it through the real recorder,
+// and serve it -- so the inspector page can be checked, and looked at, without
+// waiting for a game to hand out an augment.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --inspect-demo [--serve]
+if (args.Contains("--inspect-demo"))
+    return await InspectDemo(root, args.Contains("--serve"));
+
+// Run the flare search again over a window the inspector recorded, without a
+// game and without OBS. The recording holds every measurement the loop had, so
+// the verdict this prints is the one the current code would reach -- which is
+// how a threshold change is checked against windows whose answer is known.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --inspect-flare <state/inspect folder or one recording>
+if (args.Contains("--inspect-flare"))
+    return InspectFlare(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".");
+
+// The widget as OBS actually renders it, straight to a PNG with its
+// transparency intact -- which is what the README needs and what no screenshot
+// of a desktop can give, because the widget's whole point is having no
+// background of its own.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --widget-shot <out.png>
+if (args.Contains("--widget-shot"))
+    return await WidgetShot(args);
+
 // Replay a folder of frames as though it were one augment window: run the same
 // gate, the same measurements and the same verdict the loop would, and leave the
 // same annotated trace behind. A recording of a pick can then be checked against
@@ -178,6 +204,250 @@ static double FlagValue(string[] argv, string name, double fallback)
            double.TryParse(argv[at + 1], NumberStyles.Float, CultureInfo.InvariantCulture,
                            out double value)
         ? value : fallback;
+}
+
+// The flare search, run again over recorded windows.
+//
+// A recording carries every number the loop had on every frame, so the history
+// the search reads can be rebuilt exactly and the verdict recomputed. That makes
+// a threshold change checkable against real windows whose answer is known,
+// which is the one thing the log alone could never offer: it prints the verdict
+// the old thresholds reached and nothing else.
+static int InspectFlare(string path)
+{
+    var files = new List<string>();
+    if (File.Exists(path))
+        files.Add(path);
+    else if (Directory.Exists(path))
+        files.AddRange(Directory.EnumerateFiles(path, "session.json", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal));
+    if (files.Count == 0)
+    {
+        Console.WriteLine($"녹화가 없습니다: {path}");
+        return 1;
+    }
+
+    foreach (string file in files)
+    {
+        JsonNode? doc;
+        try
+        {
+            doc = JsonNode.Parse(File.ReadAllText(file));
+        }
+        catch (Exception exc)
+        {
+            Console.WriteLine($"{Path.GetFileName(Path.GetDirectoryName(file))}: 읽기 실패 {exc.Message}");
+            continue;
+        }
+        var rows = doc?["frames"]?.AsArray();
+        if (rows is null || rows.Count == 0)
+            continue;
+
+        string[] slots = (doc?["slots"]?.AsArray() ?? new JsonArray())
+            .Select(s => s?.GetValue<string>() ?? "").Where(s => s.Length > 0).ToArray();
+        if (slots.Length == 0)
+            slots = new[] { "L", "M", "R" };
+
+        // The clock only has to be self-consistent: every test in the search is
+        // a difference between two of these.
+        var epoch = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var history = new List<Beat>();
+        foreach (var row in rows)
+        {
+            double t = row?["t"]?.GetValue<double>() ?? 0;
+            var stats = new Dictionary<string, Detect.CardStat>();
+            for (int s = 0; s < slots.Length; s++)
+                stats[slots[s]] = new Detect.CardStat(
+                    row?["mean"]?[s]?.GetValue<double>() ?? 0,
+                    row?["inner"]?[s]?.GetValue<double>() ?? 0,
+                    row?["bright"]?[s]?.GetValue<double>() ?? 0);
+            history.Add(new Beat(epoch.AddSeconds(t), stats,
+                                 row?["alive"]?.GetValue<bool>() ?? false,
+                                 row?["up"]?.GetValue<bool>() ?? false,
+                                 row?["hide"]?.GetValue<double>() ?? 0));
+        }
+
+        // The same close the loop uses: the last frame the window was alive in,
+        // not the moment the close was declared.
+        DateTime closedAt = history[^1].At;
+        for (int i = history.Count - 1; i >= 0; i--)
+            if (history[i].Alive) { closedAt = history[i].At; break; }
+
+        var (taken, thrown) = OverlayLoop.SelectionFlare(history, closedAt);
+        string id = Path.GetFileName(Path.GetDirectoryName(file)) ?? file;
+        Console.WriteLine($"\n{id}   프레임 {history.Count}");
+        string published = (doc?["verdict"]?.AsArray() ?? new JsonArray())
+            .Select(v => v?.GetValue<string>() ?? "")
+            .FirstOrDefault(v => v.StartsWith("published")) ?? "";
+        if (published.Length > 0)
+            Console.WriteLine($"  그때 발행:  {published["published".Length..].Trim()}");
+        Console.WriteLine(taken.Found
+            ? $"  지금 섬광:  {taken.Describe(closedAt)}"
+            : "  지금 섬광:  없음");
+        if (thrown.Found)
+            Console.WriteLine($"  기각:       {thrown.Describe(closedAt)}");
+    }
+    return 0;
+}
+
+// A recording built out of fixture frames, written by the real recorder and
+// served by the real server.
+//
+// The inspector is the one part of this tool whose output is a web page, and a
+// web page cannot be checked by asserting on a number. What can be checked
+// without a game is everything underneath it: that the recorder writes a
+// session the server will serve, that the page is embedded and comes back, and
+// that the JSON carries the boxes and cutoffs the page draws from. The frames
+// are unrelated fixtures rather than one window, so the curves mean nothing --
+// the contract is what is being looked at.
+static async Task<int> InspectDemo(string root, bool serve)
+{
+    string folder = Path.Combine(root, "tests", "fixtures");
+    var files = Directory.Exists(folder)
+        ? Directory.EnumerateFiles(folder)
+            .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(f => f, StringComparer.Ordinal).ToArray()
+        : Array.Empty<string>();
+    if (files.Length == 0)
+    {
+        Console.WriteLine($"픽스처가 없습니다: {folder}");
+        return 1;
+    }
+
+    Config.Root = AppContext.BaseDirectory;
+    var gate = await Assets.GateAsync();
+    var hide = await Assets.HideButtonAsync();
+
+    var sink = new InspectorSink();
+    Observe.Sink = sink;
+    Observe.BeginWindow(7);
+
+    var baseline = new List<double>();
+    int kept = 0;
+    (int W, int H) shape = (0, 0);
+    double t = 0;
+    foreach (string file in files)
+    {
+        var frame = await Imaging.DecodeAsync(await File.ReadAllBytesAsync(file));
+        if (shape == (0, 0))
+            shape = (frame.Width, frame.Height);
+        if ((frame.Width, frame.Height) != shape)
+            continue;                      // one window is one size
+
+        var gray = Cv.ToGray(frame);
+        var scores = gate.Scores(gray);
+        var stats = Detect.CardStats(gray);
+        var means = stats.ToDictionary(kv => kv.Key, kv => kv.Value.Mean);
+        bool cardsUp = scores.Min() >= Config.GateStay ||
+                       scores.Count(s => s >= Config.GateStayTwo) >= 2;
+        baseline.Add(Detect.Median(means.Values.ToArray()));
+
+        var (_, top, ratio) = Detect.Flare(stats);
+        Observe.Frame(frame, new TraceSample
+        {
+            Index = kept,
+            T = t,
+            Gate = scores,
+            Hide = hide.Score(gray),
+            Alive = cardsUp,
+            CardsUp = cardsUp,
+            Settled = Detect.InteriorDarkness(gray) < 60,
+            Stats = stats,
+            Flare = $"{top} {ratio:F2}X",
+            Baseline = Detect.Median(baseline.ToArray()),
+            HoverSpread = means.Values.Max() - means.Values.Min(),
+        });
+        Observe.Mark(t, "note", Path.GetFileName(file));
+        kept++;
+        t += 0.1;
+    }
+
+    if (kept == 0)
+    {
+        Console.WriteLine("같은 크기의 픽스처가 없습니다.");
+        return 1;
+    }
+
+    Observe.Mark(t, "verdict", "demo, built from fixtures -- no augment was taken");
+    await Observe.FinishAsync(new[]
+    {
+        "this recording is a demo built from " + kept + " fixture frames",
+        "the frames are unrelated windows, so the curves are meaningless",
+        "what it proves is that a recording writes, serves and draws",
+    });
+    Observe.Sink = null;
+
+    // Served by the real server on a spare port, so a browser can be pointed at
+    // it and every route the page uses is exercised for real.
+    var state = new RunState { GameMode = "KIWI", Connected = true, Level = 7 };
+    using var server = new WidgetServer(state, Assets.Text("widget.html"), port: 8796);
+    string url = server.Start();
+    using var http = new HttpClient();
+
+    int bad = 0;
+    async Task<string> Get(string path, string expect)
+    {
+        var response = await http.GetAsync(url.TrimEnd('/') + path);
+        string kind = response.Content.Headers.ContentType?.MediaType ?? "";
+        long size = response.Content.Headers.ContentLength ?? 0;
+        bool ok = response.IsSuccessStatusCode && kind.Contains(expect);
+        if (!ok)
+            bad++;
+        Console.WriteLine($"  {(ok ? "PASS" : "FAIL")}  {path,-28} {(int)response.StatusCode} " +
+                          $"{kind} {size} bytes");
+        return ok ? await response.Content.ReadAsStringAsync() : "";
+    }
+
+    Console.WriteLine($"기록 저장 위치: {Path.Combine(Config.Inspect)}");
+    await Get("/inspect", "html");
+    string list = await Get("/inspect/sessions.json", "json");
+    string id = "";
+    try
+    {
+        var first = JsonNode.Parse(list)?["sessions"]?.AsArray().FirstOrDefault();
+        id = first?["id"]?.GetValue<string>() ?? "";
+    }
+    catch { /* reported by the checks below */ }
+    if (id.Length == 0)
+    {
+        Console.WriteLine("  FAIL  녹화 목록이 비어 있습니다");
+        return 1;
+    }
+
+    string body = await Get($"/inspect/s/{id}.json", "json");
+    await Get($"/inspect/f/{id}/00000.jpg", "image");
+
+    // The page draws from these three; a session missing any of them renders
+    // blank and says nothing about why.
+    try
+    {
+        var doc = JsonNode.Parse(body)!;
+        foreach (string key in new[] { "frames", "boxes", "limits", "events", "verdict" })
+        {
+            bool has = doc[key] is not null;
+            if (!has)
+                bad++;
+            Console.WriteLine($"  {(has ? "PASS" : "FAIL")}  session.{key}");
+        }
+        Console.WriteLine($"  프레임 {doc["frames"]!.AsArray().Count}개, " +
+                          $"박스 {doc["boxes"]!.AsObject().Count}개, " +
+                          $"기준값 {doc["limits"]!.AsObject().Count}개, " +
+                          $"{doc["frame_w"]}×{doc["frame_h"]}");
+    }
+    catch (Exception exc)
+    {
+        bad++;
+        Console.WriteLine("  FAIL  session.json 을 읽을 수 없습니다: " + exc.Message);
+    }
+
+    if (serve)
+    {
+        Console.WriteLine($"\n열어 보세요: {url.TrimEnd('/')}/inspect    (Ctrl+C 로 종료)");
+        await Task.Delay(Timeout.Infinite);
+    }
+    Console.WriteLine(bad == 0 ? "\n전부 통과" : $"\n{bad}개 실패");
+    return bad == 0 ? 0 : 1;
 }
 
 // A folder of frames run through the loop's own decision path, start to finish.
@@ -1164,6 +1434,68 @@ static async Task<int> AspectReport(string folder)
     return 0;
 }
 
+// One PNG of the widget, as the browser source has it.
+//
+// The bytes OBS hands back are written straight out rather than decoded and
+// re-encoded: the widget draws on nothing, and a round trip through this tool's
+// BGRA frames would flatten the alpha the picture exists to show.
+static async Task<int> WidgetShot(string[] argv)
+{
+    int at = Array.IndexOf(argv, "--widget-shot");
+    string outPath = at + 1 < argv.Length && !argv[at + 1].StartsWith("--")
+        ? argv[at + 1] : "widget.png";
+
+    var cfg = ObsCapture.ReadWebsocketConfig();
+    string password = cfg?["server_password"]?.GetValue<string>() ?? "";
+    int port = cfg?["server_port"]?.GetValue<int>() ?? Config.ObsPort;
+    await using var client = new ObsClient();
+    await client.ConnectAsync(Config.ObsHost, port, password);
+
+    // Whichever browser source is showing the widget. Named sources drift; the
+    // URL is what actually identifies it.
+    string? source = null;
+    var inputs = (await client.RequestAsync("GetInputList"))?["inputs"]?.AsArray() ?? new JsonArray();
+    foreach (var input in inputs)
+    {
+        if (input?["inputKind"]?.GetValue<string>() != "browser_source")
+            continue;
+        string name = input["inputName"]!.GetValue<string>();
+        var settings = (await client.RequestAsync("GetInputSettings",
+            new JsonObject { ["inputName"] = name }))?["inputSettings"];
+        string url = settings?["url"]?.GetValue<string>() ?? "";
+        if (url.Contains($":{Config.WidgetPort}"))
+        {
+            source = name;
+            break;
+        }
+    }
+    if (source is null)
+    {
+        Console.WriteLine($"위젯을 띄운 브라우저 소스를 찾지 못했습니다 (포트 {Config.WidgetPort}).");
+        return 1;
+    }
+
+    var shot = await client.RequestAsync("GetSourceScreenshot", new JsonObject
+    {
+        ["sourceName"] = source,
+        ["imageFormat"] = "png",
+    });
+    string data = shot?["imageData"]?.GetValue<string>() ?? "";
+    int comma = data.IndexOf(',');
+    if (data.StartsWith("data:") && comma >= 0)
+        data = data[(comma + 1)..];
+    if (data.Length == 0)
+    {
+        Console.WriteLine("빈 응답입니다.");
+        return 1;
+    }
+    var bytes = Convert.FromBase64String(data);
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
+    await File.WriteAllBytesAsync(outPath, bytes);
+    Console.WriteLine($"{source} -> {outPath}  ({bytes.Length:N0} B)");
+    return 0;
+}
+
 static async Task<int> ObsRequest(string[] argv)
 {
     int at = Array.IndexOf(argv, "--obs-req");
@@ -1259,9 +1591,42 @@ static int FlareTiming()
     Check("실제 선택 섬광을 놓침", pickTaken.Slot == "R", $"{pickTaken.Slot ?? "없음"}");
     Check("실제 선택인데 카드가 남아 있다고 함", pickTaken.CardsUpAfterS < 0.05,
           $"{pickTaken.CardsUpAfterS:F2}s");
-    Check("실제 선택인데 후보를 버림", !pickThrown.Found, $"{pickThrown.Slot}");
+    // A real flare straddles the anchor -- its first frames can still score as
+    // cards-up -- so something being thrown out here is expected. What matters
+    // is that it is the SAME card: two slots means two events, one slot means
+    // one flare caught on both sides of the moment the cards went.
+    Check("버려진 후보가 다른 카드", !pickThrown.Found || pickThrown.Slot == "R",
+          $"{pickThrown.Slot} vs {pickTaken.Slot}");
     Check("실제 선택의 상승비가 낮음", pickTaken.Rise >= Config.FlareRise,
           $"{pickTaken.Rise:F2}x");
+
+    // A reroll flip that ends ON the anchor, with the real selection right
+    // after it. This is the shape recorded at 21:25 on 2026-09-10: the left card
+    // flipped over for five frames while the gate was fully alive, the player
+    // clicked the middle one, and the flip was published as the pick. Both
+    // candidates sit inside the window and both clear the two brightness tests;
+    // the only thing between them is whether the cards were still standing.
+    //
+    // The selection is given a two-frame ramp, because it has one in life: the
+    // rise is measured against a baseline the card has only just left, so its
+    // first frames read short and the search has to reach past them.
+    var overlap = new List<Beat>();
+    for (int i = 0; i < Frames; i++)
+    {
+        bool flip = i >= 96 && i <= LastCardsUp;          // L, cards still up
+        double m = i == LastCardsUp + 1 ? 45            // selection, ramping
+                 : i > LastCardsUp + 1 ? 100
+                 : 20;
+        overlap.Add(Frame(start.AddSeconds(i / Fps), flip ? 100 : 20, m, 20,
+                          i <= LastCardsUp));
+    }
+    var (overTaken, overThrown) = OverlayLoop.SelectionFlare(overlap, CloseOf(overlap));
+    Check("리롤 뒤집힘을 선택으로 읽음", overTaken.Slot == "M",
+          $"{overTaken.Slot ?? "없음"} 로 판정");
+    Check("채택한 프레임에 카드가 서 있음", !overTaken.CardsUp, "cardsUp");
+    Check("뒤집힘을 기각 사유와 함께 남기지 않음",
+          overThrown.Slot == "L" && overThrown.CardsUp,
+          $"{overThrown.Slot}/{overThrown.CardsUp}");
 
     // Nothing lights up at all.
     var quiet = Window(-1, -1);
@@ -1270,7 +1635,7 @@ static int FlareTiming()
           $"{quietTaken.Slot}/{quietThrown.Slot}");
 
     Console.WriteLine(bad == 0
-        ? "PASS  선택 섬광 타이밍 (리롤 섬광 기각, 실제 선택 통과)"
+        ? "PASS  선택 섬광 타이밍 (리롤 섬광·뒤집힘 기각, 실제 선택 통과)"
         : $"FAIL  선택 섬광 타이밍 {bad}건");
     return bad == 0 ? 0 : 1;
 }

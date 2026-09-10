@@ -248,6 +248,28 @@ public static class Strings
             "検出の過程をそのまま出力します。オーグメントが記録されなかった原因を調べるときだけ有効にしてください。",
             "会原样输出检测过程。只在某个强化符文没有被记录、想查清原因时才打开。");
 
+        // The tiles show what each one looks like, so these are names and
+        // nothing else. Copy explaining a choice the picture already makes is
+        // the kind of line that reads as an excuse on screen.
+        Add("Settings.WidgetTheme", "위젯 테마", "Widget theme", "ウィジェットのテーマ", "挂件主题");
+        Add("Theme.HudTray", "HUD 트레이", "HUD tray", "HUD トレイ", "HUD 托盘");
+        Add("Theme.Strip", "한 줄", "One strip", "1 行", "单行条");
+        Add("Theme.Palette", "게임 팔레트", "Game palette", "ゲームパレット", "游戏配色");
+        // The previews name the rarities rather than inventing augment names, so
+        // each tile doubles as the colour legend and nothing in it has to be
+        // made up. These two are the level line under them.
+        Add("Theme.SampleLevelA", "3레벨", "Level 3", "レベル 3", "3 级");
+        Add("Theme.SampleLevelB", "12레벨", "Level 12", "レベル 12", "12 级");
+
+        Add("Settings.Inspector", "판정 기록 남기기", "Record how each pick was decided",
+            "判定の記録を残す", "记录每次判定过程");
+        Add("Hint.Inspector",
+            "증강 선택창이 열린 동안 화면과 계측값을 모두 남기고, {0} 에서 프레임 단위로 되돌려 봅니다. 최근 8개 창을 보관하며 창 하나가 15~25MB 입니다.",
+            "Keeps the screen and every measurement while an augment window is open, to step through frame by frame at {0}. The last 8 windows are kept, at 15-25 MB each.",
+            "オーグメント選択画面が開いている間の画面と計測値をすべて保存し、{0} でコマ送りできます。直近 8 件を保持し、1 件あたり 15〜25MB です。",
+            "在强化符文选择界面开启期间保存画面与全部测量值，可在 {0} 逐帧回看。保留最近 8 次，每次 15~25MB。");
+        Add("Settings.OpenInspector", "열기", "Open", "開く", "打开");
+
         // ---- settings: hints ----------------------------------------------
         Add("Hint.PasswordBlank", "비워 두면 OBS 설정 파일에서 자동으로 읽습니다.",
             "Leave blank to read it from the OBS config file.",
@@ -574,6 +596,12 @@ public static class Strings
             "    提示框检出({0})，已保存画面: {1}");
         Add("Loop.DumpFailed", "    판정 화면 저장 실패: {0}", "    could not save the decision frame: {0}",
             "    判定画面の保存に失敗: {0}", "    保存判定画面失败: {0}");
+        Add("Loop.InspectSaved", "    판정 기록 저장: {0} ({1}프레임)",
+            "    recording saved: {0} ({1} frames)",
+            "    判定の記録を保存: {0} ({1} フレーム)", "    已保存判定记录: {0}（{1} 帧）");
+        Add("Loop.InspectFailed", "    판정 기록 저장 실패: {0}",
+            "    could not save the recording: {0}",
+            "    判定の記録の保存に失敗: {0}", "    保存判定记录失败: {0}");
         Add("Loop.ViaFlare", "카드 밝기 {0}배, 종료 {1}초 전",
             "card {0}x brighter, {1}s before the close",
             "カード明度 {0} 倍、終了 {1} 秒前", "卡片亮度 {0} 倍，关闭前 {1} 秒");

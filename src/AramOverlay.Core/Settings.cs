@@ -30,6 +30,13 @@ public sealed class Settings
     /// answer, and the log is for working out why an answer is missing.</summary>
     public bool DebugMode { get; set; }
 
+    /// <summary>
+    /// Records every frame of every augment window and serves it back at
+    /// /inspect. Off by default: a window costs 15-25 MB, and the last eight are
+    /// kept. On when a pick came out wrong and the log cannot say why.
+    /// </summary>
+    public bool Inspector { get; set; }
+
     public string Locale { get; set; } = DefaultLocale();
     public int ScreenWidth { get; set; } = 1920;
     public int ScreenHeight { get; set; } = 1080;
@@ -39,6 +46,13 @@ public sealed class Settings
     public int WidgetPort { get; set; } = 8777;
     public int WidgetRows { get; set; } = 4;
     public int WidgetMaxWidth { get; set; } = 420;
+
+    /// <summary>
+    /// Which widget look goes on stream: "b" HUD tray, "c" one strip, "d" game
+    /// palette. Not in <see cref="NeedsRestartFrom"/> -- the widget reads it off
+    /// the state it already polls, so it changes on air within a second.
+    /// </summary>
+    public string WidgetTheme { get; set; } = "d";
 
     /// <summary>
     /// Whether the loop has to be torn down and rebuilt to honour these values.
@@ -167,6 +181,7 @@ public sealed class Settings
                 return settings;
             settings.UiLanguage = json["ui_language"]?.GetValue<string>() ?? settings.UiLanguage;
             settings.DebugMode = json["debug_mode"]?.GetValue<bool>() ?? settings.DebugMode;
+            settings.Inspector = json["inspector"]?.GetValue<bool>() ?? settings.Inspector;
             settings.Locale = json["locale"]?.GetValue<string>() ?? settings.Locale;
             // ocr_language used to be a separate setting. It is read no more:
             // choosing a recogniser that did not match the client language read
@@ -179,6 +194,7 @@ public sealed class Settings
             settings.WidgetPort = Int(json["widget_port"], settings.WidgetPort);
             settings.WidgetRows = Int(json["widget_rows"], settings.WidgetRows);
             settings.WidgetMaxWidth = Int(json["widget_max_width"], settings.WidgetMaxWidth);
+            settings.WidgetTheme = json["widget_theme"]?.GetValue<string>() ?? settings.WidgetTheme;
         }
         catch
         {
@@ -206,6 +222,7 @@ public sealed class Settings
         {
             ["ui_language"] = UiLanguage,
             ["debug_mode"] = DebugMode,
+            ["inspector"] = Inspector,
             ["locale"] = Locale,
             ["screen_width"] = ScreenWidth,
             ["screen_height"] = ScreenHeight,
@@ -215,6 +232,7 @@ public sealed class Settings
             ["widget_port"] = WidgetPort,
             ["widget_rows"] = WidgetRows,
             ["widget_max_width"] = WidgetMaxWidth,
+            ["widget_theme"] = WidgetTheme,
         };
         Directory.CreateDirectory(Config.Root);
         File.WriteAllText(Path_, json.ToJsonString(new JsonSerializerOptions
@@ -248,11 +266,15 @@ public sealed class Settings
         }
 
         Config.DebugMode = DebugMode;
+        Config.InspectorOn = Inspector;
+        Observe.Attach(Inspector);
         Config.ObsPort = ObsPort;
         Config.ObsPassword = ObsPassword;
         Config.ObsSource = ObsSource;
         Config.WidgetPort = WidgetPort;
         Config.WidgetRows = Math.Max(1, WidgetRows);
         Config.WidgetMaxW = Math.Max(120, WidgetMaxWidth);
+        Config.WidgetTheme = Array.IndexOf(Config.WidgetThemes, WidgetTheme) >= 0
+            ? WidgetTheme : "d";
     }
 }

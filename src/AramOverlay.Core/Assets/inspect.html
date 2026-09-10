@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Augment window inspector</title>
+<style>
+/* A tool that sits next to dark game footage, so it commits to one dark look
+   rather than following the browser: a light page around a frame makes every
+   brightness on screen look wrong, and brightness is what this page is about. */
+:root{
+  --ground:#0d1117; --panel:#151b23; --panel-2:#1c232c; --rule:#2a323d;
+  --ink:#e6edf3; --ink-2:#9aa7b4; --ink-3:#6b7683;
+  --accent:#58a6ff; --pass:#3fb950; --fail:#f85149; --warn:#d29922;
+  --l:#58a6ff; --m:#f0b429; --r:#d183e8;
+  --mono:"Cascadia Mono",Consolas,"DejaVu Sans Mono",monospace;
+  --sans:"Segoe UI",system-ui,"Noto Sans KR","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box}
+/* Author rules beat the browser's own [hidden] rule whatever its specificity,
+   and `main` is laid out as a grid here -- without this the page shows both the
+   empty state and the viewer at once before anything has loaded. */
+[hidden]{display:none!important}
+body{margin:0;background:var(--ground);color:var(--ink);font:14px/1.5 var(--sans)}
+h1{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em}
+a{color:var(--accent)}
+
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 18px;border-bottom:1px solid var(--rule);background:var(--panel)}
+header .sp{margin-left:auto;display:flex;gap:14px;align-items:center;
+  font:12px/1 var(--mono);color:var(--ink-2)}
+select,button{font:inherit;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--rule);border-radius:5px;padding:5px 9px}
+button{cursor:pointer}
+button:hover{border-color:var(--ink-3)}
+button:disabled{opacity:.45;cursor:default}
+button.on{background:#233042;border-color:var(--accent);color:#cfe4ff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+main{display:grid;grid-template-columns:minmax(0,1fr) 366px;gap:14px;padding:14px 18px 24px;
+  align-items:start}
+@media (max-width:1080px){main{grid-template-columns:minmax(0,1fr)}}
+
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:8px}
+.card h2{margin:0;padding:9px 12px;font:600 11px/1 var(--sans);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-2);border-bottom:1px solid var(--rule)}
+
+.viewer{position:relative;background:#000;border-radius:8px 8px 0 0;overflow:hidden;
+  line-height:0}
+#view{display:block;width:100%;height:auto;max-width:100%}
+
+.transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:9px 12px;border-top:1px solid var(--rule)}
+.transport .num{font:12px/1 var(--mono);color:var(--ink-2);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+#seek{flex:1 1 220px;min-width:140px;accent-color:var(--accent)}
+
+.layers{display:flex;gap:6px;flex-wrap:wrap;padding:9px 12px;border-top:1px solid var(--rule)}
+.layers button{padding:4px 8px;font-size:12px}
+
+.graphwrap{padding:8px 12px 12px;border-top:1px solid var(--rule)}
+#graph{display:block;width:100%;height:150px;cursor:crosshair}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;
+  font:11px/1 var(--mono);color:var(--ink-2)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;
+  vertical-align:-1px}
+
+table{width:100%;border-collapse:collapse;font:12px/1.45 var(--mono);
+  font-variant-numeric:tabular-nums}
+th,td{padding:5px 12px;text-align:right;border-bottom:1px solid var(--rule)}
+th:first-child,td:first-child{text-align:left;color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:0}
+thead th{color:var(--ink-3);font-weight:500;font-size:11px}
+.pass{color:var(--pass)}.fail{color:var(--fail)}.warn{color:var(--warn)}
+.dim{color:var(--ink-3)}
+td.lab-L{color:var(--l)}td.lab-M{color:var(--m)}td.lab-R{color:var(--r)}
+
+.flags{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px}
+.flag{font:11px/1 var(--mono);padding:4px 7px;border-radius:4px;
+  border:1px solid var(--rule);color:var(--ink-3)}
+.flag.on{color:var(--pass);border-color:#1d4429;background:#0f2417}
+.flag.off{color:var(--ink-3)}
+
+.lines{margin:0;padding:10px 12px;font:11.5px/1.6 var(--mono);color:var(--ink-2);
+  white-space:pre-wrap;word-break:break-word;max-height:230px;overflow:auto}
+.lines b{color:var(--ink);font-weight:600}
+
+.events{max-height:190px;overflow:auto}
+.ev{display:flex;gap:9px;align-items:baseline;padding:6px 12px;cursor:pointer;
+  border-bottom:1px solid var(--rule);font:11.5px/1.45 var(--mono)}
+.ev:last-child{border-bottom:0}
+.ev:hover{background:var(--panel-2)}
+.ev .t{color:var(--ink-3);flex:none;width:52px;text-align:right}
+.ev .k{flex:none;width:56px}
+.ev .x{color:var(--ink-2);min-width:0;word-break:break-word}
+.k-reroll{color:var(--warn)}.k-flare{color:var(--pass)}.k-flarexx{color:var(--fail)}
+.k-anchor{color:var(--accent)}.k-close{color:var(--ink-2)}.k-verdict{color:var(--ink)}
+.k-tooltip{color:#7ee7d0}
+
+.empty{padding:34px 18px;text-align:center;color:var(--ink-2)}
+.empty code{font:12px var(--mono);color:var(--ink);background:var(--panel-2);
+  padding:2px 6px;border-radius:4px}
+.stack{display:grid;gap:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Augment window inspector</h1>
+  <select id="sessions" aria-label="Recorded window"></select>
+  <button id="reload" title="Look for new recordings">Reload</button>
+  <div class="sp">
+    <span id="meta"></span>
+  </div>
+</header>
+
+<main id="main" hidden>
+  <section class="card">
+    <div class="viewer"><canvas id="view" width="960" height="540"></canvas></div>
+
+    <div class="transport">
+      <button id="play" title="Space">Play</button>
+      <button id="back10" title="Back 10 frames">&laquo; 10</button>
+      <button id="back1" title="Left arrow">&lsaquo; 1</button>
+      <button id="fwd1" title="Right arrow">1 &rsaquo;</button>
+      <button id="fwd10" title="Forward 10 frames">10 &raquo;</button>
+      <input type="range" id="seek" min="0" max="0" value="0" step="1" aria-label="Frame">
+      <span class="num" id="pos"></span>
+      <select id="speed" aria-label="Speed">
+        <option value="1">1&times;</option>
+        <option value="0.5">0.5&times;</option>
+        <option value="0.25">0.25&times;</option>
+        <option value="0.1">0.1&times;</option>
+      </select>
+    </div>
+
+    <div class="layers" id="layers"></div>
+
+    <div class="graphwrap">
+      <canvas id="graph" width="900" height="150"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--l)"></i>L inner</span>
+        <span><i style="background:var(--m)"></i>M inner</span>
+        <span><i style="background:var(--r)"></i>R inner</span>
+        <span><i style="background:#3a4654"></i>baseline</span>
+        <span><i style="background:#7ee7d0"></i>tooltip panel found (top ribbon)</span>
+        <span class="dim">dashed tooltip box = measured on an earlier frame</span>
+        <span class="dim">click or drag to seek &middot; ticks are events</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="stack">
+    <section class="card">
+      <h2>This frame</h2>
+      <div class="flags" id="flags"></div>
+      <table>
+        <thead><tr><th>gate</th><th>L</th><th>M</th><th>R</th></tr></thead>
+        <tbody id="gate"></tbody>
+      </table>
+      <table>
+        <thead><tr><th>card</th><th>mean</th><th>inner</th><th>rise</th><th>bright%</th></tr></thead>
+        <tbody id="cards"></tbody>
+      </table>
+      <table><tbody id="tests"></tbody></table>
+    </section>
+
+    <section class="card">
+      <h2>Events</h2>
+      <div class="events" id="events"></div>
+    </section>
+
+    <section class="card">
+      <h2>Verdict</h2>
+      <div class="lines" id="verdict"></div>
+    </section>
+  </div>
+</main>
+
+<div class="empty" id="empty">Loading&hellip;</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SLOT_COLOR = { L: "#58a6ff", M: "#f0b429", R: "#d183e8" };
+
+  var el = function (id) { return document.getElementById(id); };
+  var view = el("view"), vctx = view.getContext("2d");
+  var graph = el("graph"), gctx = graph.getContext("2d");
+
+  var session = null;          // the loaded recording
+  var slots = ["L", "M", "R"];
+  var index = 0;               // current frame
+  var playing = false;
+  var lastTick = 0;
+  var images = [];             // frame image cache, sparse
+  var derived = null;          // per-frame rise/ratio, computed once
+
+  // Which overlays are drawn. Interiors and the gate are on by default: they
+  // are what the flare and the window state are actually measured from, and
+  // the whole card outline is only context.
+  var layers = [
+    { key: "inner",   name: "interiors", on: true },
+    { key: "reroll",  name: "reroll gate", on: true },
+    { key: "card",    name: "cards", on: false },
+    { key: "border",  name: "rarity strip", on: false },
+    { key: "title",   name: "titles", on: false },
+    { key: "hide",    name: "hide button", on: true },
+    { key: "tooltip", name: "tooltip panel", on: true },
+    // The box the title was assumed to sit in before the panel finder existed.
+    // It is still the fallback when no panel is found, so it is worth being able
+    // to see -- but it is not where anything was measured on most frames, and
+    // drawn always it was just permanent furniture over the picture.
+    { key: "tipfixed", name: "old fixed box", on: false }
+  ];
+
+  // ---- geometry: the client's own rule, and the detector's -----------------
+  // Boxes are written in 1920x1080. The game scales the augment screen by
+  // height and centres it, so a frame of any shape maps with one scale and one
+  // horizontal offset -- the same arithmetic as Detect.Geometry.
+  function geom() {
+    var s = session.frame_h / session.base_h;
+    return { s: s, offX: Math.round(session.frame_w / 2 - (session.base_w / 2) * s) };
+  }
+  function place(box) {
+    var g = geom();
+    return {
+      x: box[0] * g.s + g.offX, y: box[1] * g.s,
+      w: (box[2] - box[0]) * g.s, h: (box[3] - box[1]) * g.s
+    };
+  }
+
+  // ---- loading -------------------------------------------------------------
+  function loadSessions() {
+    return fetch("/inspect/sessions.json", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var list = (data && data.sessions) || [];
+        var pick = el("sessions");
+        pick.innerHTML = "";
+        list.forEach(function (s) {
+          var opt = document.createElement("option");
+          opt.value = s.id;
+          opt.textContent = s.id + "  ·  " + s.frames + " frames";
+          pick.appendChild(opt);
+        });
+        if (!list.length) {
+          el("main").hidden = true;
+          el("empty").hidden = false;
+          el("empty").innerHTML =
+            "Nothing recorded yet.<br><br>Turn on <code>Record how each pick was decided</code> " +
+            "in the app's Settings, then play a game. Every augment window is kept from the " +
+            "moment it opens until it closes.";
+          return null;
+        }
+        return list[0].id;
+      });
+  }
+
+  function loadSession(id) {
+    return fetch("/inspect/s/" + encodeURIComponent(id) + ".json", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        session = data;
+        session.id = id;
+        slots = session.slots || ["L", "M", "R"];
+        images = new Array(session.frames.length);
+        derived = null;
+        index = 0;
+        view.width = session.frame_w || 960;
+        view.height = session.frame_h || 540;
+        el("seek").max = String(Math.max(0, session.frames.length - 1));
+        el("seek").value = "0";
+        el("main").hidden = false;
+        el("empty").hidden = true;
+        el("meta").textContent =
+          session.started + "   " + session.frame_w + "×" + session.frame_h +
+          "   " + session.frames.length + " frames" +
+          (session.dropped ? "   (" + session.dropped + " dropped)" : "");
+        compute();
+        renderEvents();
+        renderVerdict();
+        // Land on the moment the window was decided rather than at frame zero:
+        // that is what anyone opening this page came to look at.
+        var mark = firstEvent(["flare", "flarexx", "anchor"]);
+        seek(mark === null ? 0 : frameAt(mark.t));
+        prefetchAll();
+      });
+  }
+
+  function firstEvent(kinds) {
+    var found = null;
+    (session.events || []).forEach(function (e) {
+      if (kinds.indexOf(e.kind) >= 0 && (found === null || e.t < found.t)) found = e;
+    });
+    return found;
+  }
+
+  function frameAt(t) {
+    var frames = session.frames, best = 0, gap = Infinity;
+    for (var i = 0; i < frames.length; i++) {
+      var d = Math.abs(frames[i].t - t);
+      if (d < gap) { gap = d; best = i; }
+    }
+    return best;
+  }
+
+  // ---- the tests, recomputed frame by frame --------------------------------
+  // The log writes one verdict per window; this runs the same two tests on
+  // every frame, so the shape of the thing over time is visible rather than
+  // just its value at the instant the search happened to pick.
+  function compute() {
+    var frames = session.frames, lim = session.limits || {};
+    var from = lim.flare_baseline_from_s || 1.5, to = lim.flare_baseline_to_s || 0.5;
+    derived = frames.map(function (f, i) {
+      var rise = [], base = [];
+      for (var s = 0; s < slots.length; s++) {
+        var window_ = [];
+        for (var j = 0; j < frames.length; j++) {
+          var age = f.t - frames[j].t;
+          if (age >= to && age <= from) window_.push(frames[j].inner[s]);
+        }
+        var b = median(window_);
+        base.push(b);
+        rise.push(b > 0 ? f.inner[s] / b : 0);
+      }
+      // Across cards: the brightest interior over the next brightest.
+      var order = f.inner.map(function (v, k) { return { v: v, k: k }; })
+                         .sort(function (a, b2) { return b2.v - a.v; });
+      var ratio = order.length > 1 && order[1].v > 0 ? order[0].v / order[1].v : 0;
+      return { rise: rise, base: base, ratio: ratio, top: order[0] ? order[0].k : 0 };
+    });
+  }
+
+  function median(values) {
+    if (!values.length) return 0;
+    var a = values.slice().sort(function (x, y) { return x - y; });
+    var mid = a.length >> 1;
+    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  }
+
+  // ---- drawing -------------------------------------------------------------
+  function frameUrl(i) {
+    return "/inspect/f/" + encodeURIComponent(session.id) + "/" +
+           String(i).padStart(5, "0") + ".jpg";
+  }
+
+  function image(i, then) {
+    if (images[i]) { then(images[i]); return; }
+    var img = new Image();
+    img.onload = function () { images[i] = img; then(img); };
+    img.onerror = function () { then(null); };
+    img.src = frameUrl(i);
+  }
+
+  // Frames are small JPEGs and a window is a few hundred of them, so they are
+  // fetched up front: scrubbing back and forth is how this page is used, and a
+  // frame that has to be fetched first cannot be stepped onto.
+  function prefetchAll() {
+    var i = 0;
+    (function next() {
+      if (!session || i >= session.frames.length) return;
+      var at = i++;
+      image(at, function () { next(); });
+    })();
+  }
+
+  function draw() {
+    if (!session || !session.frames.length) return;
+    var i = index;
+    image(i, function (img) {
+      if (index !== i) return;              // moved on while it loaded
+      vctx.fillStyle = "#000";
+      vctx.fillRect(0, 0, view.width, view.height);
+      if (img) vctx.drawImage(img, 0, 0, view.width, view.height);
+      overlay(session.frames[i]);
+    });
+    renderNumbers();
+    renderGraph();
+  }
+
+  function box(name, colour, dash, width) {
+    var b = session.boxes[name];
+    if (!b) return;
+    var p = place(b);
+    vctx.save();
+    vctx.strokeStyle = colour;
+    vctx.lineWidth = width || 1.5;
+    vctx.setLineDash(dash || []);
+    vctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w, p.h);
+    vctx.restore();
+  }
+
+  function label(text, x, y, colour) {
+    vctx.save();
+    vctx.font = "11px " + getComputedStyle(document.body).getPropertyValue("--mono");
+    var w = vctx.measureText(text).width + 6;
+    vctx.fillStyle = "rgba(0,0,0,.66)";
+    vctx.fillRect(x, y - 11, w, 13);
+    vctx.fillStyle = colour;
+    vctx.fillText(text, x + 3, y - 1);
+    vctx.restore();
+  }
+
+  function on(key) {
+    for (var i = 0; i < layers.length; i++)
+      if (layers[i].key === key) return layers[i].on;
+    return false;
+  }
+
+  function overlay(f) {
+    var lim = session.limits || {};
+    slots.forEach(function (slot, s) {
+      var colour = SLOT_COLOR[slot] || "#fff";
+      if (on("card")) box("card_" + slot, colour, [4, 3], 1);
+      if (on("title")) box("title_" + slot, "#7ee7d0", [2, 2], 1);
+      if (on("border")) box("border_" + slot, "#ffffff", [], 1);
+      if (on("inner")) {
+        box("inner_" + slot, colour, [], 2);
+        var b = session.boxes["inner_" + slot];
+        if (b) {
+          var p = place(b);
+          var d = derived[index];
+          label(slot + " " + f.inner[s].toFixed(1) +
+                "  ×" + d.rise[s].toFixed(2), p.x, p.y - 2, colour);
+        }
+      }
+      if (on("reroll")) {
+        var pass = f.gate[s] >= (lim.gate_stay || 0.3);
+        box("reroll_" + slot, pass ? "#3fb950" : "#f85149", [], 2);
+        var rb = session.boxes["reroll_" + slot];
+        if (rb) {
+          var rp = place(rb);
+          label(f.gate[s].toFixed(2), rp.x, rp.y - 2, pass ? "#3fb950" : "#f85149");
+        }
+      }
+    });
+    if (on("hide")) {
+      var hpass = f.hide >= (lim.hide_present || 0.35);
+      box("hide", hpass ? "#3fb950" : "#6b7683", [], 1.5);
+      var hb = session.boxes.hide;
+      if (hb) {
+        var hp = place(hb);
+        label("hide " + f.hide.toFixed(2), hp.x, hp.y - 2, hpass ? "#3fb950" : "#9aa7b4");
+      }
+    }
+    // Drawn only when asked for, and labelled, so it cannot be mistaken for a
+    // detection. On a frame whose newest scan found no panel this IS the box
+    // OCR read the title out of; on any other frame it is only history.
+    if (on("tipfixed")) {
+      box("tooltip_fixed", "#6b7683", [3, 3], 1);
+      var fb = session.boxes.tooltip_fixed;
+      if (fb) {
+        var fp = place(fb);
+        label(f.tip ? "old fixed box (unused here)" : "old fixed box — read from",
+              fp.x, fp.y - 2, "#6b7683");
+      }
+    }
+
+    if (on("tooltip")) {
+      // The panel box is NEVER from this frame. It is found on the OCR grab, a
+      // separate full-resolution screenshot that arrives about three times a
+      // second, so it is always a reading from some moment before the picture
+      // under it. Drawn solid it lied: a frame whose tooltip had already gone
+      // still had a box on it. It is dashed, faded by its age, labelled with
+      // that age, and dropped once it is older than the scan interval -- past
+      // which there is no evidence the panel is still on screen at all.
+      var maxAge = lim.tooltip_probe_s || 0.35;
+      if (f.tip && f.tipboxage <= maxAge) {
+        var fade = 1 - 0.55 * Math.min(1, (f.tipboxage || 0) / maxAge);
+        var p2 = place(f.tip);
+        vctx.save();
+        vctx.globalAlpha = fade;
+        vctx.strokeStyle = "#7ee7d0";
+        vctx.lineWidth = 2;
+        vctx.setLineDash([5, 4]);
+        vctx.strokeRect(p2.x + 0.5, p2.y + 0.5, p2.w, p2.h);
+        vctx.restore();
+        label((f.tipflip ? "flipped" : "below") + " −" + (f.tipboxage || 0).toFixed(2) + "s" +
+              (f.tipraw ? "  " + f.tipraw : ""),
+              p2.x, p2.y - 2, "#7ee7d0");
+      }
+    }
+  }
+
+  // ---- the numbers panel ---------------------------------------------------
+  function cell(value, ok, digits) {
+    return "<td class=\"" + (ok === null ? "" : ok ? "pass" : "fail") + "\">" +
+           value.toFixed(digits === undefined ? 2 : digits) + "</td>";
+  }
+
+  function renderNumbers() {
+    var f = session.frames[index], d = derived[index], lim = session.limits || {};
+
+    el("flags").innerHTML = [
+      flag("cards up", f.up), flag("alive", f.alive), flag("settled", f.settled),
+      "<span class=\"flag\">t " + f.t.toFixed(2) + "s</span>",
+      "<span class=\"flag\">baseline " + f.base.toFixed(1) + "</span>"
+    ].join("");
+
+    var open = lim.gate_open || 0.45, stay = lim.gate_stay || 0.3;
+    el("gate").innerHTML =
+      "<tr><td>score</td>" + f.gate.map(function (g) {
+        return cell(g, g >= stay, 2);
+      }).join("") + "</tr>" +
+      "<tr><td>vs open " + open.toFixed(2) + "</td>" + f.gate.map(function (g) {
+        return "<td class=\"" + (g >= open ? "pass" : "dim") + "\">" +
+               (g >= open ? "yes" : "no") + "</td>";
+      }).join("") + "</tr>";
+
+    el("cards").innerHTML = slots.map(function (slot, s) {
+      var rise = d.rise[s], hot = rise >= (lim.flare_rise || 3);
+      return "<tr><td class=\"lab-" + slot + "\">" + slot + "</td>" +
+             "<td>" + f.mean[s].toFixed(1) + "</td>" +
+             "<td>" + f.inner[s].toFixed(1) + "</td>" +
+             "<td class=\"" + (hot ? "pass" : "dim") + "\">×" + rise.toFixed(2) + "</td>" +
+             "<td class=\"dim\">" + f.bright[s].toFixed(1) + "</td></tr>";
+    }).join("");
+
+    var topSlot = slots[d.top];
+    var ratioOk = d.ratio >= (lim.flare_inner_ratio || 3);
+    var riseOk = d.rise[d.top] >= (lim.flare_rise || 3);
+    el("tests").innerHTML =
+      row("flare ratio (" + topSlot + " over next)",
+          "×" + d.ratio.toFixed(2) + "  vs " + (lim.flare_inner_ratio || 3).toFixed(2),
+          ratioOk) +
+      row("flare rise (" + topSlot + " over own baseline)",
+          "×" + d.rise[d.top].toFixed(2) + "  vs " + (lim.flare_rise || 3).toFixed(2),
+          riseOk) +
+      row("both tests", ratioOk && riseOk ? "a flare on this frame" : "not a flare",
+          ratioOk && riseOk) +
+      row("hover spread", f.spread.toFixed(1) + "  vs " + (lim.hover_spread || 10).toFixed(1),
+          f.spread > (lim.hover_spread || 10)) +
+      row("hide button", f.hide.toFixed(2) + "  vs " + (lim.hide_present || 0.35).toFixed(2),
+          f.hide >= (lim.hide_present || 0.35)) +
+      (f.tipslot
+        ? row("newest tooltip", f.tipslot + " '" + (f.tipraw || "") + "', " +
+              f.tipage.toFixed(1) + "s old",
+              f.tipage <= (lim.hover_trust_s || 1.5))
+        : row("newest tooltip", "none yet", null)) +
+      // Kept separate from the reading above on purpose: this is where the
+      // panel was, on a frame that is not this one.
+      (f.tip
+        ? row("panel box, measured", (f.tipflip ? "flipped" : "below") + ", " +
+              (f.tipboxage || 0).toFixed(2) + "s before this frame",
+              (f.tipboxage || 0) <= (lim.tooltip_probe_s || 0.35))
+        : row("panel box, measured", "last scan found none", null));
+  }
+
+  function row(name, value, ok) {
+    return "<tr><td>" + name + "</td><td class=\"" +
+           (ok === null ? "dim" : ok ? "pass" : "fail") + "\">" + value + "</td></tr>";
+  }
+
+  function flag(name, state) {
+    return "<span class=\"flag " + (state ? "on" : "off") + "\">" + name + "</span>";
+  }
+
+  function renderEvents() {
+    var list = (session.events || []).slice().sort(function (a, b) { return a.t - b.t; });
+    el("events").innerHTML = list.map(function (e) {
+      return "<div class=\"ev\" data-t=\"" + e.t + "\">" +
+             "<span class=\"t\">" + e.t.toFixed(2) + "s</span>" +
+             "<span class=\"k k-" + e.kind + "\">" + e.kind + "</span>" +
+             "<span class=\"x\">" + escape_(e.text) + "</span></div>";
+    }).join("") || "<div class=\"ev\"><span class=\"x\">none</span></div>";
+    Array.prototype.forEach.call(el("events").querySelectorAll(".ev"), function (node) {
+      node.addEventListener("click", function () {
+        var t = parseFloat(node.getAttribute("data-t"));
+        if (isFinite(t)) seek(frameAt(t));
+      });
+    });
+  }
+
+  function renderVerdict() {
+    el("verdict").innerHTML = (session.verdict || []).map(escape_).join("\n") || "none";
+  }
+
+  function escape_(s) {
+    return String(s).replace(/[&<>]/g, function (c) {
+      return c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;";
+    });
+  }
+
+  // ---- the graph -----------------------------------------------------------
+  function renderGraph() {
+    var w = graph.clientWidth || 900, h = 150;
+    if (graph.width !== w) graph.width = w;
+    graph.height = h;
+    var frames = session.frames;
+    if (!frames.length) return;
+
+    var t0 = frames[0].t, t1 = frames[frames.length - 1].t;
+    var span = Math.max(0.001, t1 - t0);
+    var top = 0;
+    frames.forEach(function (f) {
+      f.inner.forEach(function (v) { if (v > top) top = v; });
+    });
+    top = Math.max(top, 1) * 1.08;
+
+    var x = function (t) { return ((t - t0) / span) * (w - 2) + 1; };
+    var y = function (v) { return h - 18 - (v / top) * (h - 26); };
+
+    gctx.fillStyle = "#10161e";
+    gctx.fillRect(0, 0, w, h);
+
+    // The baseline each rise is measured against, as a band behind the curves.
+    gctx.strokeStyle = "#3a4654";
+    gctx.lineWidth = 1;
+    gctx.beginPath();
+    frames.forEach(function (f, i) {
+      var v = y(f.base);
+      if (i === 0) gctx.moveTo(x(f.t), v); else gctx.lineTo(x(f.t), v);
+    });
+    gctx.stroke();
+
+    slots.forEach(function (slot, s) {
+      gctx.strokeStyle = SLOT_COLOR[slot] || "#fff";
+      gctx.lineWidth = 1.6;
+      gctx.beginPath();
+      frames.forEach(function (f, i) {
+        var v = y(f.inner[s]);
+        if (i === 0) gctx.moveTo(x(f.t), v); else gctx.lineTo(x(f.t), v);
+      });
+      gctx.stroke();
+    });
+
+    // Where the reroll gate stopped seeing cards -- the anchor the flare search
+    // measures from, and the one thing a picture cannot show.
+    gctx.fillStyle = "rgba(88,166,255,.10)";
+    frames.forEach(function (f, i) {
+      if (f.up) return;
+      var x0 = x(f.t), x1 = i + 1 < frames.length ? x(frames[i + 1].t) : x0 + 1;
+      gctx.fillRect(x0, 0, Math.max(1, x1 - x0), h - 18);
+    });
+
+    // Where the tooltip panel finder actually landed, as a ribbon along the top.
+    // Without it the panel box is effectively invisible: it exists for the third
+    // of a second after a scan that found one and nowhere else, so scrubbing
+    // straight past every one of them is the normal case -- which reads as the
+    // finder not working at all.
+    gctx.fillStyle = "#7ee7d0";
+    frames.forEach(function (f, i) {
+      if (!f.tip) return;
+      var tx0 = x(f.t), tx1 = i + 1 < frames.length ? x(frames[i + 1].t) : tx0 + 1;
+      gctx.fillRect(tx0, 0, Math.max(1, tx1 - tx0), 4);
+    });
+
+    (session.events || []).forEach(function (e) {
+      var colour = e.kind === "reroll" ? "#d29922"
+                 : e.kind === "flare" ? "#3fb950"
+                 : e.kind === "flarexx" ? "#f85149"
+                 : e.kind === "anchor" ? "#58a6ff"
+                 : e.kind === "tooltip" ? "#7ee7d0" : "#6b7683";
+      var ex = x(e.t);
+      gctx.strokeStyle = colour;
+      gctx.lineWidth = 1;
+      gctx.beginPath();
+      gctx.moveTo(ex + 0.5, 0);
+      gctx.lineTo(ex + 0.5, h - 18);
+      gctx.stroke();
+      gctx.fillStyle = colour;
+      gctx.fillRect(ex - 2, h - 17, 5, 5);
+    });
+
+    var px = x(frames[index].t);
+    gctx.strokeStyle = "#e6edf3";
+    gctx.lineWidth = 1;
+    gctx.beginPath();
+    gctx.moveTo(px + 0.5, 0);
+    gctx.lineTo(px + 0.5, h);
+    gctx.stroke();
+
+    gctx.fillStyle = "#6b7683";
+    gctx.font = "10px " + getComputedStyle(document.body).getPropertyValue("--mono");
+    gctx.fillText(t0.toFixed(1) + "s", 3, h - 5);
+    var right = t1.toFixed(1) + "s";
+    gctx.fillText(right, w - gctx.measureText(right).width - 3, h - 5);
+  }
+
+  // ---- transport -----------------------------------------------------------
+  function seek(i) {
+    if (!session || !session.frames.length) return;
+    index = Math.max(0, Math.min(session.frames.length - 1, i));
+    el("seek").value = String(index);
+    el("pos").textContent = (index + 1) + " / " + session.frames.length +
+                            "   " + session.frames[index].t.toFixed(2) + "s";
+    draw();
+  }
+
+  function step(n) { pause(); seek(index + n); }
+
+  function play() {
+    if (!session) return;
+    playing = true;
+    el("play").textContent = "Pause";
+    el("play").classList.add("on");
+    lastTick = performance.now();
+    requestAnimationFrame(tick);
+  }
+
+  function pause() {
+    playing = false;
+    el("play").textContent = "Play";
+    el("play").classList.remove("on");
+  }
+
+  // Played back on the window's own clock, so the speed on screen is the speed
+  // it happened at -- an 83 ms flare has to look like 83 ms or the eye will not
+  // believe how little there is to see.
+  function tick(now) {
+    if (!playing || !session) return;
+    var rate = parseFloat(el("speed").value) || 1;
+    var elapsed = ((now - lastTick) / 1000) * rate;
+    lastTick = now;
+    var frames = session.frames;
+    var t = frames[index].t + elapsed;
+    var next = index;
+    while (next + 1 < frames.length && frames[next + 1].t <= t) next++;
+    if (next === index && index + 1 < frames.length) {
+      // Slower than one frame per repaint: hold and let time accumulate.
+      lastTick = now - elapsed * 1000 / rate;
+    }
+    if (next >= frames.length - 1) { seek(frames.length - 1); pause(); return; }
+    seek(next);
+    requestAnimationFrame(tick);
+  }
+
+  // ---- wiring --------------------------------------------------------------
+  el("layers").innerHTML = layers.map(function (l, i) {
+    return "<button data-i=\"" + i + "\" class=\"" + (l.on ? "on" : "") + "\">" +
+           l.name + "</button>";
+  }).join("");
+  Array.prototype.forEach.call(el("layers").querySelectorAll("button"), function (b) {
+    b.addEventListener("click", function () {
+      var l = layers[parseInt(b.getAttribute("data-i"), 10)];
+      l.on = !l.on;
+      b.classList.toggle("on", l.on);
+      draw();
+    });
+  });
+
+  el("play").addEventListener("click", function () { playing ? pause() : play(); });
+  el("back1").addEventListener("click", function () { step(-1); });
+  el("fwd1").addEventListener("click", function () { step(1); });
+  el("back10").addEventListener("click", function () { step(-10); });
+  el("fwd10").addEventListener("click", function () { step(10); });
+  el("seek").addEventListener("input", function () {
+    pause();
+    seek(parseInt(el("seek").value, 10) || 0);
+  });
+  el("sessions").addEventListener("change", function () {
+    pause();
+    loadSession(el("sessions").value);
+  });
+  el("reload").addEventListener("click", function () {
+    pause();
+    loadSessions().then(function (id) { if (id) return loadSession(id); });
+  });
+
+  function seekFromGraph(ev) {
+    if (!session || !session.frames.length) return;
+    var rect = graph.getBoundingClientRect();
+    var frames = session.frames;
+    var t0 = frames[0].t, t1 = frames[frames.length - 1].t;
+    var f = (ev.clientX - rect.left) / Math.max(1, rect.width);
+    seek(frameAt(t0 + Math.max(0, Math.min(1, f)) * (t1 - t0)));
+  }
+  graph.addEventListener("pointerdown", function (ev) {
+    pause();
+    graph.setPointerCapture(ev.pointerId);
+    seekFromGraph(ev);
+  });
+  graph.addEventListener("pointermove", function (ev) {
+    if (ev.buttons) seekFromGraph(ev);
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.target && /^(INPUT|SELECT|TEXTAREA)$/.test(ev.target.tagName)) return;
+    if (ev.key === "ArrowLeft") { step(ev.shiftKey ? -10 : -1); ev.preventDefault(); }
+    else if (ev.key === "ArrowRight") { step(ev.shiftKey ? 10 : 1); ev.preventDefault(); }
+    else if (ev.key === " ") { playing ? pause() : play(); ev.preventDefault(); }
+  });
+
+  window.addEventListener("resize", function () { if (session) renderGraph(); });
+
+  loadSessions()
+    .then(function (id) { if (id) return loadSession(id); })
+    .catch(function (err) {
+      el("empty").hidden = false;
+      el("empty").textContent = "Could not read the recordings: " + err;
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -13,10 +14,10 @@ public sealed class PickRow
 {
     public string Name { get; init; } = "";
     public string Rarity { get; init; } = "";
-    /// <summary>How the pick was decided and how sure -- shown only with the
-    /// log, since it means nothing to a streamer and everything to whoever
-    /// is working out a wrong one.</summary>
-    public string Detail { get; init; } = "";
+    // How the pick was decided and how sure used to print here behind the log
+    // switch. It is gone: the list says what was taken, and "선택 플레어 4.58"
+    // beside an augment name is the tool talking about itself. That reasoning
+    // lives in the log and, frame by frame, in the inspector.
     public string Level { get; init; } = "";
     public Visibility LevelVisibility => Level.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Brush RarityBrush { get; init; } = Brushes.Gray;
@@ -236,8 +237,14 @@ public partial class MainWindow : Window
         WidgetPortBox.Text = _settings.WidgetPort.ToString();
         RowsBox.Text = _settings.WidgetRows.ToString();
         MaxWidthBox.Text = _settings.WidgetMaxWidth.ToString();
+        ThemeTrayButton.IsChecked = _settings.WidgetTheme == "b";
+        ThemeStripButton.IsChecked = _settings.WidgetTheme == "c";
+        ThemePaletteButton.IsChecked = _settings.WidgetTheme is not ("b" or "c");
+        _ = FillThemeSamplesAsync();
         DebugModeSwitch.IsChecked = _settings.DebugMode;
         ApplyDebugMode(_settings.DebugMode);
+        InspectorSwitch.IsChecked = _settings.Inspector;
+        UpdateInspectorHint();
 
         UpdateScreenHint();
 
@@ -275,7 +282,6 @@ public partial class MainWindow : Window
         _settings.DebugMode = on;
         _settings.Save();
         ApplyDebugMode(on);
-        _lastPicksKey = null;          // the rows show their score only with the log
     }
 
     private void ApplyDebugMode(bool on)
@@ -291,6 +297,201 @@ public partial class MainWindow : Window
         {
             LogText.Text = string.Join("\n", _log.TakeLast(60));
             LogScroller.ScrollToEnd();
+        }
+    }
+
+    /// <summary>
+    /// Put real augments in the theme previews.
+    ///
+    /// The tiles started out as coloured squares with the rarity word under
+    /// them, which previews nothing that will ever be on screen. These come out
+    /// of the same list the widget draws from, so the glyph is a real glyph
+    /// masked and tinted the way the widget masks and tints it, and the name is
+    /// a real name in the game's language -- which is the language the widget
+    /// prints names in, whatever the window is set to.
+    ///
+    /// One per rarity, the shortest name in each so it fits the tile, preferring
+    /// augments Mayhem actually hands out. Failing at any point leaves the
+    /// rarity words that are already in the XAML.
+    ///
+    /// The names follow the window's language, not the game's. The widget will
+    /// print them in the game's -- but this is a control in a window, and a
+    /// control that answers in a language the reader did not choose is a control
+    /// they cannot read. The list for the window's language is fetched once and
+    /// cached beside the game's.
+    /// </summary>
+    private async Task FillThemeSamplesAsync()
+    {
+        Augment[] chosen;
+        try
+        {
+            var db = await AugmentDb.LoadAsync(locale: SampleLocale());
+            var pool = db.MayhemPool;
+            chosen = new[] { "gold", "silver", "prismatic" }
+                .Select(rarity => db.Augments
+                    // "???" is a real augment and the shortest prismatic name
+                    // in English, and in a preview it reads as the text having
+                    // failed to load. A name with no letter in it cannot do the
+                    // job a sample name is here to do.
+                    .Where(a => a.Rarity == rarity && a.IconUrl.Length > 0 &&
+                                a.Name.Any(char.IsLetterOrDigit))
+                    .OrderByDescending(a => pool.Contains(a.NameId))
+                    .ThenBy(a => a.Name.Length)
+                    .FirstOrDefault())
+                .Where(a => a is not null)
+                .Select(a => a!)
+                .ToArray();
+        }
+        catch
+        {
+            return;                      // no list, no samples; the words stay
+        }
+        if (chosen.Length < 3)
+            return;
+
+        var (gold, silver, prism) = (chosen[0], chosen[1], chosen[2]);
+        void Show(ImageBrush glyph, TextBlock label, Augment aug)
+        {
+            if (LoadIcon(aug.IconUrl) is { } icon)
+                glyph.ImageSource = icon;
+            label.Text = aug.Name;
+        }
+        Show(TrayGlyphGold, TrayNameGold, gold);
+        Show(TrayGlyphSilver, TrayNameSilver, silver);
+        Show(TrayGlyphPrism, TrayNamePrism, prism);
+        Show(StripGlyphGold, StripNameGold, gold);
+        Show(StripGlyphPrism, StripNamePrism, prism);
+        Show(PaletteGlyphGold, PaletteNameGold, gold);
+        Show(PaletteGlyphPrism, PaletteNamePrism, prism);
+    }
+
+    /// <summary>
+    /// Fill the list with sample augments, for the documentation screenshots.
+    ///
+    /// Asked for with <c>--sample</c> and does nothing otherwise. It only ever
+    /// fills a list that is empty, and it touches nothing else -- the status
+    /// line still says what it truly sees, which after a finished game is
+    /// exactly this: augments listed, no game running.
+    ///
+    /// The alternative was waiting for a real game every time a string changed
+    /// in four languages.
+    /// </summary>
+    private async Task SeedSamplePicksAsync()
+    {
+        if (_sampleSeeded || !Environment.GetCommandLineArgs().Contains("--sample"))
+            return;
+        _sampleSeeded = true;
+        try
+        {
+            var db = await AugmentDb.LoadAsync();
+            var pool = db.MayhemPool;
+            var wanted = new (string Rarity, int Level)[]
+            {
+                ("gold", 3), ("prismatic", 7), ("silver", 11), ("gold", 16),
+            };
+            var taken = new HashSet<string>();
+            var picks = new List<Pick>();
+            foreach (var (rarity, level) in wanted)
+            {
+                var aug = db.Augments
+                    .Where(a => a.Rarity == rarity && a.IconUrl.Length > 0 &&
+                                a.Name.Any(char.IsLetterOrDigit) && !taken.Contains(a.Name))
+                    .OrderByDescending(a => pool.Contains(a.NameId))
+                    // Names near the middle of the range, so the picture shows
+                    // what the widget looks like rather than its extremes.
+                    .ThenBy(a => Math.Abs(a.Name.Length - 8))
+                    .FirstOrDefault();
+                if (aug is null)
+                    continue;
+                taken.Add(aug.Name);
+                picks.Add(new Pick
+                {
+                    Name = aug.Name, Rarity = aug.Rarity, IconUrl = aug.IconUrl, Level = level,
+                });
+            }
+            lock (_runner.State)
+            {
+                if (_runner.State.Picks.Count == 0)
+                    _runner.State.Picks.AddRange(picks);
+            }
+            _lastPicksKey = null;
+        }
+        catch
+        {
+            // No list, no samples. Nothing else depends on this.
+        }
+    }
+
+    private bool _sampleSeeded;
+
+    /// <summary>
+    /// The client locale whose augment names the window's language reads in.
+    /// CommunityDragon publishes one folder per client language, and the window
+    /// speaks four of them.
+    /// </summary>
+    private static string SampleLocale() => Strings.Language switch
+    {
+        "ko" => "ko_kr", "ja" => "ja_jp", "zh" => "zh_cn", _ => "en_us",
+    };
+
+    /// <summary>
+    /// The widget reads the theme off the state it already polls, so this lands
+    /// on stream within a second. No restart, and no reloading the browser
+    /// source -- a theme you cannot change while live is one nobody will change.
+    /// </summary>
+    private void OnWidgetThemeChosen(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSettings)
+            return;
+        string theme = ReferenceEquals(sender, ThemeTrayButton) ? "b"
+                     : ReferenceEquals(sender, ThemeStripButton) ? "c" : "d";
+        if (theme == _settings.WidgetTheme)
+            return;
+        _settings.WidgetTheme = theme;
+        _settings.Save();
+        Config.WidgetTheme = theme;
+        _running.WidgetTheme = theme;      // so a later Save-and-restart keeps it
+    }
+
+    /// <summary>
+    /// Recording every frame of every window is what makes a wrong pick
+    /// answerable instead of arguable, and it is also 15-25 MB per window, so it
+    /// is a switch rather than the default. Like the log it takes effect on the
+    /// next window, not the next restart.
+    /// </summary>
+    private void OnInspectorToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSettings)
+            return;
+        bool on = InspectorSwitch.IsChecked == true;
+        _settings.Inspector = on;
+        _settings.Save();
+        Config.InspectorOn = on;
+        Observe.Attach(on);
+        UpdateInspectorHint();
+    }
+
+    private void UpdateInspectorHint()
+    {
+        string url = InspectorUrl() ?? "/inspect";
+        InspectorHint.Text = Strings.Get("Hint.Inspector", url);
+        OpenInspectorButton.IsEnabled = _runner.Url is not null;
+    }
+
+    private string? InspectorUrl() =>
+        _runner.Url is { } url ? url.TrimEnd('/') + "/inspect" : null;
+
+    private void OnOpenInspector(object sender, RoutedEventArgs e)
+    {
+        if (InspectorUrl() is not { } url)
+            return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception exc)
+        {
+            AppendLog(exc.Message);
         }
     }
 
@@ -319,6 +520,7 @@ public partial class MainWindow : Window
         UpdateOcrHint();
         UpdateResolutionHint();
         _lastPicksKey = null;          // force the picks list to be rebuilt
+        _ = FillThemeSamplesAsync();   // the sample augments speak it too
         Refresh();
     }
 
@@ -729,6 +931,9 @@ public partial class MainWindow : Window
         {
             _statusNote = null;
             WidgetUrlText.Text = _runner.Url;
+            if (!OpenInspectorButton.IsEnabled)
+                UpdateInspectorHint();      // the port is only known once it is up
+            _ = SeedSamplePicksAsync();     // --sample only; a no-op otherwise
             if (state.Connected && state.GameMode == Config.MayhemGameMode && state.CaptureBlank)
                 SetStatus("Warn", Strings.Get("Status.CaptureBlank"),
                     Strings.Get("Status.CaptureBlankDetail", _running.ObsSource));
@@ -799,8 +1004,6 @@ public partial class MainWindow : Window
                 Name = pick.Name,
                 Rarity = Strings.Get($"Rarity.{pick.Rarity}"),
                 Level = pick.Level is int level ? Strings.Get("Pick.Level", level) : "",
-                Detail = Config.DebugMode && pick.Confidence > 0
-                    ? $"  ·  {pick.Via} {pick.Confidence:0.00}" : "",
                 RarityBrush = (Brush)FindResource(tone),
                 RaritySoftBrush = (Brush)FindResource(tone + "Soft"),
                 Icon = LoadIcon(pick.IconUrl),

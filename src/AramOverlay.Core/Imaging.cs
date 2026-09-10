@@ -17,6 +17,16 @@ public sealed class Frame
     public int Height { get; }
     public byte[] Bgra { get; }
 
+    /// <summary>
+    /// The bytes this frame was decoded from, when it came off the wire as one.
+    ///
+    /// Kept so the inspector can write out the very picture a verdict was
+    /// measured on without re-encoding it -- a second encode would be a
+    /// different image than the one the numbers came from, which is the one
+    /// thing a post-mortem cannot afford. Null for frames built in memory.
+    /// </summary>
+    public byte[]? Encoded { get; init; }
+
     public Frame(int width, int height, byte[] bgra)
     {
         Width = width;
@@ -210,7 +220,11 @@ public static class Imaging
         var decoder = await BitmapDecoder.CreateAsync(stream);
         using var bitmap = await decoder.GetSoftwareBitmapAsync(
             BitmapPixelFormat.Bgra8, BitmapAlphaMode.Straight);
-        return FromSoftwareBitmap(bitmap);
+        var frame = FromSoftwareBitmap(bitmap);
+        // The source bytes ride along: the inspector serves them straight to the
+        // browser, so what is on screen there is the frame the numbers came off
+        // rather than a re-encode of it.
+        return new Frame(frame.Width, frame.Height, frame.Bgra) { Encoded = bytes };
     }
 
     // Pixels move through WinRT's own IBuffer rather than the classic
