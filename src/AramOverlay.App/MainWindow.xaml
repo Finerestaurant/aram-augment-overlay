@@ -3,293 +3,425 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:app="clr-namespace:AramOverlay.App"
-        Title="{app:Loc App.Title}" Height="620" Width="860"
-        MinHeight="560" MinWidth="780"
+        Title="{app:Loc App.Title}" Height="596" Width="720"
+        MinHeight="520" MinWidth="660"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Bg}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
 
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="6"
+        <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6"
                             GlassFrameThickness="0" CornerRadius="0" />
     </shell:WindowChrome.WindowChrome>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="44" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Title bar -->
-        <Grid Grid.Row="0" Background="{StaticResource Rail}">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
-                <Image Source="app.ico" Width="18" Height="18" />
-                <TextBlock Text="{app:Loc App.Title}" Foreground="{StaticResource Text}"
-                           FontSize="12.5" Margin="10,0,0,0" VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True" Margin="0,4,4,4">
-                <Button x:Name="MinimiseButton" Style="{StaticResource CaptionButton}"
-                        Content="&#xE921;" Click="OnMinimise" ToolTip="{app:Loc Chrome.Minimise}" />
-                <Button x:Name="MaximiseButton" Style="{StaticResource CaptionButton}"
-                        Content="&#xE922;" Click="OnMaximise" ToolTip="{app:Loc Chrome.Maximise}" />
-                <Button x:Name="CloseButton" Style="{StaticResource CloseButton}"
-                        Content="&#xE8BB;" Click="OnHideToTray" ToolTip="{app:Loc Chrome.HideToTray}" />
-            </StackPanel>
-        </Grid>
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Image Source="app.ico" Width="16" Height="16" />
+                    <TextBlock Text="{app:Loc App.Title}" Foreground="{StaticResource Dim}"
+                               FontSize="12.5" Margin="9,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button x:Name="MinimiseButton" Style="{StaticResource CaptionButton}"
+                            Content="&#xE921;" Click="OnMinimise" ToolTip="{app:Loc Chrome.Minimise}" />
+                    <Button x:Name="MaximiseButton" Style="{StaticResource CaptionButton}"
+                            Content="&#xE922;" Click="OnMaximise" ToolTip="{app:Loc Chrome.Maximise}" />
+                    <Button x:Name="CloseButton" Style="{StaticResource CloseButton}"
+                            Content="&#xE8BB;" Click="OnHideToTray" ToolTip="{app:Loc Chrome.HideToTray}" />
+                </StackPanel>
+            </Grid>
+        </Border>
 
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="168" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <!-- Segment switcher: two views, so no rail -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="16,10,16,0">
+            <RadioButton x:Name="NavStatus" Style="{StaticResource SegmentButton}"
+                         Content="{app:Loc Nav.Status}" IsChecked="True" Checked="OnNavChanged" />
+            <RadioButton x:Name="NavSettings" Style="{StaticResource SegmentButton}"
+                         Content="{app:Loc Nav.Settings}" Checked="OnNavChanged" />
+        </StackPanel>
 
-            <!-- Left rail -->
-            <Border Grid.Column="0" Background="{StaticResource Rail}">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Top" Margin="0,12,0,0">
-                        <RadioButton x:Name="NavStatus" Style="{StaticResource NavButton}"
-                                     Content="{app:Loc Nav.Status}" IsChecked="True" Checked="OnNavChanged" />
-                        <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}"
-                                     Content="{app:Loc Nav.Settings}" Checked="OnNavChanged" />
+        <!-- Status -->
+        <Grid x:Name="StatusView" Grid.Row="2" Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition x:Name="LogRow" Height="0" />
+            </Grid.RowDefinitions>
+
+            <!-- One status line: what is being watched, and when something is
+                 wrong, the button that fixes it, on the same line. -->
+            <Border Grid.Row="0" Background="{StaticResource Panel}" CornerRadius="6" Padding="13,11"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,0,0,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="StatusGlyphBg" Width="17" Height="17" CornerRadius="8.5"
+                            Background="{StaticResource DimSoft}" VerticalAlignment="Top" Margin="0,1,0,0">
+                        <TextBlock x:Name="StatusGlyph" Text="&#xE73E;" FontFamily="{StaticResource GlyphFont}"
+                                   FontSize="9" FontWeight="Bold" Foreground="{StaticResource Dim}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="11,0,0,0">
+                        <TextBlock x:Name="StatusTitle" Text="{app:Loc Status.Starting}"
+                                   Foreground="{StaticResource Text}" FontSize="13" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" />
+                        <TextBlock x:Name="StatusDetail" Style="{StaticResource RowDesc}" FontSize="12.5" />
                     </StackPanel>
-                    <StackPanel DockPanel.Dock="Bottom" Margin="20,0,20,16">
-                        <TextBlock x:Name="WidgetUrlText" Style="{StaticResource Hint}"
-                                   Text="{app:Loc Status.WidgetPending}" />
-                        <Button x:Name="CopyUrlButton" Style="{StaticResource GhostButton}"
-                                Content="{app:Loc Action.CopyUrl}" Margin="0,10,0,0" Padding="10,7"
-                                Click="OnCopyUrl" />
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top"
+                                Margin="11,0,0,0">
+                        <!-- Where in OBS to look, as a picture of OBS itself: the
+                             Tools menu open on "WebSocket Server Settings". Shown
+                             only when OBS is up and not answering. -->
+                        <Border x:Name="StatusHelp" Style="{StaticResource HelpDot}" Visibility="Collapsed"
+                                Margin="0,3,10,0">
+                            <TextBlock Text="?" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Dim}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Border.ToolTip>
+                                <ToolTip>
+                                    <StackPanel MaxWidth="460">
+                                        <Image x:Name="HelpImage"
+                                               Stretch="Uniform" StretchDirection="DownOnly"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                        <TextBlock Text="{app:Loc Help.ObsWebsocket}" Style="{StaticResource RowDesc}"
+                                                   Foreground="{StaticResource Text}" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                </ToolTip>
+                            </Border.ToolTip>
+                        </Border>
+                        <Button x:Name="StatusSecondary" Style="{StaticResource GhostButton}"
+                                Content="{app:Loc Action.Retry}" Click="OnRetry" Visibility="Collapsed"
+                                Margin="0,0,8,0" />
+                        <Button x:Name="StatusAction" Style="{StaticResource AccentButton}"
+                                Content="{app:Loc Action.TurnOn}" Click="OnStatusAction" Visibility="Collapsed" />
                     </StackPanel>
-                    <Grid />
-                </DockPanel>
+                </Grid>
             </Border>
 
-            <!-- Status -->
-            <Grid x:Name="StatusView" Grid.Column="1" Margin="24,20,24,20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition x:Name="LogRow" Height="0" />
-                </Grid.RowDefinitions>
-
-                <StackPanel Grid.Row="0" Orientation="Horizontal">
-                    <Border Background="{StaticResource Panel}" CornerRadius="8" Padding="14,9"
-                            BorderBrush="{StaticResource Line}" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse x:Name="ObsDot" Width="8" Height="8"
-                                     Fill="{StaticResource Dim}" VerticalAlignment="Center" />
-                            <TextBlock x:Name="ObsText" Text="{app:Loc Status.Starting}" Margin="9,0,0,0"
-                                       Foreground="{StaticResource Text}" FontSize="12.5" />
-                        </StackPanel>
-                    </Border>
-                    <Border Background="{StaticResource Panel}" CornerRadius="8" Padding="14,9"
-                            Margin="10,0,0,0"
-                            BorderBrush="{StaticResource Line}" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse x:Name="GameDot" Width="8" Height="8"
-                                     Fill="{StaticResource Dim}" VerticalAlignment="Center" />
-                            <TextBlock x:Name="GameText" Text="{app:Loc Status.WaitingForGame}" Margin="9,0,0,0"
-                                       Foreground="{StaticResource Text}" FontSize="12.5" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <TextBlock x:Name="CountText" Grid.Row="1" Text=""
-                           Style="{StaticResource SectionLabel}" />
-
-                <Border Grid.Row="2" Background="{StaticResource Panel}" CornerRadius="10"
-                        BorderBrush="{StaticResource Line}" BorderThickness="1">
-                    <Grid>
-                        <TextBlock x:Name="EmptyText" Text="{app:Loc Status.NoPicks}"
-                                   Foreground="{StaticResource Faint}" FontSize="12.5"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="6">
-                            <ItemsControl x:Name="PicksList">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#22222B" CornerRadius="8"
-                                                Margin="6,5" Padding="0,0,14,0">
-                                            <Grid Height="52">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" Width="4" Margin="0,10"
-                                                        CornerRadius="2"
-                                                        Background="{Binding RarityBrush}" />
-                                                <StackPanel Grid.Column="1" Margin="14,0,0,0"
-                                                            VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}"
-                                                               Foreground="{StaticResource Text}"
-                                                               FontSize="13.5" FontWeight="SemiBold" />
-                                                    <TextBlock Text="{Binding Sub}" Margin="0,3,0,0"
-                                                               Foreground="{Binding RarityBrush}"
-                                                               FontSize="11.5" />
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="2" Text="{Binding Confidence}"
-                                                           Foreground="{StaticResource Faint}"
-                                                           FontSize="11" VerticalAlignment="Center" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </Grid>
-                </Border>
-
-                <Grid Grid.Row="3" Margin="0,14,0,0">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                        <Button x:Name="ResetButton" Style="{StaticResource GhostButton}"
-                                Content="{app:Loc Action.Reset}" Click="OnReset" />
-                        <Button x:Name="RetryButton" Style="{StaticResource AccentButton}"
-                                Content="{app:Loc Action.Retry}" Margin="10,0,0,0" Click="OnRetry"
-                                Visibility="Collapsed" />
-                    </StackPanel>
-                    <Button x:Name="QuitButton" Style="{StaticResource GhostButton}"
-                            Content="{app:Loc Action.Quit}" Click="OnQuit" HorizontalAlignment="Right" />
-                </Grid>
-
-                <Border x:Name="LogPanel" Grid.Row="4" Visibility="Collapsed"
-                        Background="#121217" CornerRadius="10" Margin="0,14,0,0"
-                        BorderBrush="{StaticResource Line}" BorderThickness="1">
-                    <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Auto" Padding="12,10">
-                        <TextBlock x:Name="LogText" FontFamily="{StaticResource MonoFont}"
-                                   FontSize="11" Foreground="{StaticResource Dim}"
-                                   TextWrapping="NoWrap" />
-                    </ScrollViewer>
-                </Border>
+            <Grid Grid.Row="1" Margin="2,0,2,8">
+                <TextBlock Text="{app:Loc Status.Taken}" Style="{StaticResource RowTitle}" />
+                <TextBlock x:Name="CountText" Text="0" HorizontalAlignment="Right"
+                           Foreground="{StaticResource Dim}" FontSize="12.5" />
             </Grid>
 
-            <!-- Settings -->
-            <ScrollViewer x:Name="SettingsView" Grid.Column="1" Visibility="Collapsed"
-                          VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="24,10,24,24">
-                    <TextBlock Text="{app:Loc Settings.Language}" Style="{StaticResource SectionLabel}" />
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{app:Loc Settings.UiLanguage}" Style="{StaticResource FieldLabel}" />
-                        <ComboBox x:Name="UiLanguageBox" Grid.Column="1" Style="{StaticResource Combo}"
-                                  SelectionChanged="OnUiLanguageChanged" />
-                    </Grid>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{app:Loc Settings.GameLanguage}" Style="{StaticResource FieldLabel}" />
-                        <ComboBox x:Name="LocaleBox" Grid.Column="1" Style="{StaticResource Combo}"
-                                  SelectionChanged="OnLocaleChanged" />
-                    </Grid>
-                    <TextBlock x:Name="OcrHint" Style="{StaticResource Hint}" />
-                    <StackPanel x:Name="OcrFixRow" Orientation="Horizontal" Margin="0,8,0,0"
-                                Visibility="Collapsed">
-                        <Button x:Name="InstallOcrButton" Style="{StaticResource GhostButton}"
-                                Content="{app:Loc Action.InstallOcr}" Padding="12,7"
-                                Click="OnInstallOcr" />
-                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Padding="12,7"
-                                Content="{app:Loc Action.OpenLanguageSettings}"
-                                Click="OnOpenLanguageSettings" />
+            <Border Grid.Row="2" Background="{StaticResource Sunken}" CornerRadius="7" Padding="6"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1">
+                <Grid>
+                    <!-- The empty state says what fills it, and when. -->
+                    <StackPanel x:Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                MaxWidth="300">
+                        <TextBlock Text="{app:Loc Status.NoPicks}" Foreground="{StaticResource Dim}"
+                                   FontSize="13" TextAlignment="Center" />
+                        <TextBlock Text="{app:Loc Status.NoPicksDetail}" Style="{StaticResource Hint}"
+                                   FontSize="12" TextAlignment="Center" Margin="0,5,0,0" />
                     </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="PicksList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- One pick, built like the widget's card so the window
+                                         and the stream agree: a rarity edge, the glyph on a
+                                         wash of the same colour, the name over the rarity, and
+                                         the level where the eye lands last. -->
+                                    <Border Background="{StaticResource Panel}" CornerRadius="7"
+                                            BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                            Padding="0,0,12,0" Margin="0,0,0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="4" CornerRadius="6,0,0,6"
+                                                    Background="{Binding RarityBrush}" />
+                                            <!-- The icons ship as white line art; the glyph is
+                                                 used as a mask and filled with the rarity colour,
+                                                 the same way the widget does it. -->
+                                            <Grid Grid.Column="1" Width="38" Height="38" Margin="12,9,0,9">
+                                                <Border Background="{Binding RaritySoftBrush}" CornerRadius="6" />
+                                                <Border Background="{Binding RarityBrush}" Margin="5">
+                                                    <Border.OpacityMask>
+                                                        <ImageBrush ImageSource="{Binding Icon}" Stretch="Uniform" />
+                                                    </Border.OpacityMask>
+                                                </Border>
+                                            </Grid>
+                                            <StackPanel Grid.Column="2" Margin="12,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}"
+                                                           Foreground="{StaticResource Text}"
+                                                           FontSize="13.5" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Margin="0,2,0,0" FontSize="11.5">
+                                                    <Run Text="{Binding Rarity, Mode=OneWay}"
+                                                         Foreground="{Binding RarityBrush}" />
+                                                    <Run Text="{Binding Detail, Mode=OneWay}"
+                                                         Foreground="{StaticResource Faint}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <Border Grid.Column="3" Background="{StaticResource Row}"
+                                                    CornerRadius="4" Padding="7,2" Margin="12,0,0,0"
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{Binding LevelVisibility}">
+                                                <TextBlock Text="{Binding Level}" FontSize="11"
+                                                           Foreground="{StaticResource Dim}" />
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
 
-                    <TextBlock Text="{app:Loc Settings.Resolution}" Style="{StaticResource SectionLabel}" />
-                    <TextBlock x:Name="ScreenHint" Style="{StaticResource Hint}" Margin="0,0,0,8" />
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="90" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="90" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{app:Loc Settings.GameResolution}" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="WidthBox" Grid.Column="1" Style="{StaticResource Field}"
-                                 TextChanged="OnResolutionChanged" />
-                        <TextBlock Grid.Column="2" Text="×" Margin="10,0"
-                                   Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="HeightBox" Grid.Column="3" Style="{StaticResource Field}"
-                                 TextChanged="OnResolutionChanged" />
-                        <ComboBox x:Name="PresetBox" Grid.Column="4" Style="{StaticResource Combo}"
-                                  Margin="10,0,0,0" SelectionChanged="OnPresetChosen" />
-                    </Grid>
-                    <TextBlock x:Name="ResolutionHint" Style="{StaticResource Hint}" />
+            <Border x:Name="LogPanel" Grid.Row="3" Visibility="Collapsed"
+                    Background="{StaticResource Sunken}" CornerRadius="7" Margin="0,14,0,0"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1">
+                <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto" Padding="12,10">
+                    <TextBlock x:Name="LogText" FontFamily="{StaticResource MonoFont}"
+                               FontSize="11" Foreground="{StaticResource Dim}"
+                               TextWrapping="NoWrap" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
 
-                    <TextBlock Text="OBS" Style="{StaticResource SectionLabel}" />
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="{app:Loc Settings.ObsPort}" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="ObsPortBox" TextChanged="OnSettingChanged" Grid.Column="1" Style="{StaticResource Field}"
-                                 HorizontalAlignment="Left" Width="120" />
-                        <TextBlock Grid.Row="1" Text="{app:Loc Settings.ObsSource}" Style="{StaticResource FieldLabel}"
-                                   Margin="0,8,0,0" />
-                        <TextBox x:Name="ObsSourceBox" TextChanged="OnSettingChanged" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
-                                 Style="{StaticResource Field}" />
-                        <TextBlock Grid.Row="2" Text="{app:Loc Settings.ObsPassword}" Style="{StaticResource FieldLabel}"
-                                   Margin="0,8,0,0" />
-                        <TextBox x:Name="ObsPasswordBox" TextChanged="OnSettingChanged" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
-                                 Style="{StaticResource Field}" />
-                    </Grid>
-                    <TextBlock Text="{app:Loc Hint.PasswordBlank}"
-                               Style="{StaticResource Hint}" />
-                    <Button x:Name="EnableWebsocketButton" Style="{StaticResource GhostButton}"
-                            Content="{app:Loc Settings.EnableWebsocket}" HorizontalAlignment="Left"
-                            Margin="0,10,0,0" Click="OnEnableWebsocket" />
-                    <TextBlock x:Name="WebsocketHint" Style="{StaticResource Hint}" />
+        <!-- Settings: title and description on the left, the control on the
+             right, so there is one axis for the eye to run down. -->
+        <ScrollViewer x:Name="SettingsView" Grid.Row="2" Visibility="Collapsed"
+                      VerticalScrollBarVisibility="Auto" Margin="16,16,16,0">
+            <StackPanel Margin="0,0,0,16">
 
-                    <TextBlock Text="{app:Loc Settings.Overlay}" Style="{StaticResource SectionLabel}" />
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="{app:Loc Settings.WidgetPort}" Style="{StaticResource FieldLabel}" />
-                        <TextBox x:Name="WidgetPortBox" TextChanged="OnSettingChanged" Grid.Column="1" Style="{StaticResource Field}"
-                                 HorizontalAlignment="Left" Width="120" />
-                        <TextBlock Grid.Row="1" Text="{app:Loc Settings.Rows}" Style="{StaticResource FieldLabel}"
-                                   Margin="0,8,0,0" />
-                        <TextBox x:Name="RowsBox" TextChanged="OnSettingChanged" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
-                                 Style="{StaticResource Field}" HorizontalAlignment="Left" Width="120" />
-                        <TextBlock Grid.Row="2" Text="{app:Loc Settings.MaxWidth}" Style="{StaticResource FieldLabel}"
-                                   Margin="0,8,0,0" />
-                        <TextBox x:Name="MaxWidthBox" TextChanged="OnSettingChanged" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
-                                 Style="{StaticResource Field}" HorizontalAlignment="Left" Width="120" />
-                    </Grid>
+                <TextBlock Text="{app:Loc Settings.Language}" Style="{StaticResource GroupTitle}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardRowFirst}">
+                            <DockPanel>
+                                <ComboBox x:Name="UiLanguageBox" DockPanel.Dock="Right" Style="{StaticResource Combo}"
+                                          SelectionChanged="OnUiLanguageChanged" />
+                                <TextBlock Text="{app:Loc Settings.UiLanguage}" Style="{StaticResource RowTitle}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
+                            <DockPanel>
+                                <ComboBox x:Name="LocaleBox" DockPanel.Dock="Right" Style="{StaticResource Combo}"
+                                          VerticalAlignment="Top" SelectionChanged="OnLocaleChanged" />
+                                <StackPanel Margin="0,0,14,0">
+                                    <TextBlock Text="{app:Loc Settings.GameLanguage}" Style="{StaticResource RowTitle}" />
+                                    <TextBlock x:Name="OcrHint" Style="{StaticResource RowDesc}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <!-- Shown only while the pack is missing. During the install
+                             the row carries the elapsed time and a bar that says
+                             the process is still alive; Windows gives no more. -->
+                        <Border x:Name="OcrFixRow" Style="{StaticResource CardRow}" Visibility="Collapsed">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                    <Button Style="{StaticResource GhostButton}"
+                                            Content="{app:Loc Action.OpenLanguageSettings}"
+                                            Click="OnOpenLanguageSettings" Margin="0,0,8,0" />
+                                    <Button x:Name="InstallOcrButton" Style="{StaticResource AccentButton}"
+                                            Content="{app:Loc Action.InstallOcr}" Click="OnInstallOcr" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,14,0">
+                                    <TextBlock Text="{app:Loc Settings.OcrPack}" Style="{StaticResource RowTitle}" />
+                                    <TextBlock x:Name="OcrPackDesc" Text="{app:Loc Hint.OcrPackRow}"
+                                               Style="{StaticResource RowDesc}" />
+                                    <ProgressBar x:Name="OcrProgress" Style="{StaticResource ActivityBar}"
+                                                 Margin="0,10,0,2" Visibility="Collapsed" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
 
-                    <TextBlock Text="{app:Loc Settings.Advanced}" Style="{StaticResource SectionLabel}" />
-                    <CheckBox x:Name="DebugModeSwitch" Style="{StaticResource Switch}"
-                              Content="{app:Loc Settings.DebugMode}" Click="OnDebugModeToggled" />
-                    <TextBlock Text="{app:Loc Hint.DebugMode}" Style="{StaticResource Hint}" />
+                <TextBlock Text="{app:Loc Settings.Game}" Style="{StaticResource GroupTitle}" />
+                <Border Style="{StaticResource Card}">
+                    <Border Style="{StaticResource CardRowFirst}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                <TextBox x:Name="WidthBox" Style="{StaticResource NumField}"
+                                         TextChanged="OnResolutionChanged" />
+                                <TextBlock Text="×" Margin="8,0" Foreground="{StaticResource Dim}"
+                                           VerticalAlignment="Center" />
+                                <TextBox x:Name="HeightBox" Style="{StaticResource NumField}"
+                                         TextChanged="OnResolutionChanged" />
+                                <ComboBox x:Name="PresetBox" Style="{StaticResource Combo}" Width="128"
+                                          Margin="8,0,0,0" SelectionChanged="OnPresetChosen" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,14,0">
+                                <TextBlock Text="{app:Loc Settings.GameResolution}" Style="{StaticResource RowTitle}" />
+                                <TextBlock x:Name="ResolutionHint" Style="{StaticResource RowDesc}" />
+                                <TextBlock x:Name="ScreenHint" Style="{StaticResource Hint}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </Border>
 
-                    <TextBlock x:Name="SavedHint" Style="{StaticResource Hint}" Margin="0,16,0,0" />
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button x:Name="SaveButton" Style="{StaticResource AccentButton}"
-                                Content="{app:Loc Settings.Save}" Click="OnSaveSettings" />
-                        <Button Style="{StaticResource GhostButton}" Content="{app:Loc Settings.Defaults}"
-                                Margin="10,0,0,0" Click="OnResetSettings" />
+                <TextBlock Text="{app:Loc Settings.Obs}" Style="{StaticResource GroupTitle}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardRowFirst}">
+                            <DockPanel>
+                                <TextBox x:Name="ObsPortBox" DockPanel.Dock="Right" Style="{StaticResource NumField}"
+                                         TextChanged="OnSettingChanged" />
+                                <TextBlock Text="{app:Loc Settings.ObsPort}" Style="{StaticResource RowTitle}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
+                            <DockPanel>
+                                <TextBox x:Name="ObsSourceBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                                         TextChanged="OnSettingChanged" />
+                                <TextBlock Text="{app:Loc Settings.ObsSource}" Style="{StaticResource RowTitle}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
+                            <DockPanel>
+                                <TextBox x:Name="ObsPasswordBox" DockPanel.Dock="Right" Style="{StaticResource Field}"
+                                         VerticalAlignment="Top" TextChanged="OnSettingChanged" />
+                                <StackPanel Margin="0,0,14,0">
+                                    <TextBlock Text="{app:Loc Settings.ObsPassword}" Style="{StaticResource RowTitle}" />
+                                    <TextBlock Text="{app:Loc Hint.PasswordBlank}" Style="{StaticResource RowDesc}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
+                            <DockPanel>
+                                <Button x:Name="EnableWebsocketButton" DockPanel.Dock="Right"
+                                        Style="{StaticResource GhostButton}" VerticalAlignment="Top"
+                                        Content="{app:Loc Action.TurnOn}" Click="OnEnableWebsocket" />
+                                <StackPanel Margin="0,0,14,0">
+                                    <TextBlock Text="{app:Loc Settings.Websocket}" Style="{StaticResource RowTitle}" />
+                                    <TextBlock x:Name="WebsocketHint" Text="{app:Loc Hint.WebsocketOnce}"
+                                               Style="{StaticResource RowDesc}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="{app:Loc Settings.Overlay}" Style="{StaticResource GroupTitle}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardRowFirst}">
+                            <DockPanel>
+                                <TextBox x:Name="WidgetPortBox" DockPanel.Dock="Right" Style="{StaticResource NumField}"
+                                         TextChanged="OnSettingChanged" />
+                                <TextBlock Text="{app:Loc Settings.WidgetPort}" Style="{StaticResource RowTitle}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
+                            <DockPanel>
+                                <TextBox x:Name="RowsBox" DockPanel.Dock="Right" Style="{StaticResource NumField}"
+                                         TextChanged="OnSettingChanged" />
+                                <TextBlock Text="{app:Loc Settings.Rows}" Style="{StaticResource RowTitle}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardRow}">
+                            <DockPanel>
+                                <TextBox x:Name="MaxWidthBox" DockPanel.Dock="Right" Style="{StaticResource NumField}"
+                                         TextChanged="OnSettingChanged" />
+                                <TextBlock Text="{app:Loc Settings.MaxWidth}" Style="{StaticResource RowTitle}"
+                                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="{app:Loc Settings.Advanced}" Style="{StaticResource GroupTitle}" />
+                <Border Style="{StaticResource Card}" Margin="0">
+                    <Border Style="{StaticResource CardRowFirst}">
+                        <DockPanel>
+                            <CheckBox x:Name="DebugModeSwitch" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                      VerticalAlignment="Top" Margin="0,4,0,0" Click="OnDebugModeToggled" />
+                            <StackPanel Margin="0,0,14,0">
+                                <TextBlock Text="{app:Loc Settings.DebugMode}" Style="{StaticResource RowTitle}" />
+                                <TextBlock Text="{app:Loc Hint.DebugMode}" Style="{StaticResource RowDesc}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer: the widget address is what gets pasted into OBS, so it is
+             always in view; the screen's main buttons share the line. -->
+        <Border Grid.Row="3" Background="{StaticResource Panel}" Padding="16,10"
+                BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <DockPanel>
+                <StackPanel x:Name="StatusActions" DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="ResetButton" Style="{StaticResource GhostButton}"
+                            Content="{app:Loc Action.Reset}" Click="OnReset" />
+                    <Button x:Name="QuitButton" Style="{StaticResource GhostButton}"
+                            Content="{app:Loc Action.Quit}" Click="OnQuit" Margin="8,0,0,0" />
+                </StackPanel>
+                <StackPanel x:Name="SettingsActions" DockPanel.Dock="Right" Orientation="Horizontal"
+                            Visibility="Collapsed">
+                    <TextBlock x:Name="SavedHint" Style="{StaticResource RowDesc}" Margin="0,0,12,0"
+                               VerticalAlignment="Center" MaxWidth="260" TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap" />
+                    <Button Style="{StaticResource GhostButton}" Content="{app:Loc Settings.Defaults}"
+                            Click="OnResetSettings" />
+                    <Button x:Name="SaveButton" Style="{StaticResource AccentButton}"
+                            Content="{app:Loc Settings.Save}" Click="OnSaveSettings" Margin="8,0,0,0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="WidgetUrlText" Text="{app:Loc Status.WidgetPending}"
+                               FontFamily="{StaticResource MonoFont}" FontSize="12"
+                               Foreground="{StaticResource Dim}" VerticalAlignment="Center" />
+                    <Button x:Name="CopyUrlButton" Style="{StaticResource GhostButton}"
+                            Content="{app:Loc Action.CopyUrl}" Margin="9,0,0,0" Click="OnCopyUrl" />
+                    <!-- What the click did, said beside the button for a moment. -->
+                    <TextBlock x:Name="CopyHint" Style="{StaticResource RowDesc}" FontSize="12"
+                               Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Confirmation for the two things that cannot be taken back. Drawn in
+             the window rather than as a MessageBox, which would arrive in the
+             system theme and look like it belonged to a different program. -->
+        <Grid x:Name="ConfirmVeil" Grid.RowSpan="4" Background="{StaticResource Veil}" Visibility="Collapsed"
+              MouseLeftButtonDown="OnConfirmCancel">
+            <Border Background="{StaticResource Panel}" CornerRadius="8" Padding="20,18" Width="380"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    MouseLeftButtonDown="OnConfirmCardClick">
+                <StackPanel>
+                    <TextBlock x:Name="ConfirmTitle" Foreground="{StaticResource Text}" FontSize="14"
+                               FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ConfirmBody" Style="{StaticResource RowDesc}" FontSize="12.5"
+                               Margin="0,8,0,18" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource GhostButton}" Content="{app:Loc Action.Cancel}"
+                                Click="OnConfirmCancel" />
+                        <Button x:Name="ConfirmOk" Style="{StaticResource AccentButton}" Margin="8,0,0,0"
+                                Click="OnConfirmOk" />
                     </StackPanel>
                 </StackPanel>
-            </ScrollViewer>
+            </Border>
         </Grid>
     </Grid>
 </Window>

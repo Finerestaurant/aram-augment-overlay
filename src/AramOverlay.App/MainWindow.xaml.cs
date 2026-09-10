@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using AramOverlay.Core;
 
@@ -10,9 +12,18 @@ namespace AramOverlay.App;
 public sealed class PickRow
 {
     public string Name { get; init; } = "";
-    public string Sub { get; init; } = "";
-    public string Confidence { get; init; } = "";
+    public string Rarity { get; init; } = "";
+    /// <summary>How the pick was decided and how sure -- shown only with the
+    /// log, since it means nothing to a streamer and everything to whoever
+    /// is working out a wrong one.</summary>
+    public string Detail { get; init; } = "";
+    public string Level { get; init; } = "";
+    public Visibility LevelVisibility => Level.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Brush RarityBrush { get; init; } = Brushes.Gray;
+    public Brush RaritySoftBrush { get; init; } = Brushes.Transparent;
+    /// <summary>The augment's white line-art glyph, used as a mask; null draws
+    /// the plain square behind it.</summary>
+    public ImageSource? Icon { get; init; }
 }
 
 public partial class MainWindow : Window
@@ -32,6 +43,15 @@ public partial class MainWindow : Window
     private string? _missingOcrTag;          // what the engine would report
     private string? _missingOcrCapability;   // what Windows installs
     private DispatcherTimer? _ocrWatch;
+    // What the status line says after "turn it on" was pressed, until the loop
+    // comes back or Retry is pressed. The outcome of that click is the one thing
+    // the state polled every 400 ms cannot know.
+    private (string Text, string Brush)? _statusNote;
+    private Action? _confirmed;
+    // Whether the OBS process exists is only asked while disconnected, and not
+    // on every tick even then: enumerating processes is not free.
+    private DateTime _obsCheckedAt;
+    private bool _obsRunning;
 
     public MainWindow(OverlayRunner runner)
     {
@@ -80,10 +100,42 @@ public partial class MainWindow : Window
         bool status = NavStatus.IsChecked == true;
         StatusView.Visibility = status ? Visibility.Visible : Visibility.Collapsed;
         SettingsView.Visibility = status ? Visibility.Collapsed : Visibility.Visible;
+        StatusActions.Visibility = status ? Visibility.Visible : Visibility.Collapsed;
+        SettingsActions.Visibility = status ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void OnCopyUrl(object sender, RoutedEventArgs e) =>
-        UrlClipboard.Copy(_runner.Url, AppendLog);
+    /// <summary>
+    /// The outcome appears beside the button and goes away on its own. The log
+    /// line was the only word before, and the log is hidden by default, so
+    /// pressing the button looked like it had done nothing.
+    /// </summary>
+    private void OnCopyUrl(object sender, RoutedEventArgs e)
+    {
+        var outcome = UrlClipboard.Copy(_runner.Url, AppendLog);
+        var (key, tone) = outcome switch
+        {
+            UrlClipboard.Outcome.Copied => ("Hint.Copied", "Ok"),
+            UrlClipboard.Outcome.NotReady => ("Hint.CopyNotReady", "Warn"),
+            _ => ("Hint.CopyFailed", "Bad"),
+        };
+        CopyHint.Foreground = (Brush)FindResource(tone);
+        CopyHint.Text = Strings.Get(key);
+        CopyHint.Visibility = Visibility.Visible;
+
+        _copyHintTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+        _copyHintTimer.Stop();
+        _copyHintTimer.Tick -= HideCopyHint;
+        _copyHintTimer.Tick += HideCopyHint;
+        _copyHintTimer.Start();
+    }
+
+    private DispatcherTimer? _copyHintTimer;
+
+    private void HideCopyHint(object? sender, EventArgs e)
+    {
+        _copyHintTimer?.Stop();
+        CopyHint.Visibility = Visibility.Collapsed;
+    }
 
     // --------------------------------------------------------------- actions
     private void OnReset(object sender, RoutedEventArgs e)
@@ -95,11 +147,70 @@ public partial class MainWindow : Window
 
     private void OnRetry(object sender, RoutedEventArgs e)
     {
+        _statusNote = null;
         AppendLog(Strings.Get("Log.Retrying"));
         _runner.Restart();
     }
 
-    private void OnQuit(object sender, RoutedEventArgs e) => TrayHost.Quit();
+    /// <summary>
+    /// The button on the status line. While disconnected it is either Retry
+    /// (OBS is up, so the loop just has to try again) or Turn it on (OBS is
+    /// down, so its websocket server can be switched on in its config).
+    /// </summary>
+    private void OnStatusAction(object sender, RoutedEventArgs e)
+    {
+        if (_obsRunning)
+        {
+            OnRetry(sender, e);
+            return;
+        }
+        var (result, message) = EnableWebsocket();
+        _statusNote = (message,
+            result is ObsSetup.Result.Enabled or ObsSetup.Result.AlreadyOn ? "Ok" : "Warn");
+        Refresh();
+    }
+
+    private void OnQuit(object sender, RoutedEventArgs e) =>
+        Confirm("Confirm.QuitTitle", "Confirm.QuitBody", "Action.Quit", TrayHost.Quit);
+
+    // ---------------------------------------------------------- confirmation
+    private void Confirm(string titleKey, string bodyKey, string okKey, Action onOk)
+    {
+        ConfirmTitle.Text = Strings.Get(titleKey);
+        ConfirmBody.Text = Strings.Get(bodyKey);
+        ConfirmOk.Content = Strings.Get(okKey);
+        _confirmed = onOk;
+        ConfirmVeil.Visibility = Visibility.Visible;
+        ConfirmOk.Focus();
+    }
+
+    private void OnConfirmOk(object sender, RoutedEventArgs e)
+    {
+        var action = _confirmed;
+        _confirmed = null;
+        ConfirmVeil.Visibility = Visibility.Collapsed;
+        action?.Invoke();
+    }
+
+    private void OnConfirmCancel(object sender, RoutedEventArgs e)
+    {
+        _confirmed = null;
+        ConfirmVeil.Visibility = Visibility.Collapsed;
+    }
+
+    // A click on the card must not fall through to the veil and cancel.
+    private void OnConfirmCardClick(object sender, MouseButtonEventArgs e) => e.Handled = true;
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && ConfirmVeil.Visibility == Visibility.Visible)
+        {
+            OnConfirmCancel(this, e);
+            e.Handled = true;
+            return;
+        }
+        base.OnKeyDown(e);
+    }
 
     // -------------------------------------------------------------- settings
     private void LoadSettingsIntoUi()
@@ -128,15 +239,20 @@ public partial class MainWindow : Window
         DebugModeSwitch.IsChecked = _settings.DebugMode;
         ApplyDebugMode(_settings.DebugMode);
 
-        var (w, h, scale) = ScreenInfo.Detect();
-        ScreenHint.Text = w > 0
-            ? Strings.Get("Hint.ThisScreen", w, h, scale)
-            : Strings.Get("Hint.ScreenUnknown");
+        UpdateScreenHint();
 
         _loadingSettings = false;
         UpdateOcrHint();
         UpdateResolutionHint();
         UpdateSaveButton();
+    }
+
+    private void UpdateScreenHint()
+    {
+        var (w, h, scale) = ScreenInfo.Detect();
+        ScreenHint.Text = w > 0
+            ? Strings.Get("Hint.ThisScreen", w, h, scale)
+            : Strings.Get("Hint.ScreenUnknown");
     }
 
     private void OnLocaleChanged(object sender, SelectionChangedEventArgs e)
@@ -159,6 +275,7 @@ public partial class MainWindow : Window
         _settings.DebugMode = on;
         _settings.Save();
         ApplyDebugMode(on);
+        _lastPicksKey = null;          // the rows show their score only with the log
     }
 
     private void ApplyDebugMode(bool on)
@@ -179,7 +296,7 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Switches language live. Everything in XAML re-reads through the binding;
-    /// the pieces set from code -- hints, status pills, the picks list -- are
+    /// the pieces set from code -- hints, the status line, the picks list -- are
     /// rebuilt here, since they hold plain strings rather than bindings.
     /// </summary>
     private void OnUiLanguageChanged(object sender, SelectionChangedEventArgs e)
@@ -196,11 +313,9 @@ public partial class MainWindow : Window
         LocSource.Current.Refresh();
         UpdateSaveButton();
 
-        var (w, h, scale) = ScreenInfo.Detect();
-        ScreenHint.Text = w > 0
-            ? Strings.Get("Hint.ThisScreen", w, h, scale)
-            : Strings.Get("Hint.ScreenUnknown");
+        UpdateScreenHint();
         SavedHint.Text = "";
+        _statusNote = null;
         UpdateOcrHint();
         UpdateResolutionHint();
         _lastPicksKey = null;          // force the picks list to be rebuilt
@@ -210,8 +325,25 @@ public partial class MainWindow : Window
     private void OnResolutionChanged(object sender, TextChangedEventArgs e)
     {
         UpdateResolutionHint();
+        SyncPreset();
         if (!_loadingSettings)
             UpdateSaveButton();
+    }
+
+    /// <summary>The preset box shows the preset the two fields spell, or nothing
+    /// when they spell none -- it must never claim one they do not match.</summary>
+    private void SyncPreset()
+    {
+        if (PresetBox?.ItemsSource is not string[] presets)
+            return;
+        string current = $"{WidthBox.Text.Trim()} × {HeightBox.Text.Trim()}";
+        int index = Array.IndexOf(presets, current);
+        if (PresetBox.SelectedIndex == index)
+            return;
+        bool was = _loadingSettings;
+        _loadingSettings = true;             // OnPresetChosen must not write the fields back
+        PresetBox.SelectedIndex = index;
+        _loadingSettings = was;
     }
 
     private void OnPresetChosen(object sender, SelectionChangedEventArgs e)
@@ -248,7 +380,7 @@ public partial class MainWindow : Window
 
         if (have is not null)
         {
-            OcrHint.Foreground = (Brush)FindResource("Faint");
+            OcrHint.Foreground = (Brush)FindResource("Dim");
             OcrHint.Text = Strings.Get("Hint.ReadsWith", have);
             return;
         }
@@ -273,7 +405,7 @@ public partial class MainWindow : Window
         }
         if (Settings.IsSupportedShape(w, h))
         {
-            ResolutionHint.Foreground = (Brush)FindResource("Faint");
+            ResolutionHint.Foreground = (Brush)FindResource("Dim");
             ResolutionHint.Text = Strings.Get("Hint.Ratio169");
         }
         else
@@ -286,8 +418,9 @@ public partial class MainWindow : Window
     /// <summary>
     /// Writes obs-websocket's own config, which is the only thing that actually
     /// switches the server on -- the OBS command-line flags only override values.
+    /// Shared by the settings row and the status line's button.
     /// </summary>
-    private void OnEnableWebsocket(object sender, RoutedEventArgs e)
+    private (ObsSetup.Result Result, string Message) EnableWebsocket()
     {
         int port = int.TryParse(ObsPortBox.Text, out int p) ? p : 4455;
         var (result, message) = ObsSetup.Enable(port);
@@ -295,15 +428,11 @@ public partial class MainWindow : Window
             result is ObsSetup.Result.Enabled or ObsSetup.Result.AlreadyOn ? "Ok" : "Warn");
         WebsocketHint.Text = message;
         Log.Write(message.Replace("\n", " "));
+        return (result, message);
     }
 
-    /// <summary>
-    /// Adds the language pack through an elevated prompt, then waits for the
-    /// recogniser to report it. Windows only ships OCR for the display
-    /// languages the machine came with, so anyone reading a different language
-    /// lands here, and the manual route is an admin PowerShell -- which is
-    /// where most people would stop.
-    /// </summary>
+    private void OnEnableWebsocket(object sender, RoutedEventArgs e) => EnableWebsocket();
+
     /// <summary>
     /// Adds the language pack through an elevated prompt, then waits for the
     /// recogniser to report it. Windows only ships OCR for the display
@@ -323,15 +452,15 @@ public partial class MainWindow : Window
         string capability = _missingOcrCapability;
 
         // Say the prompt is coming before it steals focus, and paint it first.
-        OcrHint.Foreground = (Brush)FindResource("Warn");
-        OcrHint.Text = Strings.Get("Hint.OcrElevating");
+        OcrPackDesc.Foreground = (Brush)FindResource("Warn");
+        OcrPackDesc.Text = Strings.Get("Hint.OcrElevating");
         Dispatcher.Invoke(() => { }, DispatcherPriority.Render);
 
         var (result, process) = OcrSetup.Install(capability);
         if (result != OcrSetup.Result.Started)
         {
-            OcrHint.Foreground = (Brush)FindResource("Bad");
-            OcrHint.Text = Strings.Get(result == OcrSetup.Result.Declined
+            OcrPackDesc.Foreground = (Brush)FindResource("Bad");
+            OcrPackDesc.Text = Strings.Get(result == OcrSetup.Result.Declined
                 ? "Hint.OcrInstallDeclined"
                 : "Hint.OcrInstallFailed", OcrSetup.CapabilityName(capability));
             return;
@@ -341,6 +470,8 @@ public partial class MainWindow : Window
         // language binding with a fixed string, and it would stop following a
         // language switch from then on.
         InstallOcrButton.IsEnabled = false;
+        OcrProgress.Visibility = Visibility.Visible;
+        ShowInstalling(capability, "0:00");
         AppendLog(Strings.Get("Hint.OcrInstallingFor", capability, "0:00"));
 
         var started = DateTime.UtcNow;
@@ -356,54 +487,75 @@ public partial class MainWindow : Window
             {
                 _ocrWatch!.Stop();
                 InstallOcrButton.IsEnabled = true;
-                OcrHint.Foreground = (Brush)FindResource("Bad");
-                OcrHint.Text = Strings.Get("Hint.OcrInstallFailed",
-                                           OcrSetup.CapabilityName(capability));
+                OcrProgress.Visibility = Visibility.Collapsed;
+                OcrPackDesc.Foreground = (Brush)FindResource("Bad");
+                OcrPackDesc.Text = Strings.Get("Hint.OcrInstallFailed",
+                                               OcrSetup.CapabilityName(capability));
                 AppendLog($"{exc.GetType().Name}: {exc.Message}");
             }
         };
         _ocrWatch.Start();
     }
 
+    /// <summary>
+    /// What the row says while the installer runs: which pack and how long so
+    /// far, over a bar that only moves. Windows reports no percentage for a
+    /// Feature-on-Demand install, and a bar creeping along on a guess would be
+    /// lying -- but that is a fact about the implementation, not something the
+    /// person waiting needs to be told.
+    /// </summary>
+    private void ShowInstalling(string capability, string elapsed)
+    {
+        OcrPackDesc.Foreground = (Brush)FindResource("Warn");
+        OcrPackDesc.Text = Strings.Get("Hint.OcrInstallingFor", capability, elapsed);
+    }
+
     private void WatchInstall(DateTime started, string engineTag, string capability,
                               System.Diagnostics.Process? process)
     {
+        var elapsed = DateTime.UtcNow - started;
+        // The capability is ja-JP while the engine lists ja, so this asks
+        // the engine its own way rather than comparing the strings.
+        bool present = TooltipOcr.HasLanguage(engineTag);
+        bool finished = process?.HasExited == true;
+
+        if (!present && !finished && elapsed < TimeSpan.FromMinutes(20))
         {
-            var elapsed = DateTime.UtcNow - started;
-            // The capability is ja-JP while the engine lists ja, so this asks
-            // the engine its own way rather than comparing the strings.
-            bool present = TooltipOcr.HasLanguage(engineTag);
-            bool finished = process?.HasExited == true;
-
-            if (!present && !finished && elapsed < TimeSpan.FromMinutes(20))
-            {
-                OcrHint.Foreground = (Brush)FindResource("Warn");
-                OcrHint.Text = Strings.Get("Hint.OcrInstallingFor", capability,
-                                           $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}");
-                return;
-            }
-
-            _ocrWatch!.Stop();
-            InstallOcrButton.IsEnabled = true;
-
-            // Three outcomes, and the exit code alone cannot tell them apart:
-            // the recogniser sees it, the install finished but the recogniser
-            // has not picked it up yet, or it failed. Claiming success on exit
-            // code 0 is what made a silent no-op look like it had worked.
-            // ExitCode throws while the process is still running, and the
-            // recogniser can report the language before the installer has
-            // finished -- reading it unguarded took the whole app down.
-            bool installed = finished && process!.ExitCode == 0;
-            OcrHint.Foreground = (Brush)FindResource(present || installed ? "Ok" : "Bad");
-            OcrHint.Text = present
-                ? Strings.Get("Hint.OcrInstalled", engineTag)
-                : installed
-                    ? Strings.Get("Hint.OcrInstalledNeedsRestart", capability)
-                    : Strings.Get("Hint.OcrInstallFailed", OcrSetup.CapabilityName(capability));
-            if (present)
-                OcrFixRow.Visibility = Visibility.Collapsed;
-            AppendLog(OcrHint.Text);
+            ShowInstalling(capability, $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:00}");
+            return;
         }
+
+        _ocrWatch!.Stop();
+        InstallOcrButton.IsEnabled = true;
+        OcrProgress.Visibility = Visibility.Collapsed;
+
+        // Three outcomes, and the exit code alone cannot tell them apart:
+        // the recogniser sees it, the install finished but the recogniser
+        // has not picked it up yet, or it failed. Claiming success on exit
+        // code 0 is what made a silent no-op look like it had worked.
+        // ExitCode throws while the process is still running, and the
+        // recogniser can report the language before the installer has
+        // finished -- reading it unguarded took the whole app down.
+        bool installed = finished && process!.ExitCode == 0;
+        string outcome = present
+            ? Strings.Get("Hint.OcrInstalled", engineTag)
+            : installed
+                ? Strings.Get("Hint.OcrInstalledNeedsRestart", capability)
+                : Strings.Get("Hint.OcrInstallFailed", OcrSetup.CapabilityName(capability));
+        if (present)
+        {
+            // The pack row has done its job and goes; the outcome moves up to
+            // the game-language row, which is what stays on screen.
+            OcrFixRow.Visibility = Visibility.Collapsed;
+            OcrHint.Foreground = (Brush)FindResource("Ok");
+            OcrHint.Text = outcome;
+        }
+        else
+        {
+            OcrPackDesc.Foreground = (Brush)FindResource(installed ? "Ok" : "Bad");
+            OcrPackDesc.Text = outcome;
+        }
+        AppendLog(outcome);
     }
 
     private void OnOpenLanguageSettings(object sender, RoutedEventArgs e) =>
@@ -491,7 +643,10 @@ public partial class MainWindow : Window
         UpdateSaveButton();
     }
 
-    private void OnResetSettings(object sender, RoutedEventArgs e)
+    private void OnResetSettings(object sender, RoutedEventArgs e) =>
+        Confirm("Confirm.DefaultsTitle", "Confirm.DefaultsBody", "Settings.Defaults", RestoreDefaults);
+
+    private void RestoreDefaults()
     {
         // The interface language is a preference about this window, not about
         // detection, so a settings reset leaves it alone.
@@ -520,6 +675,38 @@ public partial class MainWindow : Window
         LogScroller.ScrollToEnd();
     }
 
+    /// <summary>
+    /// The status line: one glyph, one title, one line under it, and at most
+    /// two buttons. Colour is the third channel, never the only one.
+    /// </summary>
+    private void SetStatus(string tone, string title, string detail,
+                           string? primaryKey = null, string? secondaryKey = null, bool help = false)
+    {
+        StatusHelp.Visibility = help ? Visibility.Visible : Visibility.Collapsed;
+        if (help)
+        {
+            // OBS in the same language as this window, so the words in the
+            // picture are the words the person will see in OBS.
+            var uri = new Uri($"pack://application:,,,/Assets/obs-websocket-menu.{Strings.Language}.png");
+            if (HelpImage.Source is not BitmapImage { UriSource: { } current } || current != uri)
+                HelpImage.Source = new BitmapImage(uri);
+        }
+        StatusGlyphBg.Background = (Brush)FindResource(tone + "Soft");
+        StatusGlyph.Foreground = (Brush)FindResource(tone);
+        // E73E check, E7BA warning, E8EA (a dot) for waiting, E783 for an error.
+        StatusGlyph.Text = tone switch { "Ok" => "", "Bad" => "", "Warn" => "", _ => "" };
+        StatusTitle.Text = title;
+        StatusDetail.Text = detail;
+        StatusDetail.Visibility = detail.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        StatusAction.Visibility = primaryKey is null ? Visibility.Collapsed : Visibility.Visible;
+        if (primaryKey is not null)
+            StatusAction.Content = Strings.Get(primaryKey);
+        StatusSecondary.Visibility = secondaryKey is null ? Visibility.Collapsed : Visibility.Visible;
+        if (secondaryKey is not null)
+            StatusSecondary.Content = Strings.Get(secondaryKey);
+    }
+
     private void Refresh()
     {
         var state = _runner.State;
@@ -538,37 +725,51 @@ public partial class MainWindow : Window
 
         if (running && _runner.Url is not null)
         {
-            ObsDot.Fill = (Brush)FindResource("Ok");
-            ObsText.Text = Strings.Get("Status.ObsConnected");
+            _statusNote = null;
             WidgetUrlText.Text = _runner.Url;
-            RetryButton.Visibility = Visibility.Collapsed;
+            if (state.Connected && state.GameMode == Config.MayhemGameMode && state.CaptureBlank)
+                SetStatus("Warn", Strings.Get("Status.CaptureBlank"),
+                    Strings.Get("Status.CaptureBlankDetail", _running.ObsSource));
+            else if (state.Connected && state.GameMode == Config.MayhemGameMode)
+                SetStatus("Ok", Strings.Get("Status.Watching"),
+                    state.Level is int lv
+                        ? Strings.Get("Status.WatchingDetail", lv, _running.ObsSource)
+                        : Strings.Get("Status.WatchingDetailNoLevel", _running.ObsSource));
+            else if (state.Connected)
+                SetStatus("Warn", Strings.Get("Status.ObsConnected"),
+                    Strings.Get("Status.NotMayhemDetail", state.GameMode));
+            else
+                SetStatus("Ok", Strings.Get("Status.ObsConnected"), Strings.Get("Status.WaitingDetail"));
         }
-        else if (running)
+        else if (running || _runner.IsBusy)
         {
-            ObsDot.Fill = (Brush)FindResource("Dim");
-            ObsText.Text = Strings.Get("Status.Starting");
+            SetStatus("Dim", Strings.Get("Status.Starting"), Strings.Get("Status.StartingDetail"));
         }
         else
         {
-            ObsDot.Fill = (Brush)FindResource("Bad");
-            ObsText.Text = Strings.Get("Status.ObsDisconnected");
-            RetryButton.Visibility = Visibility.Visible;
+            if (DateTime.UtcNow - _obsCheckedAt > TimeSpan.FromSeconds(3))
+            {
+                _obsCheckedAt = DateTime.UtcNow;
+                _obsRunning = ObsSetup.ObsIsRunning();
+            }
+            if (_statusNote is { } note)
+            {
+                SetStatus("Bad", Strings.Get("Status.ObsDisconnected"), note.Text, "Action.Retry");
+                StatusDetail.Foreground = (Brush)FindResource(note.Brush);
+            }
+            else if (_obsRunning)
+            {
+                SetStatus("Bad", Strings.Get("Status.ObsDisconnected"),
+                    Strings.Get("Status.ObsDownRunning"), "Action.Retry", help: true);
+            }
+            else
+            {
+                SetStatus("Bad", Strings.Get("Status.ObsDisconnected"),
+                    Strings.Get("Status.ObsDownOff"), "Action.TurnOn", "Action.Retry");
+            }
         }
-
-        if (state.Connected)
-        {
-            GameDot.Fill = (Brush)FindResource("Ok");
-            GameText.Text = state.GameMode == Config.MayhemGameMode
-                ? (state.Level is int lv
-                    ? Strings.Get("Status.GameDetectedLevel", lv)
-                    : Strings.Get("Status.GameDetected"))
-                : Strings.Get("Status.NotMayhem", state.GameMode);
-        }
-        else
-        {
-            GameDot.Fill = (Brush)FindResource("Dim");
-            GameText.Text = Strings.Get("Status.WaitingForGame");
-        }
+        if (_statusNote is null)
+            StatusDetail.Foreground = (Brush)FindResource("Dim");
 
         List<Pick> picks;
         lock (state)
@@ -581,23 +782,48 @@ public partial class MainWindow : Window
         _picks.Clear();
         foreach (var pick in picks)
         {
-            string rarity = Strings.Get($"Rarity.{pick.Rarity}");
+            string tone = pick.Rarity switch
+            {
+                "silver" => "Silver",
+                "gold" => "Gold",
+                "prismatic" => "Prism",
+                _ => "Dim",
+            };
             _picks.Add(new PickRow
             {
                 Name = pick.Name,
-                Sub = pick.Level is int level ? Strings.Get("Rarity.WithLevel", rarity, level) : rarity,
-                Confidence = pick.Confidence > 0 ? $"{pick.Confidence:0.00}" : "",
-                RarityBrush = (Brush)FindResource(pick.Rarity switch
-                {
-                    "silver" => "Silver",
-                    "gold" => "Gold",
-                    "prismatic" => "Prism",
-                    _ => "Dim",
-                }),
+                Rarity = Strings.Get($"Rarity.{pick.Rarity}"),
+                Level = pick.Level is int level ? Strings.Get("Pick.Level", level) : "",
+                Detail = Config.DebugMode && pick.Confidence > 0
+                    ? $"  ·  {pick.Via} {pick.Confidence:0.00}" : "",
+                RarityBrush = (Brush)FindResource(tone),
+                RaritySoftBrush = (Brush)FindResource(tone + "Soft"),
+                Icon = LoadIcon(pick.IconUrl),
             });
         }
-        CountText.Text = Strings.Get("Status.PickCount", picks.Count);
-        EmptyText.Visibility = picks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        CountText.Text = picks.Count.ToString();
+        EmptyPanel.Visibility = picks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>The CDN glyph, fetched in the background; a bad URL or an
+    /// offline machine just leaves the square blank.</summary>
+    private static ImageSource? LoadIcon(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return null;
+        try
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.UriSource = uri;
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.EndInit();
+            return image;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
 

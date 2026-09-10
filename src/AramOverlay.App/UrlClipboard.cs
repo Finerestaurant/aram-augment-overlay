@@ -21,15 +21,22 @@ namespace AramOverlay.App;
 /// </summary>
 internal static class UrlClipboard
 {
+    public enum Outcome { Copied, NotReady, Failed }
+
     private const int Retries = 10;
     private const int RetryDelayMs = 50;
 
-    public static void Copy(string? url, Action<string> report)
+    /// <summary>
+    /// The log line goes through <paramref name="report"/> and carries the
+    /// address; the return value is for the button to say, right next to
+    /// itself, what just happened.
+    /// </summary>
+    public static Outcome Copy(string? url, Action<string> report)
     {
         if (url is null)
         {
             report(Strings.Get("Log.UrlNotReady"));
-            return;
+            return Outcome.NotReady;
         }
         // WPF's Clipboard has no retrying overload -- that one is WinForms' --
         // so the loop is here.
@@ -40,7 +47,7 @@ internal static class UrlClipboard
             {
                 Clipboard.SetDataObject(url, true);
                 report(Strings.Get("Log.UrlCopied", url));
-                return;
+                return Outcome.Copied;
             }
             catch (Exception exc)
             {
@@ -51,5 +58,6 @@ internal static class UrlClipboard
         // The address goes in the message too, so a failure still leaves it
         // somewhere the user can read it off and type in by hand.
         report(Strings.Get("Log.UrlCopyFailed", url, last?.Message ?? ""));
+        return Outcome.Failed;
     }
 }

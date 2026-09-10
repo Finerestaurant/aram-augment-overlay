@@ -23,6 +23,13 @@
 
   <ItemGroup>
     <Resource Include="app.ico" />
+    <!-- OBS's Tools menu open on WebSocket Server Settings, shown from the
+         status line's "?" when OBS is up and not answering. One capture per
+         interface language, taken from OBS itself in that language. -->
+    <Resource Include="Assets\obs-websocket-menu.ko.png" />
+    <Resource Include="Assets\obs-websocket-menu.en.png" />
+    <Resource Include="Assets\obs-websocket-menu.ja.png" />
+    <Resource Include="Assets\obs-websocket-menu.zh.png" />
   </ItemGroup>
 
 </Project>
