@@ -15,8 +15,10 @@ namespace AramOverlay.Core;
 /// Resolution deserves a word. Every box in Config is written in 1920x1080
 /// pixels and detection divides by BaseW/BaseH, so the geometry is really
 /// proportional: frames arrive from OBS scaled to whatever size is asked for,
-/// and a 16:9 screen of any size lands on the same layout. Setting a resolution
-/// rescales the boxes and grabs the OCR frame at that size. What it cannot fix
+/// and a 16:9 screen of any size lands on the same layout without a single box
+/// moving. The resolution setting therefore touches no geometry at all -- it
+/// only sets how large a frame is pulled for OCR, so a 1440p client is read at
+/// its own pixels rather than through a downsample. What none of this can fix
 /// is a screen that is not 16:9, where the client anchors its HUD differently.
 /// </summary>
 public sealed class Settings
@@ -153,19 +155,6 @@ public sealed class Settings
 
     private static string Path_ => System.IO.Path.Combine(Config.Root, "config.json");
 
-    // The shipped coordinates, kept as written so rescaling always starts from
-    // them rather than from an already-scaled set.
-    private static readonly Box[] BaseCards = Config.Cards.Values.ToArray();
-    private static readonly Box[] BaseInteriors = Config.CardInteriors.Values.ToArray();
-    private static readonly Box[] BaseBorders = Config.CardBorders.Values.ToArray();
-    private static readonly Box[] BaseTitles = Config.CardTitles.Values.ToArray();
-    private static readonly (int X, int Y)[] BaseReroll = Config.RerollBoxes.ToArray();
-    private static readonly (int W, int H) BaseRerollSize = Config.RerollSize;
-    private static readonly Box BaseTooltip = Config.HoverTooltip;
-    private static readonly Box BaseHide = Config.HideBox;
-    private static readonly (int W, int H) BaseSize = (Config.BaseW, Config.BaseH);
-    private static readonly string[] SlotOrder = { "L", "M", "R" };
-
     public static Settings Load()
     {
         var settings = new Settings();
@@ -247,21 +236,15 @@ public sealed class Settings
         Config.Locale = locale;
         Config.OcrLanguages = OcrForLocale.GetValueOrDefault(locale, new[] { "en-US", "en" });
 
+        // No box is touched here. The geometry is proportional to the frame
+        // (Detect.Scale), so rescaling it for the screen was a no-op on 16:9
+        // and, because it also moved BaseW/BaseH under the tooltip finder's
+        // constants, a regression everywhere else. The screen size decides one
+        // thing: how large a frame to pull for OCR.
         if (ScreenWidth > 0 && ScreenHeight > 0)
         {
-            double sx = (double)ScreenWidth / BaseSize.W, sy = (double)ScreenHeight / BaseSize.H;
-            Config.BaseW = ScreenWidth;
-            Config.BaseH = ScreenHeight;
-            Config.RerollBoxes = BaseReroll
-                .Select(b => ((int)Math.Round(b.X * sx), (int)Math.Round(b.Y * sy))).ToArray();
-            Config.RerollSize = ((int)Math.Round(BaseRerollSize.W * sx),
-                                 (int)Math.Round(BaseRerollSize.H * sy));
-            Config.Cards = Rescale(BaseCards, sx, sy);
-            Config.CardInteriors = Rescale(BaseInteriors, sx, sy);
-            Config.CardBorders = Rescale(BaseBorders, sx, sy);
-            Config.CardTitles = Rescale(BaseTitles, sx, sy);
-            Config.HoverTooltip = BaseTooltip.Scaled(sx, sy);
-            Config.HideBox = BaseHide.Scaled(sx, sy);
+            Config.OcrW = ScreenWidth;
+            Config.OcrH = ScreenHeight;
         }
 
         Config.DebugMode = DebugMode;
@@ -272,7 +255,4 @@ public sealed class Settings
         Config.WidgetRows = Math.Max(1, WidgetRows);
         Config.WidgetMaxW = Math.Max(120, WidgetMaxWidth);
     }
-
-    private static Dictionary<string, Box> Rescale(Box[] boxes, double sx, double sy) =>
-        SlotOrder.Zip(boxes).ToDictionary(p => p.First, p => p.Second.Scaled(sx, sy));
 }

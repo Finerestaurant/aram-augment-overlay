@@ -108,6 +108,16 @@ public static class Strings
         Add("Action.Retry", "다시 시도", "Retry", "再試行", "重试");
         Add("Action.Quit", "종료", "Quit", "終了", "退出");
         Add("Action.Open", "열기", "Open", "開く", "打开");
+        Add("Action.Cancel", "취소", "Cancel", "キャンセル", "取消");
+        Add("Hint.Copied", "복사되었습니다", "Copied", "コピーしました", "已复制");
+        Add("Hint.CopyNotReady", "아직 주소가 없습니다 — OBS에 연결되면 생깁니다",
+            "No address yet — it appears once OBS is connected",
+            "まだアドレスがありません — OBS に接続すると表示されます",
+            "尚无地址 — 连接 OBS 后会出现");
+        Add("Hint.CopyFailed", "복사하지 못했습니다. 다시 눌러 주세요",
+            "Could not copy. Press again",
+            "コピーできませんでした。もう一度押してください", "复制失败，请再按一次");
+        Add("Action.TurnOn", "켜기", "Turn it on", "有効にする", "开启");
 
         // ---- status ------------------------------------------------------
         Add("Status.WidgetPending", "위젯 주소 준비 중", "Widget address pending",
@@ -125,7 +135,64 @@ public static class Strings
             "{0} — 検出しません", "{0} — 不进行检测");
         Add("Status.PickCount", "획득한 증강 {0}개", "{0} augments taken",
             "獲得したオーグメント {0} 個", "已获得 {0} 个强化符文");
+        Add("Status.Taken", "획득한 증강", "Augments taken", "獲得したオーグメント", "已获得的强化符文");
         Add("Status.NoPicks", "아직 없습니다", "Nothing yet", "まだありません", "暂无");
+        Add("Status.NoPicksDetail",
+            "증강을 고르면 여기에 쌓입니다 — 레벨 3·7·11·15에서.",
+            "Augments land here as you take them, at levels 3, 7, 11 and 15.",
+            "オーグメントを選ぶとここに並びます — レベル 3・7・11・15 で。",
+            "选取的强化符文会出现在这里 — 在 3、7、11、15 级时。");
+
+        // ---- the status line: one title, one line under it -----------------
+        Add("Status.Watching", "아수라장 게임 감지 중", "Watching an ARAM Mayhem game",
+            "ランダムミッド: メイヘムのゲームを監視中", "正在监视海克斯大乱斗对局");
+        Add("Status.WatchingDetail", "레벨 {0} · OBS 소스 '{1}' 에 연결됨",
+            "Level {0} · connected to OBS as “{1}”",
+            "レベル {0} · OBS の「{1}」に接続済み", "{0} 级 · 已连接 OBS 的“{1}”");
+        Add("Status.WatchingDetailNoLevel", "OBS 소스 '{0}' 에 연결됨",
+            "Connected to OBS as “{0}”", "OBS の「{0}」に接続済み", "已连接 OBS 的“{0}”");
+        Add("Status.WaitingDetail", "아수라장 게임이 시작되면 증강을 읽기 시작합니다.",
+            "Augments are read once an ARAM Mayhem game starts.",
+            "ランダムミッド: メイヘムのゲームが始まるとオーグメントを読み取ります。",
+            "海克斯大乱斗对局开始后即开始读取强化符文。");
+        Add("Status.NotMayhemDetail", "{0} 모드는 감지하지 않습니다. 아수라장에서만 동작합니다.",
+            "{0} is not watched. Only ARAM Mayhem is.",
+            "{0} は監視しません。ランダムミッド: メイヘムのみ対応です。",
+            "不监视 {0} 模式，仅支持海克斯大乱斗。");
+        Add("Status.StartingDetail", "OBS에 연결하는 중입니다.", "Connecting to OBS.",
+            "OBS に接続しています。", "正在连接 OBS。");
+        Add("Status.ObsDownOff",
+            "OBS가 꺼져 있거나 websocket 서버가 꺼져 있습니다. 서버를 켜려면 OBS가 종료된 상태여야 합니다.",
+            "OBS is not running, or its websocket server is off. Turning it on needs OBS closed.",
+            "OBS が起動していないか、websocket サーバーが無効です。有効化には OBS を閉じておく必要があります。",
+            "OBS 未运行，或其 websocket 服务器已关闭。开启时需要先关闭 OBS。");
+        Add("Status.ObsDownRunning",
+            "OBS는 실행 중이지만 응답이 없습니다. 도구 › WebSocket 서버 설정과 비밀번호를 확인하세요.",
+            "OBS is running but did not answer. Check Tools › WebSocket Server Settings and the password.",
+            "OBS は起動中ですが応答がありません。ツール › WebSocket サーバー設定とパスワードを確認してください。",
+            "OBS 正在运行但没有响应。请检查 工具 › WebSocket 服务器设置 和密码。");
+
+        Add("Help.ObsWebsocket",
+            "OBS 상단 메뉴 도구 › WebSocket 서버 설정에서 '서버 활성화'를 켜고, 비밀번호가 설정 탭과 같은지 확인하세요.",
+            "In OBS, open Tools › WebSocket Server Settings, turn on “Enable WebSocket server”, and check the password matches the Settings tab.",
+            "OBS のメニュー ツール › WebSocket サーバー設定 で「WebSocket サーバーを有効にする」をオンにし、パスワードが設定タブと同じか確認してください。",
+            "在 OBS 顶部菜单 工具 › WebSocket 服务器设置 中开启“启用 WebSocket 服务器”，并确认密码与设置标签页一致。");
+
+        // ---- confirmations, for the two things that cannot be undone -------
+        Add("Confirm.QuitTitle", "오버레이를 종료할까요?", "Quit the overlay?",
+            "オーバーレイを終了しますか？", "要退出覆盖层吗？");
+        Add("Confirm.QuitBody",
+            "감지가 멈추고 트레이 아이콘도 사라집니다. 창만 닫으려면 제목 표시줄의 ✕를 누르세요.",
+            "Detection stops and the tray icon goes with it. To just close the window, use ✕ in the title bar.",
+            "検出が止まり、トレイアイコンも消えます。ウィンドウだけ閉じるにはタイトルバーの ✕ を使ってください。",
+            "检测会停止，托盘图标也会消失。若只想关闭窗口，请使用标题栏的 ✕。");
+        Add("Confirm.DefaultsTitle", "설정을 기본값으로 되돌릴까요?", "Restore default settings?",
+            "設定を既定値に戻しますか？", "要恢复默认设置吗？");
+        Add("Confirm.DefaultsBody",
+            "OBS 비밀번호와 포트, 해상도, 위젯 설정이 모두 초기화되고 감지가 다시 시작됩니다. 프로그램 언어는 유지됩니다.",
+            "The OBS password and ports, the resolution and the widget settings all reset, and detection restarts. The interface language stays.",
+            "OBS のパスワードとポート、解像度、ウィジェット設定がすべて初期化され、検出が再起動します。表示言語は保持されます。",
+            "OBS 密码与端口、分辨率、挂件设置都会重置，检测将重新启动。界面语言保持不变。");
 
         // ---- rarities ----------------------------------------------------
         Add("Rarity.silver", "실버", "Silver", "シルバー", "白银");
@@ -143,27 +210,34 @@ public static class Strings
             "オーグメントのリストを消去", "清空强化符文列表");
 
         // ---- settings: sections and fields --------------------------------
-        Add("Settings.Language", "언어", "LANGUAGE", "言語", "语言");
+        Add("Settings.Language", "언어", "Language", "言語", "语言");
         Add("Settings.UiLanguage", "프로그램 언어", "Interface", "表示言語", "界面语言");
         Add("Settings.GameLanguage", "게임 언어", "Game language", "ゲームの言語", "游戏语言");
-        Add("Settings.Resolution", "해상도", "RESOLUTION", "解像度", "分辨率");
+        Add("Settings.OcrPack", "OCR 언어 팩", "OCR language pack", "OCR 言語パック", "OCR 语言包");
+        Add("Settings.Game", "게임", "Game", "ゲーム", "游戏");
+        Add("Settings.Resolution", "해상도", "Resolution", "解像度", "分辨率");
         Add("Settings.GameResolution", "게임 해상도", "Game resolution", "ゲーム解像度", "游戏分辨率");
         Add("Settings.Obs", "OBS", "OBS", "OBS", "OBS");
+        Add("Settings.Websocket", "websocket 서버", "Websocket server", "websocket サーバー", "websocket 服务器");
+        Add("Hint.WebsocketOnce", "한 번만 하면 됩니다. OBS를 종료한 상태에서 켜세요.",
+            "Only needed once. OBS has to be closed while it is switched on.",
+            "一度だけで済みます。OBS を閉じた状態で有効にしてください。",
+            "只需一次。开启时请先关闭 OBS。");
         Add("Settings.ObsPort", "websocket 포트", "websocket port", "websocket ポート", "websocket 端口");
         Add("Settings.ObsSource", "게임 캡처 소스", "Game capture source",
             "ゲームキャプチャソース", "游戏采集源");
         Add("Settings.ObsPassword", "비밀번호", "Password", "パスワード", "密码");
-        Add("Settings.Overlay", "오버레이", "OVERLAY", "オーバーレイ", "覆盖层");
+        Add("Settings.Overlay", "오버레이", "Overlay", "オーバーレイ", "覆盖层");
         Add("Settings.WidgetPort", "위젯 포트", "Widget port", "ウィジェットのポート", "挂件端口");
         Add("Settings.Rows", "표시 행 수", "Rows shown", "表示行数", "显示行数");
         Add("Settings.MaxWidth", "최대 폭 (px)", "Maximum width (px)", "最大幅 (px)", "最大宽度 (px)");
         Add("Settings.Save", "저장하고 다시 시작", "Save and restart", "保存して再起動", "保存并重启");
         Add("Settings.SaveOnly", "저장", "Save", "保存", "保存");
-        Add("Settings.Defaults", "기본값", "Defaults", "既定値", "默认值");
+        Add("Settings.Defaults", "기본값으로", "Restore defaults", "既定値に戻す", "恢复默认值");
         Add("Settings.EnableWebsocket", "OBS websocket 서버 켜기", "Turn on the OBS websocket server",
             "OBS の websocket サーバーを有効化", "打开 OBS websocket 服务器");
 
-        Add("Settings.Advanced", "고급", "ADVANCED", "詳細", "高级");
+        Add("Settings.Advanced", "고급", "Advanced", "詳細", "高级");
         Add("Settings.DebugMode", "디버그 로그 보기", "Show the debug log",
             "デバッグログを表示", "显示调试日志");
         Add("Hint.DebugMode",
@@ -196,6 +270,10 @@ public static class Strings
             "Installing {0} ({1} elapsed). This takes a few minutes; leave the window open.",
             "{0} をインストール中です（{1} 経過）。数分かかります。ウィンドウは閉じないでください。",
             "正在安装 {0}（已用 {1}）。需要几分钟，请不要关闭窗口。");
+        Add("Hint.OcrPackRow", "Windows에서 받아옵니다. 관리자 권한을 한 번 묻습니다.",
+            "Downloaded from Windows. Asks for administrator permission once.",
+            "Windows から取得します。管理者権限を一度求めます。",
+            "从 Windows 下载。会请求一次管理员权限。");
         Add("Hint.OcrInstalling", "설치 중입니다. 몇 분 걸릴 수 있습니다...",
             "Installing. This can take a few minutes...",
             "インストール中です。数分かかることがあります...", "正在安装，可能需要几分钟...");
@@ -232,15 +310,19 @@ public static class Strings
         Add("Hint.NotANumber", "숫자 칸에 숫자가 아닌 값이 있습니다.",
             "One of the number fields is not a number.",
             "数値欄に数値でない値があります。", "数字栏中有非数字的值。");
-        Add("Hint.Ratio169", "16:9 — 좌표가 비율대로 환산되어 그대로 동작합니다.",
-            "16:9 — coordinates rescale proportionally and this works as-is.",
-            "16:9 — 座標が比率で換算され、そのまま動作します。",
-            "16:9 — 坐标按比例换算，可直接工作。");
+        // The geometry follows the frame on its own; the setting only decides
+        // how large a frame the text is read from. Said as what happens, not
+        // as how it is done.
+        Add("Hint.Ratio169", "16:9 — 카드 위치는 자동으로 맞춰지고, 글자는 이 크기로 읽습니다.",
+            "16:9 — card positions follow automatically; text is read at this size.",
+            "16:9 — カード位置は自動で合わせ、文字はこのサイズで読み取ります。",
+            "16:9 — 卡片位置自动匹配，文字按此尺寸读取。");
         Add("Hint.NotRatio169",
-            "16:9가 아닙니다. 클라이언트가 HUD를 다르게 배치하므로 카드 위치가 어긋날 수 있습니다.",
-            "Not 16:9. The client anchors its HUD differently, so the cards may not line up.",
-            "16:9 ではありません。クライアントが HUD を別配置にするため、カード位置がずれることがあります。",
-            "不是 16:9。客户端会以不同方式排布 HUD，卡片位置可能对不上。");
+            "16:9가 아닙니다. 카드 위치가 어긋날 수 있습니다.",
+            "Not 16:9. The cards may not line up.",
+            "16:9 ではありません。カード位置がずれることがあります。",
+            "不是 16:9。卡片位置可能对不上。");
+        Add("Pick.Level", "{0}레벨", "Level {0}", "レベル {0}", "{0} 级");
         Add("Hint.Saved", "저장했습니다. 다시 시작합니다...", "Saved. Restarting...",
             "保存しました。再起動します...", "已保存，正在重启...");
         Add("Hint.Restarted", "다시 시작했습니다.", "Restarted.", "再起動しました。", "已重启。");
@@ -305,6 +387,23 @@ public static class Strings
             "ゲームキャプチャソース {0} を作成しました。", "已创建游戏采集源 {0}。");
         Add("Core.SourceMissing", "소스 '{0}' 를 찾을 수 없습니다.", "Source {0} not found.",
             "ソース {0} が見つかりません。", "找不到来源 {0}。");
+        Add("Core.GameCaptureRepaired", "게임 캡처 소스 '{0}' 의 창을 '{1}' 로 바꿨습니다.",
+            "Pointed the game capture source {0} at {1}.",
+            "ゲームキャプチャソース {0} のウィンドウを {1} にしました。",
+            "已将游戏采集源 {0} 的窗口设为 {1}。");
+        Add("Loop.CaptureBlank", "OBS 소스 '{0}' 가 검은 화면만 보냅니다. 게임 창을 다시 잡습니다.",
+            "Source {0} is sending only black frames; re-pointing it at the game window.",
+            "ソース {0} が黒い画面しか送ってきません。ゲームウィンドウを再指定します。",
+            "来源 {0} 只发送黑屏，正在重新指向游戏窗口。");
+        Add("Loop.CaptureBack", "게임 화면이 들어옵니다.", "Game picture is coming in.",
+            "ゲーム画面が届いています。", "已收到游戏画面。");
+        Add("Status.CaptureBlank", "OBS에 게임 화면이 없습니다", "OBS has no game picture",
+            "OBS にゲーム画面がありません", "OBS 中没有游戏画面");
+        Add("Status.CaptureBlankDetail",
+            "게임 캡처 소스 '{0}' 의 창을 'League of Legends (TM) Client' 로 고르세요.",
+            "Pick “League of Legends (TM) Client” as the window of the game capture source “{0}”.",
+            "ゲームキャプチャソース「{0}」のウィンドウに「League of Legends (TM) Client」を選んでください。",
+            "请在游戏采集源“{0}”的窗口中选择“League of Legends (TM) Client”。");
         Add("Core.OcrPreparing", "OCR 준비 중...", "Preparing OCR...", "OCR を準備中...", "正在准备 OCR...");
         Add("Core.WidgetUrl",
             "위젯 주소: {0}   <- OBS 브라우저 소스에 이 주소를 넣으세요 (크기는 내용에 맞춰 자동 조정됩니다)",

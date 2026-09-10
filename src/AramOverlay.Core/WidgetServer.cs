@@ -34,6 +34,10 @@ public sealed class RunState
     [JsonPropertyName("connected")] public bool Connected { get; set; }
     [JsonPropertyName("level")] public int? Level { get; set; }
 
+    /// <summary>The OBS source is answering with black frames: it is not on
+    /// the game window, and nothing can be detected until it is.</summary>
+    [JsonPropertyName("capture_blank")] public bool CaptureBlank { get; set; }
+
     /// <summary>
     /// When this game began, in unix seconds, worked out as now minus the Live
     /// Client's gameTime.

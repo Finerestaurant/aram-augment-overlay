@@ -33,8 +33,22 @@ public static class Config
     public static string LocaleLanguage => Locale.Split('_')[0];
     public static string[] OcrLanguages = { "ko-KR", "ko" };
 
-    public static int BaseW = 1920;
-    public static int BaseH = 1080;
+    // The space every coordinate below is written in. Constant on purpose: an
+    // earlier build let the resolution setting overwrite these while the
+    // tooltip finder kept its own numbers (783, 960, 500..1420) as consts, so a
+    // 1440p setting shrank the anchor search onto the wrong rows and no tooltip
+    // was ever found there. The frame size varies; the space does not.
+    public const int BaseW = 1920;
+    public const int BaseH = 1080;
+
+    /// <summary>
+    /// How large a frame to pull for OCR, set from the game resolution. Native
+    /// pixels read better than a downsample, and this is the only thing the
+    /// resolution setting decides -- detection runs on <see cref="DetW"/> x
+    /// <see cref="DetH"/> regardless, and the geometry is proportional.
+    /// </summary>
+    public static int OcrW = 1920;
+    public static int OcrH = 1080;
 
     // --- OBS ---
     public static string ObsHost = "127.0.0.1";
@@ -49,6 +63,12 @@ public static class Config
     public const int DetH = 540;
     public const int DetQuality = 80;
     public const int OcrQuality = 92;
+
+    // An unhooked game capture is pure black (every sample under this); three
+    // such frames in a row, a second apart, is the source not being on the game
+    // rather than a dark moment in it.
+    public const int BlankLevel = 8;
+    public const int BlankFramesBeforeRepair = 3;
 
     // --- reroll button template gate ---
     // Top-left of each reroll box, measured rather than searched for: a padded

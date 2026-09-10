@@ -55,6 +55,21 @@ public sealed class OverlayHost : IAsyncDisposable
             Log.Write(Strings.Get("Core.SourceMissing", _obs.Source));
             return 2;
         }
+        else
+        {
+            // A source from an earlier build points at a window OBS cannot
+            // find; fix it here rather than wait for the first black frame.
+            try
+            {
+                if (await _obs.RepairGameCaptureAsync() is { } window)
+                    Log.Write(Strings.Get("Core.GameCaptureRepaired", _obs.Source, window));
+            }
+            catch
+            {
+                // A source that will not answer about its window is still a
+                // source; the loop reports black frames if it comes to that.
+            }
+        }
 
         Log.Write(Strings.Get("Core.OcrPreparing"));
         var ocr = TooltipOcr.TryCreate();

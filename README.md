@@ -74,7 +74,7 @@ Grab the single `ARAM-Augment-Overlay.exe` from the [releases page][releases].
 
 | Requirement | |
 |---|---|
-| OS | Windows 10 / 11, **1920×1080 at 100% scaling** |
+| OS | Windows 10 / 11, **a 16:9 resolution at 100% scaling** (1920×1080 is the one verified live) |
 | OBS Studio | 28 or newer |
 | Game setting | **Borderless fullscreen** recommended |
 | OCR | The Windows OCR language pack for your client language — the app can install it for you |
@@ -125,7 +125,7 @@ is why a restart is needed.
 | Setting | What it does |
 |---|---|
 | Game language | The language your League client is in. Augment names are fetched in it and the screen is read with it. If the matching OCR pack is missing, the app can install it. It starts from what the League install says it is set to, and only falls back to the Windows display language |
-| Game resolution | Coordinates are rescaled to this. 16:9 works as-is; anything else warns |
+| Game resolution | The size the text is read at. Card positions follow the frame on their own, so any 16:9 size works; anything else warns |
 | OBS | websocket port · game capture source name · password (blank reads it from the OBS config) |
 | Overlay | widget port · rows shown · maximum width |
 
@@ -152,9 +152,11 @@ is offered after OBS was closed abnormally.
 
 **Augments are not recognised**
 
-- Confirm 1920×1080 at 100% scaling
+- Confirm a 16:9 resolution at 100% scaling
 - Confirm the game is in **borderless fullscreen**
-- Confirm the OBS game capture source is actually capturing the game (check the preview)
+- If the status line says **OBS has no game picture**, the game capture source is not on the game
+  window. The tool re-points it once by itself; if that does not take, pick
+  “League of Legends (TM) Client” in the source's window list
 
 ## How it works
 
@@ -174,9 +176,10 @@ data behind them are written up in [`docs/FINDINGS.md`](docs/FINDINGS.md) (Korea
 
 ## Limits
 
-- Coordinates were measured at 1920×1080 and are **rescaled proportionally** to whatever resolution
-  is set. A 16:9 screen of any size lands on the same layout, but 1920×1080 is the only one
-  actually verified.
+- Coordinates were measured at 1920×1080 and follow the frame **proportionally**, so any 16:9 size
+  lands on the same layout; the self-test confirms this at 720p, 900p, 1440p and 4K on recorded
+  frames. Live games have only been run at 1920×1080. A screen that is not 16:9 arrives from OBS
+  stretched to 16:9, and whether the cards still line up there is unverified.
 - Names are read by OCR. A shaky read is corrected against the augment list, but it can still be
   wrong on rare occasions. A read that cannot be confirmed is not recorded at all.
 - The rarity and selection thresholds come from measurements on real games and gameplay footage.

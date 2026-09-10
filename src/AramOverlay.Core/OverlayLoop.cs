@@ -139,6 +139,10 @@ public sealed class OverlayLoop
 
         Log.Write(Strings.Get("Loop.Waiting"));
 
+        // Black frames in a row, and whether this game has had its one repair.
+        int blank = 0;
+        bool repairTried = false;
+
         while (!token.IsCancellationRequested)
         {
             if (_server.Size.Seq != sizedSeq && _server.Size.H > 0)
@@ -158,6 +162,9 @@ public sealed class OverlayLoop
                     Log.Write(Strings.Get("Loop.GameOver"));
                 _state.Connected = false;
                 _state.Level = null;
+                _state.CaptureBlank = false;
+                blank = 0;
+                repairTried = false;
                 win = new AugmentWindowState();
                 Observe.EndWindow();
                 await Task.Delay(3000, token);
@@ -221,6 +228,41 @@ public sealed class OverlayLoop
             }
 
             var gray = Cv.ToGray(frame);
+
+            // A hooked capture is never black; an unhooked one comes back black
+            // at the asked-for size rather than as an error (OBS 32), which
+            // looked exactly like watching a game that never opened a window.
+            // A few in a row mean the source is not on the game: say so, and
+            // once per game try pointing it at the window OBS can see.
+            if (Detect.IsBlank(gray))
+            {
+                blank++;
+                if (blank == Config.BlankFramesBeforeRepair)
+                {
+                    _state.CaptureBlank = true;
+                    Log.Write(Strings.Get("Loop.CaptureBlank", Config.ObsSource));
+                    if (!repairTried)
+                    {
+                        repairTried = true;
+                        try
+                        {
+                            if (await _obs.RepairGameCaptureAsync() is { } window)
+                                Log.Write(Strings.Get("Core.GameCaptureRepaired", Config.ObsSource, window));
+                        }
+                        catch
+                        {
+                            // Left to the status line, which now says the picture is missing.
+                        }
+                    }
+                }
+                await Task.Delay(1000, token);
+                continue;
+            }
+            if (_state.CaptureBlank)
+                Log.Write(Strings.Get("Loop.CaptureBack"));
+            _state.CaptureBlank = false;
+            blank = 0;
+
             var scores = _gate.Scores(gray);
             bool strong = scores.Min() >= Config.GateOpen;
             // The screen can be tucked away: the cards and reroll buttons go, the
@@ -512,7 +554,7 @@ public sealed class OverlayLoop
         Frame? shot;
         try
         {
-            shot = await _probeObs.GrabAsync(Config.BaseW, Config.BaseH, Config.OcrQuality);
+            shot = await _probeObs.GrabAsync(Config.OcrW, Config.OcrH, Config.OcrQuality);
         }
         catch
         {

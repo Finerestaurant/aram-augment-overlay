@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AramOverlay.Core;
 using AramOverlay.SelfTest;
@@ -41,6 +42,24 @@ if (args.Contains("--flare"))
 if (args.Contains("--tooltip"))
     return await TooltipReport(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".");
 
+// Pull the capture source from a running OBS at its own size and at a list of
+// asked-for sizes, keep the files, and score each one. How OBS scales a frame
+// to a size that is not the source's shape is a fact to look at rather than
+// assume, and it decides what a non-16:9 screen would hand detection.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --grab <folder> [2560x1440 ...]
+if (args.Contains("--grab"))
+    return await GrabSizes(args.FirstOrDefault(a => !a.StartsWith("--")) ?? ".", args);
+
+// Any one request against a running OBS, its answer printed as JSON -- for
+// looking at what OBS sees (which windows a capture could pick, whether a
+// source is active) without adding a command per question. Single quotes in
+// the JSON are accepted, because double ones do not survive a shell.
+//
+//     dotnet run --project src/AramOverlay.SelfTest -- --obs-req GetSourceActive "{'sourceName':'League of Legends'}"
+if (args.Contains("--obs-req"))
+    return await ObsRequest(args);
+
 // Replay a folder of frames as though it were one augment window: run the same
 // gate, the same measurements and the same verdict the loop would, and leave the
 // same annotated trace behind. A recording of a pick can then be checked against
@@ -81,6 +100,7 @@ failures += HangulShaping();
 failures += await AugmentPool(root);
 failures += await OcrParity(root);
 failures += await DetectParity(root);
+failures += await ScaleInvariance(root);
 
 Console.WriteLine(failures == 0 ? "\n전부 통과" : $"\n{failures}개 실패");
 return failures == 0 ? 0 : 1;
@@ -695,6 +715,303 @@ static async Task<int> DetectParity(string root)
     if (problems.Count > 14)
         Console.WriteLine($"      ... 외 {problems.Count - 14}건");
     return 1;
+}
+
+// The same frame at five sizes has to produce the same verdicts. Every box is
+// written in 1920x1080 pixels and mapped onto the frame it is handed, so a 1440p
+// or a 720p capture is the same picture to the code -- that is the claim the
+// resolution setting rests on, and it broke once without anything here to say
+// so: the setting used to move BaseW/BaseH while the tooltip finder kept its own
+// constants, and no fixture had ever been run at another size.
+//
+// Scores are allowed to drift with resampling; verdicts, slots, rarities and the
+// tooltip's title box (in 1080p space, within a few pixels) are not. OCR is
+// checked the way the loop uses it -- escalating scale until confident -- on the
+// upscaled frames, since a smaller frame than 1080p is never read.
+static async Task<int> ScaleInvariance(string root)
+{
+    TemplateGate gate;
+    HideButton hide;
+    try
+    {
+        gate = await Assets.GateAsync();
+        hide = await Assets.HideButtonAsync();
+    }
+    catch (Exception exc)
+    {
+        Console.WriteLine($"SKIP  배율 불변 — 이 환경에서 이미지 디코딩 불가 ({exc.GetType().Name})");
+        return 0;
+    }
+
+    var sizes = new (int W, int H)[] { (1280, 720), (1600, 900), (2560, 1440), (3840, 2160) };
+    string[] slots = { "L", "M", "R" };
+
+    var ocr = TooltipOcr.TryCreate();
+    AugmentDb? db = null;
+    if (ocr is not null)
+    {
+        Config.Root = root;
+        try { db = await AugmentDb.LoadAsync(); } catch { db = null; }
+    }
+
+    var files = Directory.EnumerateFiles(Path.Combine(root, "tests", "fixtures"))
+        .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(f => f, StringComparer.Ordinal)
+        .ToArray();
+
+    int checked_ = 0, bad = 0, ocrChecked = 0;
+    double worstGate = 0, worstMean = 0;
+    int worstTitle = 0;
+    var problems = new List<string>();
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+
+    foreach (string file in files)
+    {
+        string name = Path.GetFileName(file);
+        var full = await Imaging.DecodeAsync(await File.ReadAllBytesAsync(file));
+        var refGray = Cv.ToGray(full);
+        var refGate = gate.Scores(refGray);
+        bool refOpen = refGate.All(s => s >= Config.GateOpen);
+        bool refHide = hide.Score(refGray) >= Config.HidePresent;
+        var refMeans = Detect.CardMeans(refGray);
+        var (refHover, _) = Detect.HoveredCard(refMeans);
+        var refRarity = slots.ToDictionary(s => s, s => Detect.RarityOf(full, s));
+        var refTip = Detect.FindTooltip(refGray);
+        var (refFlare, _, _) = Detect.Flare(Detect.CardStats(refGray));
+
+        // What the loop would read off the 1080p frame, escalating as it does.
+        var refCards = new Dictionary<string, string?>();
+        string? refTipName = null;
+        if (ocr is not null && db is not null)
+        {
+            foreach (string slot in slots)
+                refCards[slot] = (await ReadEscalating(ocr, db, full, Config.CardTitles[slot])).Name;
+            if (refTip is { } rt)
+                refTipName = (await ReadEscalating(ocr, db, full, rt.Title)).Name;
+        }
+
+        foreach (var (w, h) in sizes)
+        {
+            var frame = w < full.Width ? Imaging.ResizeArea(full, w, h) : Imaging.Resize(full, w, h);
+            var gray = Cv.ToGray(frame);
+            string where = $"{name} @{w}x{h}";
+            checked_++;
+
+            var g = gate.Scores(gray);
+            for (int i = 0; i < 3; i++)
+                worstGate = Math.Max(worstGate, Math.Abs(g[i] - refGate[i]));
+            if (g.All(s => s >= Config.GateOpen) != refOpen)
+            {
+                problems.Add($"      {where} 게이트 판정 {string.Join("/", g.Select(s => s.ToString("F2")))} " +
+                             $"vs 1080p {string.Join("/", refGate.Select(s => s.ToString("F2")))}");
+                bad++;
+            }
+            if (hide.Score(gray) >= Config.HidePresent != refHide)
+            {
+                problems.Add($"      {where} 숨김버튼 판정 {hide.Score(gray):F2}");
+                bad++;
+            }
+
+            var means = Detect.CardMeans(gray);
+            foreach (string slot in slots)
+            {
+                double drift = Math.Abs(means[slot] - refMeans[slot]);
+                worstMean = Math.Max(worstMean, drift);
+                if (drift > 1.5)
+                {
+                    problems.Add($"      {where} 카드평균[{slot}] {means[slot]:F2} vs {refMeans[slot]:F2}");
+                    bad++;
+                }
+            }
+            if (Detect.HoveredCard(means).Slot != refHover)
+            {
+                problems.Add($"      {where} 호버 {Detect.HoveredCard(means).Slot} vs {refHover}");
+                bad++;
+            }
+            foreach (string slot in slots)
+            {
+                string got = Detect.RarityOf(frame, slot);
+                if (got != refRarity[slot])
+                {
+                    problems.Add($"      {where} 등급[{slot}] {got} vs {refRarity[slot]}");
+                    bad++;
+                }
+            }
+            if (Detect.Flare(Detect.CardStats(gray)).Slot != refFlare)
+            {
+                problems.Add($"      {where} 플레어 슬롯 vs {refFlare}");
+                bad++;
+            }
+
+            var tip = Detect.FindTooltip(gray);
+            if (tip is null != refTip is null)
+            {
+                problems.Add($"      {where} 툴팁 {(tip is null ? "없음" : "있음")} vs 1080p {(refTip is null ? "없음" : "있음")}");
+                bad++;
+            }
+            else if (tip is { } t && refTip is { } r)
+            {
+                // Title boxes come back in 1080p space whatever the frame, so
+                // they can be compared directly; a few pixels of resampling
+                // slop is expected, a different panel is not.
+                int off = Math.Max(Math.Max(Math.Abs(t.Title.X0 - r.Title.X0), Math.Abs(t.Title.Y0 - r.Title.Y0)),
+                                   Math.Max(Math.Abs(t.Title.X1 - r.Title.X1), Math.Abs(t.Title.Y1 - r.Title.Y1)));
+                worstTitle = Math.Max(worstTitle, off);
+                if (t.Flipped != r.Flipped || off > 6)
+                {
+                    problems.Add($"      {where} 툴팁 제목 ({t.Title.X0},{t.Title.Y0})~({t.Title.X1},{t.Title.Y1})" +
+                                 $"{(t.Flipped ? " 뒤집힘" : "")} vs ({r.Title.X0},{r.Title.Y0})~({r.Title.X1},{r.Title.Y1})" +
+                                 $"{(r.Flipped ? " 뒤집힘" : "")}");
+                    bad++;
+                }
+            }
+
+            if (ocr is null || db is null || w <= full.Width)
+                continue;
+            foreach (string slot in slots)
+            {
+                if (refCards[slot] is not string want)
+                    continue;             // unreadable at 1080p: nothing to hold the bigger frame to
+                ocrChecked++;
+                var got = await ReadEscalating(ocr, db, frame, Config.CardTitles[slot]);
+                if (got.Name != want)
+                {
+                    problems.Add($"      {where} OCR 카드[{slot}] '{got.Raw}' -> {got.Name} vs {want}");
+                    bad++;
+                }
+            }
+            if (refTipName is not null && tip is { } t2)
+            {
+                ocrChecked++;
+                var got = await ReadEscalating(ocr, db, frame, t2.Title);
+                if (got.Name != refTipName)
+                {
+                    problems.Add($"      {where} OCR 툴팁 '{got.Raw}' -> {got.Name} vs {refTipName}");
+                    bad++;
+                }
+            }
+        }
+    }
+
+    string ocrNote = ocr is null || db is null
+        ? "OCR 생략" : $"OCR {ocrChecked}건 포함";
+    if (bad == 0)
+    {
+        Console.WriteLine($"PASS  배율 불변 {checked_}프레임 ({sizes.Length}가지 크기, {ocrNote}, " +
+                          $"게이트 최대 오차 {worstGate:F3}, 밝기 {worstMean:F2}, 툴팁 제목 {worstTitle}px, " +
+                          $"{clock.Elapsed.TotalSeconds:F0}s)");
+        return 0;
+    }
+    Console.WriteLine($"FAIL  배율 불변 {bad}건 / {checked_}프레임 ({ocrNote})");
+    problems.Take(14).ToList().ForEach(Console.WriteLine);
+    if (problems.Count > 14)
+        Console.WriteLine($"      ... 외 {problems.Count - 14}건");
+    return 1;
+}
+
+// The loop's own reading rule: each scale in turn, stop at the first confident
+// match, keep the best otherwise.
+static async Task<(string? Name, double Score, string Raw)> ReadEscalating(
+    TooltipOcr ocr, AugmentDb db, Frame frame, Box box)
+{
+    (string? Name, double Score, string Raw) best = (null, 0, "");
+    foreach (int scale in Config.CardScales)
+    {
+        string raw = await ocr.ReadBoxAsync(frame, box, scale);
+        if (raw.Length == 0)
+            continue;
+        var (aug, score) = db.Match(raw);
+        if (score > best.Score)
+            best = (aug?.Name, score, raw);
+        if (best.Score >= Config.OcrMinScore)
+            break;
+    }
+    return best.Score >= Config.OcrMinScore ? best : (null, best.Score, best.Raw);
+}
+
+// Frames from a live OBS at several sizes, saved beside their scores. The
+// native grab says what the game is rendering at; the others say how OBS
+// scales -- stretched or letterboxed -- when the asked-for shape differs.
+static async Task<int> GrabSizes(string outDir, string[] argv)
+{
+    Config.Root = FindRepoRoot();
+    var sizes = argv.Where(a => Regex.IsMatch(a, @"^\d+x\d+$"))
+        .Select(a => a.Split('x')).Select(p => (W: int.Parse(p[0]), H: int.Parse(p[1]))).ToArray();
+    if (sizes.Length == 0)
+        sizes = new[] { (960, 540), (1280, 720), (1920, 1080), (2560, 1440), (3840, 2160),
+                        (2560, 1600), (3440, 1440) };
+    Directory.CreateDirectory(outDir);
+
+    var cfg = ObsCapture.ReadWebsocketConfig();
+    string password = cfg?["server_password"]?.GetValue<string>() ?? "";
+    int port = cfg?["server_port"]?.GetValue<int>() ?? Config.ObsPort;
+    await using var obs = await ObsCapture.ConnectAsync(port: port, password: password);
+    Console.WriteLine($"연결: {await obs.VersionAsync()}, 소스 '{obs.Source}' 존재: {await obs.HasSourceAsync()}");
+    var gate = await Assets.GateAsync();
+
+    async Task Report(string label, Frame? frame, long ms)
+    {
+        if (frame is null)
+        {
+            Console.WriteLine($"{label,-14} 비어 있음 ({ms} ms)");
+            return;
+        }
+        var gray = Cv.ToGray(frame);
+        var scores = gate.Scores(gray);
+        var tip = Detect.FindTooltip(gray);
+        string path = Path.Combine(outDir, $"grab_{label}.png");
+        await Imaging.SavePngAsync(frame, path);
+        Console.WriteLine($"{label,-14} {frame.Width}x{frame.Height} {ms,5} ms  " +
+                          $"게이트 {string.Join("/", scores.Select(s => s.ToString("F2")))}  " +
+                          $"툴팁 {(tip is { } t ? $"{(t.Flipped ? "뒤집힘" : "아래")} x={t.X0}~{t.X1}" : "없음")}  -> {Path.GetFileName(path)}");
+    }
+
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    var native = await obs.GrabNativeAsync();
+    await Report("native", native, clock.ElapsedMilliseconds);
+    foreach (var (w, h) in sizes)
+    {
+        clock.Restart();
+        var frame = await obs.GrabAsync(w, h, Config.OcrQuality);
+        await Report($"{w}x{h}", frame, clock.ElapsedMilliseconds);
+    }
+    return 0;
+}
+
+static async Task<int> ObsRequest(string[] argv)
+{
+    int at = Array.IndexOf(argv, "--obs-req");
+    if (at + 1 >= argv.Length)
+    {
+        Console.WriteLine("사용법: --obs-req <요청 이름> [JSON]");
+        return 1;
+    }
+    string type = argv[at + 1];
+    JsonObject? data = null;
+    if (at + 2 < argv.Length && argv[at + 2].TrimStart().StartsWith('{'))
+        data = JsonNode.Parse(argv[at + 2].Replace('\'', '"')) as JsonObject;
+
+    var cfg = ObsCapture.ReadWebsocketConfig();
+    string password = cfg?["server_password"]?.GetValue<string>() ?? "";
+    int port = cfg?["server_port"]?.GetValue<int>() ?? Config.ObsPort;
+    await using var client = new ObsClient();
+    await client.ConnectAsync(Config.ObsHost, port, password);
+    try
+    {
+        var answer = await client.RequestAsync(type, data);
+        Console.WriteLine(answer?.ToJsonString(new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        }) ?? "(응답 데이터 없음)");
+        return 0;
+    }
+    catch (Exception exc)
+    {
+        Console.WriteLine($"실패: {exc.Message}");
+        return 1;
+    }
 }
 
 static int HangulShaping()

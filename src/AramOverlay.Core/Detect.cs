@@ -44,6 +44,19 @@ public static class Detect
         return n == 0 ? 0.0 : sum / n;
     }
 
+    /// <summary>
+    /// Nothing on the frame at all -- what an unhooked game capture hands back.
+    /// A game frame, loading screen included, always has pixels well above the
+    /// level; every eighth pixel is enough to know.
+    /// </summary>
+    public static bool IsBlank(GrayImage gray)
+    {
+        for (int i = 0; i < gray.Pixels.Length; i += 8)
+            if (gray.Pixels[i] > Config.BlankLevel)
+                return false;
+        return true;
+    }
+
     public static Dictionary<string, double> CardMeans(GrayImage gray) =>
         Config.Cards.ToDictionary(kv => kv.Key, kv => Mean(gray, kv.Value));
 
@@ -395,16 +408,21 @@ public static class Detect
     /// </summary>
     public static void Mark(Frame frame, TooltipPanel? panel)
     {
+        // The panel's numbers are frame pixels; the anchor is a 1080p-space
+        // constant, so it is mapped onto the frame the same way FindTooltip
+        // did before it looked there.
+        double sx = (double)frame.Width / Config.BaseW, sy = (double)frame.Height / Config.BaseH;
+        int anchor = (int)(Config.TooltipAnchor * sy);
         frame.DrawBox(Config.HoverTooltip, 130, 130, 130, 2);
-        frame.DrawRaw(400, Config.TooltipAnchor, 1520, Config.TooltipAnchor + 2, 60, 170, 255, 1);
+        frame.DrawRaw((int)(400 * sx), anchor, (int)(1520 * sx), anchor + 2, 60, 170, 255, 1);
         if (panel is not { } p)
             return;
         // The panel always grows downwards from its own top -- flipping moves
         // where the top is, it does not turn the panel upside down. Drawing it
         // the other way put the outline 260px above a panel that was sitting
         // right there under it.
-        int bottom = p.Flipped ? Config.TooltipAnchor : p.Top + 260;
-        frame.DrawRaw(p.X0, p.Top, p.X1, Math.Max(p.Top + 20, bottom), 90, 200, 90, 2);
+        int bottom = p.Flipped ? anchor : p.Top + (int)(260 * sy);
+        frame.DrawRaw(p.X0, p.Top, p.X1, Math.Max(p.Top + (int)(20 * sy), bottom), 90, 200, 90, 2);
         frame.DrawBox(p.Title, 60, 240, 255, 4);
     }
 

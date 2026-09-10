@@ -53,6 +53,23 @@ public sealed class ObsCapture : IAsyncDisposable
     public async Task<bool> HasSourceAsync() =>
         (await InputsAsync()).Any(i => i?["inputName"]?.GetValue<string>() == Source);
 
+    /// <summary>
+    /// The game window as OBS itself lists it: title, class and executable.
+    /// Riot's title and class do not change with the client language, and
+    /// "priority 2" below matches on the executable anyway.
+    ///
+    /// An earlier build wrote only "::League of Legends.exe" and OBS never
+    /// hooked it -- its own window list showed that entry disabled, the game
+    /// capture never logged an attempt, and GetSourceScreenshot handed back a
+    /// black frame at any asked-for size instead of an error. Two games' worth
+    /// of picks were missed by a tool that reported itself as watching. The
+    /// exact triple OBS offers hooks within two seconds.
+    /// </summary>
+    public const string GameWindow =
+        "League of Legends (TM) Client:RiotWindowClass:League of Legends.exe";
+    private const string GameExe = "League of Legends.exe";
+    private const string LegacyGameWindow = "::" + GameExe;
+
     /// <summary>Create the Game Capture source if it is missing. True if created.</summary>
     public async Task<bool> EnsureGameCaptureAsync()
     {
@@ -69,7 +86,7 @@ public sealed class ObsCapture : IAsyncDisposable
             ["inputSettings"] = new JsonObject
             {
                 ["capture_mode"] = "window",
-                ["window"] = "::League of Legends.exe",
+                ["window"] = GameWindow,
                 // Match by executable, so borderless or windowed both hook.
                 ["priority"] = 2,
                 ["capture_cursor"] = true,
@@ -77,6 +94,60 @@ public sealed class ObsCapture : IAsyncDisposable
             },
         });
         return true;
+    }
+
+    /// <summary>
+    /// Point an existing game capture at a window OBS can actually find.
+    ///
+    /// Preferred is whatever OBS lists for the game right now, since that is
+    /// by definition findable; with no game running only the known-bad legacy
+    /// value is replaced, by the canonical triple. A source the user has put
+    /// into another capture mode is left alone. Returns the window it was
+    /// switched to, or null when nothing was changed.
+    /// </summary>
+    public async Task<string?> RepairGameCaptureAsync()
+    {
+        var got = await _client.RequestAsync("GetInputSettings",
+            new JsonObject { ["inputName"] = Source });
+        if (got?["inputKind"]?.GetValue<string>() != "game_capture")
+            return null;
+        var settings = got["inputSettings"];
+        string window = settings?["window"]?.GetValue<string>() ?? "";
+        string mode = settings?["capture_mode"]?.GetValue<string>() ?? "window";
+        if (mode != "window" && window != LegacyGameWindow)
+            return null;
+
+        string? want = await ListedGameWindowAsync()
+                       ?? (window == LegacyGameWindow || window.Length == 0 ? GameWindow : null);
+        if (want is null || want == window)
+            return null;
+        await _client.RequestAsync("SetInputSettings", new JsonObject
+        {
+            ["inputName"] = Source,
+            ["inputSettings"] = new JsonObject
+            {
+                ["capture_mode"] = "window",
+                ["window"] = want,
+                ["priority"] = 2,
+            },
+        });
+        return want;
+    }
+
+    /// <summary>The game's entry in the window list OBS offers the source, if the game is up.</summary>
+    private async Task<string?> ListedGameWindowAsync()
+    {
+        var list = await _client.RequestAsync("GetInputPropertiesListPropertyItems",
+            new JsonObject { ["inputName"] = Source, ["propertyName"] = "window" });
+        foreach (var item in list?["propertyItems"]?.AsArray() ?? new JsonArray())
+        {
+            string value = item?["itemValue"]?.GetValue<string>() ?? "";
+            if (item?["itemEnabled"]?.GetValue<bool>() == true &&
+                !value.StartsWith("::", StringComparison.Ordinal) &&
+                value.EndsWith(":" + GameExe, StringComparison.OrdinalIgnoreCase))
+                return value;
+        }
+        return null;
     }
 
     /// <summary>
@@ -166,20 +237,35 @@ public sealed class ObsCapture : IAsyncDisposable
     /// error rather than handing back a black frame, so "not attached yet" stays
     /// distinguishable from "attached but black".
     /// </summary>
-    public async Task<Frame?> GrabAsync(int? width = null, int? height = null,
-                                        int? quality = null, string format = "jpg")
+    public Task<Frame?> GrabAsync(int? width = null, int? height = null,
+                                  int? quality = null, string format = "jpg") =>
+        ShotAsync(new JsonObject
+        {
+            ["sourceName"] = Source,
+            ["imageFormat"] = format,
+            ["imageWidth"] = width ?? Config.DetW,
+            ["imageHeight"] = height ?? Config.DetH,
+            ["imageCompressionQuality"] = quality ?? Config.DetQuality,
+        });
+
+    /// <summary>
+    /// The source at its own size -- no width or height asked for -- which is
+    /// the one way to learn what the game is actually rendering at.
+    /// </summary>
+    public Task<Frame?> GrabNativeAsync(int? quality = null, string format = "jpg") =>
+        ShotAsync(new JsonObject
+        {
+            ["sourceName"] = Source,
+            ["imageFormat"] = format,
+            ["imageCompressionQuality"] = quality ?? Config.OcrQuality,
+        });
+
+    private async Task<Frame?> ShotAsync(JsonObject request)
     {
         JsonNode? shot;
         try
         {
-            shot = await _client.RequestAsync("GetSourceScreenshot", new JsonObject
-            {
-                ["sourceName"] = Source,
-                ["imageFormat"] = format,
-                ["imageWidth"] = width ?? Config.DetW,
-                ["imageHeight"] = height ?? Config.DetH,
-                ["imageCompressionQuality"] = quality ?? Config.DetQuality,
-            });
+            shot = await _client.RequestAsync("GetSourceScreenshot", request);
         }
         catch
         {
