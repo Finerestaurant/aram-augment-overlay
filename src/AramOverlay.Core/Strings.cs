@@ -137,11 +137,13 @@ public static class Strings
             "獲得したオーグメント {0} 個", "已获得 {0} 个强化符文");
         Add("Status.Taken", "획득한 증강", "Augments taken", "獲得したオーグメント", "已获得的强化符文");
         Add("Status.NoPicks", "아직 없습니다", "Nothing yet", "まだありません", "暂无");
+        // No level list: one game handed out picks at 3, 9 and 12, so the
+        // schedule is the game's to state, not this window's.
         Add("Status.NoPicksDetail",
-            "증강을 고르면 여기에 쌓입니다 — 레벨 3·7·11·15에서.",
-            "Augments land here as you take them, at levels 3, 7, 11 and 15.",
-            "オーグメントを選ぶとここに並びます — レベル 3・7・11・15 で。",
-            "选取的强化符文会出现在这里 — 在 3、7、11、15 级时。");
+            "증강을 고르면 여기에 쌓입니다.",
+            "Augments land here as you take them.",
+            "オーグメントを選ぶとここに並びます。",
+            "选取的强化符文会出现在这里。");
 
         // ---- the status line: one title, one line under it -----------------
         Add("Status.Watching", "아수라장 게임 감지 중", "Watching an ARAM Mayhem game",

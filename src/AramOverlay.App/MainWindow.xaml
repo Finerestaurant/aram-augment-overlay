@@ -167,12 +167,12 @@
                                                            Foreground="{StaticResource Text}"
                                                            FontSize="13.5" FontWeight="SemiBold"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Margin="0,2,0,0" FontSize="11.5">
-                                                    <Run Text="{Binding Rarity, Mode=OneWay}"
-                                                         Foreground="{Binding RarityBrush}" />
-                                                    <Run Text="{Binding Detail, Mode=OneWay}"
-                                                         Foreground="{StaticResource Faint}" />
-                                                </TextBlock>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding Rarity}" FontSize="11.5"
+                                                               Foreground="{Binding RarityBrush}" />
+                                                    <TextBlock Text="{Binding Detail}" FontSize="11.5"
+                                                               Foreground="{StaticResource Faint}" />
+                                                </StackPanel>
                                             </StackPanel>
                                             <Border Grid.Column="3" Background="{StaticResource Row}"
                                                     CornerRadius="4" Padding="7,2" Margin="12,0,0,0"
